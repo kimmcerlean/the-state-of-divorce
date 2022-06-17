@@ -104,4 +104,9 @@ replace relationship_type=1 if either_cohab==22
 keep if NUM_MARRIED<=1
 tab RELATION_ relationship_type
 
+sort id survey_yr
+browse id survey_yr relationship_type relationship_start relationship_end dissolve 
+
+gen dur = survey_yr - relationship_start
+
 save "$data_tmp\PSID_long_individs_relationships.dta", replace
