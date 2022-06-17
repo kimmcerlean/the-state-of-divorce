@@ -28,7 +28,80 @@ reshape long `reshape_vars', i(id) j(survey_yr)
 save "$data_tmp\PSID_full_long.dta", replace
 
 ********************************************************************************
-* Sample
+* First clean up to get a sense of WHO is even eligible
 ********************************************************************************
 
-browse id main_per_id RELATION FIRST_MARRIAGE_YR_START MARITAL_PAIRS
+browse survey_yr id main_per_id SEQ_NUMBER_ RELATION_ FIRST_MARRIAGE_YR_START MARITAL_PAIRS
+
+drop if survey_yr <1983 // first time you could identify cohab
+
+gen relationship=0
+replace relationship=1 if inrange(MARITAL_PAIRS_,1,4)
+
+browse survey_yr id main_per_id SEQ relationship RELATION_ FIRST_MARRIAGE_YR_START 
+
+bysort id (SEQ): egen in_sample=max(SEQ_NUMBER_)
+
+drop if in_sample==0 // people with NO DATA in any year
+drop if SEQ_NUMBER_==0 // won't have data because not in that year -- like SIPP, how do I know if last year is because divorced or last year in sample? right now individual level file, so fine - this is JUST last year in sample at the moment
+
+browse survey_yr id main_per_id SEQ relationship RELATION_ FIRST_MARRIAGE_YR_START 
+
+bysort id: egen relationship_start=min(survey_yr) if relationship==1
+bysort id: egen relationship_end=max(survey_yr) if relationship==1
+bysort id: egen last_survey_yr = max(survey_yr)
+
+browse id survey_yr relationship relationship_start relationship_end last_survey_yr SEQ_NUMBER_ MARITAL_PAIRS
+gen dissolve=.
+replace dissolve=0 if relationship==1
+replace dissolve=1 if relationship_end < last_survey_yr & relationship_end==survey_yr
+
+browse id survey_yr relationship relationship_start relationship_end last_survey_yr dissolve SEQ_NUMBER_ MARITAL_PAIRS
+
+********************************************************************************
+* Restrict to anyone in a relationship that started after 2000
+********************************************************************************
+keep if relationship==1 & relationship_start >=2000
+browse id survey_yr relationship relationship_start relationship_end last_survey_yr dissolve SEQ_NUMBER_ MARITAL_PAIRS
+
+// trying to identify if married or cohabiting. .. need relation_?
+drop if RELATION_ >25
+
+sort survey_yr FAMILY_INTERVIEW_NUM_ id
+
+browse id main_per_id survey_yr FAMILY_INTERVIEW_NUM_ relationship RELATION_ relationship_start relationship_end dissolve if FAMILY_INTERVIEW_NUM_ ==46
+browse id main_per_id survey_yr FAMILY_INTERVIEW_NUM_ relationship RELATION_ relationship_start relationship_end dissolve if id==36496
+
+egen year_family=concat(survey_yr FAMILY_INTERVIEW_NUM_), punct(_)
+
+sort id survey_yr FAMILY_INTERVIEW_NUM_
+browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship RELATION_ relationship_start relationship_end dissolve
+
+// not everyone has two rows though per relationship, it seems? so confused, and in those cases, not sure how to identify cohab. use number of times married? if 0 =cohab, anytime more than that = married?
+
+browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship relationship_start relationship_end dissolve NUM_MARRIED
+drop if NUM_MARRIED==98
+
+gen relationship_type=0
+replace relationship_type=1 if NUM_MARRIED==0
+replace relationship_type=2 if NUM_MARRIED>=1
+
+label define relationship_type 1 "Cohab" 2 "Married"
+label values relationship_type relationship_type
+
+browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship relationship_type RELATION_ relationship_start relationship_end dissolve NUM_MARRIED
+
+browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship relationship_type RELATION_ relationship_start relationship_end dissolve NUM_MARRIED if relationship_type==2 & RELATION_==22 // hmm might be cohabiting but have been married. but i want FIRST unions. so also only keep if num_married is 1 or less?
+browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship relationship_type RELATION_ relationship_start relationship_end dissolve NUM_MARRIED if id==218
+browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship relationship_type RELATION_ relationship_start relationship_end dissolve NUM_MARRIED if FAMILY_INTERVIEW_NUM_==1850 // good example of like, yes for id 351 i can easily change based on relation, but how do I change for ref person?
+bysort survey_yr FAMILY_INTERVIEW_NUM_ (RELATION_): egen either_cohab=max(RELATION_)
+browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship relationship_type either_cohab RELATION_ relationship_start relationship_end dissolve if FAMILY_INTERVIEW_NUM_==1850
+
+replace relationship_type=1 if either_cohab==22
+
+// is it possible to go from cohab to marry? will i capture that well? like will ids change or does this work?
+
+keep if NUM_MARRIED<=1
+tab RELATION_ relationship_type
+
+save "$data_tmp\PSID_long_individs_relationships.dta", replace
