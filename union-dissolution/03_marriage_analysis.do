@@ -23,6 +23,8 @@ replace children=1 if (inlist(from_num_births,1,2) | inlist(to_num_births,1,2))
 
 gen metro=(from_TEHC_METRO==1)
 
+// religion??
+
 local controls "from_TAGE to_TAGE i.from_race i.same_race i.children i.either_enrolled i.metro couple_earnings"
 
 // overall

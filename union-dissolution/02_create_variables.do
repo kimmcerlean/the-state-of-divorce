@@ -101,27 +101,32 @@ egen employed_wife=rowtotal(employ1_wife employ2_wife employ3_wife)
 
 // browse id survey_yr employed_head employed_wife HOURS_WK_HEAD_ TOTAL_HOURS_HEAD_ TOTAL_HOURS_WIFE_ TOTAL_WEEKS_HEAD_ TOTAL_WEEK_WIFE_ // okay so have for husband, but don't have weekly hours for wife. I do have total weeks but seems to be 0 always (or could divide...)
 
-browse id survey_yr employed_head employed_wife WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ HOURS_WK_HEAD_
+// problem is this employment is NOW not last year. I want last year? use if wages = employ=yes, then no? (or hours)
+gen employed_ly_head=0
+replace employed_ly_head=1 if WAGES_HEAD_ > 0 & WAGES_HEAD_!=.
 
-gen from_employ=.
-replace from_employ=0 if from_ft_pt==.
-replace from_employ=1 if from_ft_pt==2
-replace from_employ=2 if from_ft_pt==1
+gen employed_ly_wife=0
+replace employed_ly_wife=1 if WAGES_WIFE_ > 0 & WAGES_WIFE_!=.
 
-gen to_employ=.
-replace to_employ=0 if to_ft_pt==.
-replace to_employ=1 if to_ft_pt==2
-replace to_employ=2 if to_ft_pt==1
+browse id survey_yr employed_ly_head employed_ly_wife WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ WAGES_HEAD_ WAGES_WIFE_
 
-label define employ 0 "No Job" 1 "Part-Time" 2 "Full-Time"
-label values from_employ to_employ employ
+gen ft_pt_head=0
+replace ft_pt_head=1 if employed_ly_head==1 & WEEKLY_HRS_HEAD_ >0 & WEEKLY_HRS_HEAD_<=35
+replace ft_pt_head=2 if employed_ly_head==1 & WEEKLY_HRS_HEAD_>35 & WEEKLY_HRS_HEAD_!=.
 
-gen from_ft=0
-replace from_ft=1 if from_ft_pt==1
+gen ft_pt_wife=0
+replace ft_pt_wife=1 if employed_ly_wife==1 & WEEKLY_HRS_WIFE_ >0 & WEEKLY_HRS_WIFE_<=35
+replace ft_pt_wife=2 if employed_ly_wife==1 & WEEKLY_HRS_WIFE_>35 & WEEKLY_HRS_WIFE_!=.
 
-gen to_ft=0
-replace to_ft=1 if to_ft_pt==1
+label define ft_pt 0 "Not Employed" 1 "PT" 2 "FT"
+label values ft_pt_head ft_pt_wife ft_pt
 
-// also make sure you only keep ONE RECORD per HH - challenging since family id changes every time. see if there is a unified ID i can use. 
+gen ft_head=0
+replace ft_head=1 if ft_pt_head==2
+
+gen ft_wife=0
+replace ft_wife=1 if ft_pt_wife==2
+
+// also make sure you only keep ONE RECORD per HH - challenging since family id changes every time. see if there is a unified ID i can use. doing in next step
 
 save "$data_keep\PSID_relationships_post2000.dta", replace
