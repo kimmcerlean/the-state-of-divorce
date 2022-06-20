@@ -62,3 +62,45 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 
 logit dissolve dur i.hh_earn_type_lag `controls' if couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+/// to validate Schwartz and GP
+input group
+.10
+.20
+.30
+.40
+.50
+.60
+.70
+.80
+1
+end
+
+xtile female_pct_bucket = female_earn_pct, cut(group)
+browse female_pct_bucket female_earn_pct
+
+logit dissolve dur i.female_pct_bucket, or
+margins female_pct_bucket
+marginsplot
+
+logit dissolve dur ib5.female_pct_bucket, or
+logit dissolve dur i.female_pct_bucket, or nocons
+
+// test spline at 0.5
+mkspline ratio1 0.5 ratio2 = female_earn_pct
+browse female_earn_pct ratio1 ratio2 
+
+logit dissolve dur ratio1 ratio2, or // ratio UNDER 0.5 = fine; above 0.5 = positively associated with dissolution.
+
+// to mimic their table 2
+input group2
+.10
+.50
+.70
+end
+
+xtile female_pct_bucket2 = female_earn_pct, cut(group2)
+browse female_pct_bucket2 female_earn_pct
+
+logit dissolve dur i.female_pct_bucket2, or
+logit dissolve dur i.female_pct_bucket2 if WAGES_HEAD_!=0, or // okay when I exclude husbands with NO earnings - no longer positive, aka allowing the 100% wives. cannot tell if Schwartz and GP used 100% wives.
