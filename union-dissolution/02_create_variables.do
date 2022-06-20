@@ -81,4 +81,6 @@ browse id survey_yr WAGES_HEAD_ WAGES_WIFE_ hh_earn_type_bkd hh_earn_type_lag
 browse id survey_yr AGE_ AGE_REF_ AGE_SPOUSE_ RELATION_
 keep if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55)
 
+// also make sure you only keep ONE RECORD per HH - challenging since family id changes every time. see if there is a unified ID i can use. 
+
 save "$data_keep\PSID_relationships_post2000.dta", replace
