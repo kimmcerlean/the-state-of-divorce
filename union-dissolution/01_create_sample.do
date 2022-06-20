@@ -31,38 +31,38 @@ save "$data_tmp\PSID_full_long.dta", replace
 * First clean up to get a sense of WHO is even eligible
 ********************************************************************************
 
-browse survey_yr id main_per_id SEQ_NUMBER_ RELATION_ FIRST_MARRIAGE_YR_START MARITAL_PAIRS
+browse survey_yr id main_per_id SEQ_NUMBER_ RELATION_ FIRST_MARRIAGE_YR_START MARITAL_PAIRS_
 
 drop if survey_yr <1983 // first time you could identify cohab
 
 gen relationship=0
 replace relationship=1 if inrange(MARITAL_PAIRS_,1,4)
 
-browse survey_yr id main_per_id SEQ relationship RELATION_ FIRST_MARRIAGE_YR_START 
+browse survey_yr id main_per_id SEQ_NUMBER_ relationship RELATION_ FIRST_MARRIAGE_YR_START 
 
-bysort id (SEQ): egen in_sample=max(SEQ_NUMBER_)
+bysort id (SEQ_NUMBER_): egen in_sample=max(SEQ_NUMBER_)
 
 drop if in_sample==0 // people with NO DATA in any year
 drop if SEQ_NUMBER_==0 // won't have data because not in that year -- like SIPP, how do I know if last year is because divorced or last year in sample? right now individual level file, so fine - this is JUST last year in sample at the moment
 
-browse survey_yr id main_per_id SEQ relationship RELATION_ FIRST_MARRIAGE_YR_START 
+browse survey_yr id main_per_id SEQ_NUMBER_ relationship RELATION_ FIRST_MARRIAGE_YR_START 
 
 bysort id: egen relationship_start=min(survey_yr) if relationship==1
 bysort id: egen relationship_end=max(survey_yr) if relationship==1
 bysort id: egen last_survey_yr = max(survey_yr)
 
-browse id survey_yr relationship relationship_start relationship_end last_survey_yr SEQ_NUMBER_ MARITAL_PAIRS
+browse id survey_yr relationship relationship_start relationship_end last_survey_yr SEQ_NUMBER_ MARITAL_PAIRS_
 gen dissolve=.
 replace dissolve=0 if relationship==1
 replace dissolve=1 if relationship_end < last_survey_yr & relationship_end==survey_yr
 
-browse id survey_yr relationship relationship_start relationship_end last_survey_yr dissolve SEQ_NUMBER_ MARITAL_PAIRS
+browse id survey_yr relationship relationship_start relationship_end last_survey_yr dissolve SEQ_NUMBER_ MARITAL_PAIRS_
 
 ********************************************************************************
 * Restrict to anyone in a relationship that started after 2000
 ********************************************************************************
 keep if relationship==1 & relationship_start >=2000
-browse id survey_yr relationship relationship_start relationship_end last_survey_yr dissolve SEQ_NUMBER_ MARITAL_PAIRS
+browse id survey_yr relationship relationship_start relationship_end last_survey_yr dissolve SEQ_NUMBER_ MARITAL_PAIRS_
 
 // trying to identify if married or cohabiting. .. need relation_?
 drop if RELATION_ >25
