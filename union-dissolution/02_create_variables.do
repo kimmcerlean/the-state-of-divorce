@@ -127,6 +127,69 @@ replace ft_head=1 if ft_pt_head==2
 gen ft_wife=0
 replace ft_wife=1 if ft_pt_wife==2
 
-// also make sure you only keep ONE RECORD per HH - challenging since family id changes every time. see if there is a unified ID i can use. doing in next step
+// first need to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent.
+bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(id)
+browse survey_yr FAMILY_INTERVIEW_NUM_  id per_id
+
+browse survey_yr FAMILY_INTERVIEW_NUM_ per_id id if inlist(id,1922,1947)
+
+keep if per_id==1
+
+// adding other controls right now, using same as SIPP analysis
+gen either_enrolled=0
+replace either_enrolled = 1 if ENROLLED_WIFE_==1 | ENROLLED_HEAD_==1
+
+//race
+drop if RACE_1_WIFE_==9 | RACE_1_HEAD_==9
+
+browse id survey_yr RACE_1_WIFE_ RACE_2_WIFE_ RACE_3_WIFE_ RACE_1_HEAD_ RACE_2_HEAD_ RACE_3_HEAD_ RACE_4_HEAD_
+gen race_wife=RACE_1_WIFE_
+recode race_wife(5/7=5)
+replace race_wife=6 if RACE_2_WIFE_!=0
+
+gen race_head=RACE_1_HEAD_
+recode race_head(5/7=5)
+replace race_head=6 if RACE_2_HEAD_!=0
+
+label define race 1 "White" 2 "Black" 3 "Indian" 4 "Asian" 5 "Other" 6 "Multi-racial"
+label values race_wife race_head race
+
+// need to figure out ethnicity
+
+gen same_race=0
+replace same_race=1 if race_head==race_wife
+
+gen children=0
+replace children=1 if NUM_CHILDREN_>=1
+
+gen metro=(METRO_==1) // a lot of missing, don't use for now, control for STATE_ for now
+
+// religion is new, but think I need to add given historical research. coding changes between 1984 and 1985, then again between 1994 and 1995. using past then, so this is fine. otherwise, need to recode in MAIN FILE before combining. okay still somewhat sketchy. coding like this for now, will update in real analysis
+
+label define update_religion  ///
+       1 "Catholic"  ///
+       2 "Jewish"  ///
+       8 "Protestant unspecified"  ///
+      10 "Other non-Christian: Muslim, Rastafarian, etc."  ///
+      13 "Greek/Russian/Eastern Orthodox"  ///
+      97 "Other"  ///
+      98 "DK"  ///
+      99 "NA; refused"  ///
+       0 "None"
+
+recode RELIGION_HEAD_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_head)
+recode RELIGION_WIFE_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_wife)
+	   
+label values religion_head religion_wife update_religion
+
+// also age at relationship start
+browse id survey_yr relationship_start BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
+gen yr_born_head = survey_yr - AGE_REF_
+gen yr_born_wife = survey_yr-AGE_SPOUSE_
+
+gen age_mar_head = relationship_start -  yr_born_head
+gen age_mar_wife = relationship_start -  yr_born_wife
+
+browse id survey_yr yr_born_head yr_born_wife relationship_start age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
 
 save "$data_keep\PSID_relationships_post2000.dta", replace
