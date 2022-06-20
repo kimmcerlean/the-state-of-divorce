@@ -81,6 +81,47 @@ browse id survey_yr WAGES_HEAD_ WAGES_WIFE_ hh_earn_type_bkd hh_earn_type_lag
 browse id survey_yr AGE_ AGE_REF_ AGE_SPOUSE_ RELATION_
 keep if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55)
 
+// employment
+browse id survey_yr EMPLOY_STATUS1_HEAD_ EMPLOY_STATUS2_HEAD_ EMPLOY_STATUS3_HEAD_ EMPLOY_STATUS1_WIFE_ EMPLOY_STATUS2_WIFE_ EMPLOY_STATUS3_WIFE_
+gen employ1_head=0
+replace employ1_head=1 if EMPLOY_STATUS1_HEAD_==1
+gen employ2_head=0
+replace employ2_head=1 if EMPLOY_STATUS2_HEAD_==1
+gen employ3_head=0
+replace employ3_head=1 if EMPLOY_STATUS3_HEAD_==1
+egen employed_head=rowtotal(employ1_head employ2_head employ3_head)
+
+gen employ1_wife=0
+replace employ1_wife=1 if EMPLOY_STATUS1_WIFE_==1
+gen employ2_wife=0
+replace employ2_wife=1 if EMPLOY_STATUS2_WIFE_==1
+gen employ3_wife=0
+replace employ3_wife=1 if EMPLOY_STATUS3_WIFE_==1
+egen employed_wife=rowtotal(employ1_wife employ2_wife employ3_wife)
+
+// browse id survey_yr employed_head employed_wife HOURS_WK_HEAD_ TOTAL_HOURS_HEAD_ TOTAL_HOURS_WIFE_ TOTAL_WEEKS_HEAD_ TOTAL_WEEK_WIFE_ // okay so have for husband, but don't have weekly hours for wife. I do have total weeks but seems to be 0 always (or could divide...)
+
+browse id survey_yr employed_head employed_wife WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ HOURS_WK_HEAD_
+
+gen from_employ=.
+replace from_employ=0 if from_ft_pt==.
+replace from_employ=1 if from_ft_pt==2
+replace from_employ=2 if from_ft_pt==1
+
+gen to_employ=.
+replace to_employ=0 if to_ft_pt==.
+replace to_employ=1 if to_ft_pt==2
+replace to_employ=2 if to_ft_pt==1
+
+label define employ 0 "No Job" 1 "Part-Time" 2 "Full-Time"
+label values from_employ to_employ employ
+
+gen from_ft=0
+replace from_ft=1 if from_ft_pt==1
+
+gen to_ft=0
+replace to_ft=1 if to_ft_pt==1
+
 // also make sure you only keep ONE RECORD per HH - challenging since family id changes every time. see if there is a unified ID i can use. 
 
 save "$data_keep\PSID_relationships_post2000.dta", replace
