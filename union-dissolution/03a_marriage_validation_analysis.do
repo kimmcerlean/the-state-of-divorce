@@ -190,12 +190,15 @@ logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2 & in_div_sam
 logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig
 logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig
 
+
+**************This is closest I have gotten**************
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife couple_earnings i.employed_ly_wife NUM_MARRIED" // trying to get controls to match table 2
 logit dissolve i.cohort_sgp##i.female_pct_bucket2 `controls' if in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or
 /// also - is it because I am estimating separately and the association ispositive later, but NOT THE SAME?
 // wait okay with the INTERACTION, is that actually right? - cohort 3, bucket 4, sig negative? is that why the buckets match the chart, but they weren't here?? because interaction v. not?
 margins female_pct_bucket2#cohort_sgp
 marginsplot
+**************This is closest I have gotten**************
 
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
 logit dissolve dur i.female_pct_bucket_lag `controls' if cohort_sgp==1 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 2 and 4 sig

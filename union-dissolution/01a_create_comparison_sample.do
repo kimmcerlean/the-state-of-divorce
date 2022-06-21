@@ -48,26 +48,28 @@ browse id survey_yr relationship relationship_start relationship_end last_survey
 // trying to identify if married or cohabiting. .. need relation_?
 egen year_family=concat(survey_yr FAMILY_INTERVIEW_NUM_), punct(_)
 bysort survey_yr FAMILY_INTERVIEW_NUM_ (RELATION_): egen either_cohab=max(RELATION_)
-// keep if inlist(RELATION_,1,2,10,20) // remove only those classified as head or wife. Before 1983, couldnt' distinguish cohab. some of those marked 10 might be in cohab, need to account for that
 
 sort survey_yr FAMILY_INTERVIEW_NUM_ id
 
-drop if NUM_MARRIED==98
+// drop if NUM_MARRIED==98
+
+browse MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_ COUPLE_STATUS_REF_ // marital status_head_ = MARRIED OR COHAB IWTH NO DISTINGUISH, marital_status_ref = official - so if DIVROCED, put as cohab?
 
 gen relationship_type=0
 replace relationship_type=1 if NUM_MARRIED==0
 replace relationship_type=2 if NUM_MARRIED>=1
 replace relationship_type=1 if either_cohab==22
+replace relationship_type=1 if MARITAL_STATUS_REF_!=1 & MARITAL_STATUS_REF_!=.
 
 label define relationship_type 1 "Cohab" 2 "Married"
 label values relationship_type relationship_type
 
-keep if inlist(RELATION_,1,2,10,20)
+keep if inlist(RELATION_,1,2,10,20,22)
 
 browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship relationship_type RELATION_ relationship_start relationship_end dissolve NUM_MARRIED
 tab relationship_type RELATION_
 
-drop if relationship_type==1
+// drop if relationship_type==1
 tab RELATION_ // okay pretty equal numbers.
 
 // keep if NUM_MARRIED<=1 - I don't know if this variable applies to all years - right not asked until at least 1985
@@ -78,7 +80,7 @@ browse id survey_yr relationship_type relationship_start relationship_end dissol
 
 gen dur = survey_yr - relationship_start
 
-save "$data_tmp\PSID_all_marriages.dta", replace
+save "$data_tmp\PSID_all_unions.dta", replace
 
 ********************************************************************************
 * Recodes
@@ -392,4 +394,7 @@ gen age_mar_wife = relationship_start_v2 -  yr_born_wife
 
 browse id survey_yr yr_born_head yr_born_wife relationship_start_v2 age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
 
+save "$data_keep\PSID_union_validation_sample.dta", replace
+
+keep if relationship_type==2
 save "$data_keep\PSID_marriage_validation_sample.dta", replace
