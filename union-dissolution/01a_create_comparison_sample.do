@@ -219,18 +219,39 @@ replace employed_ly_head=1 if earnings_head > 0 & earnings_head!=.
 gen employed_ly_wife=0
 replace employed_ly_wife=1 if earnings_wife > 0 & earnings_wife!=.
 
-browse id survey_yr employed_ly_head employed_ly_wife WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ earnings_head earnings_wife
+browse id survey_yr employed_ly_head employed_ly_wife WEEKLY_HRS_HEAD_ WEEKLY_HRS1_HEAD_ WEEKLY_HRS_WIFE_ WEEKLY_HRS1_WIFE_ earnings_head earnings_wife
 // weekly_hrs not asked until 1994, was something asked PRIOR? i think I maybe didn't pull in GAH, use weekly_hrs1 prior to 1994 / 2001 is last yr
+// okay wife bucketed 1968, real all other years? (1 or 2=PT; 3/8-FT)
 
-gen ft_pt_head=0
-replace ft_pt_head=1 if employed_ly_head==1 & WEEKLY_HRS_HEAD_ >0 & WEEKLY_HRS_HEAD_<=35
-replace ft_pt_head=2 if employed_ly_head==1 & WEEKLY_HRS_HEAD_>35 & WEEKLY_HRS_HEAD_!=.
+gen ft_pt_head_pre=0
+replace ft_pt_head_pre=1 if employed_ly_head==1 & WEEKLY_HRS1_HEAD_ >0 & WEEKLY_HRS1_HEAD_<=35
+replace ft_pt_head_pre=2 if employed_ly_head==1 & WEEKLY_HRS1_HEAD_>35 & WEEKLY_HRS1_HEAD_!=.
 
-gen ft_pt_wife=0
-replace ft_pt_wife=1 if employed_ly_wife==1 & WEEKLY_HRS_WIFE_ >0 & WEEKLY_HRS_WIFE_<=35
-replace ft_pt_wife=2 if employed_ly_wife==1 & WEEKLY_HRS_WIFE_>35 & WEEKLY_HRS_WIFE_!=.
+gen ft_pt_head_post=0
+replace ft_pt_head_post=1 if employed_ly_head==1 & WEEKLY_HRS_HEAD_ >0 & WEEKLY_HRS_HEAD_<=35
+replace ft_pt_head_post=2 if employed_ly_head==1 & WEEKLY_HRS_HEAD_>35 & WEEKLY_HRS_HEAD_!=.
+
+gen ft_pt_wife_pre=0
+replace ft_pt_wife_pre=1 if employed_ly_wife==1 & WEEKLY_HRS1_WIFE_ >0 & WEEKLY_HRS1_WIFE_<=35 & survey_yr!=1968
+replace ft_pt_wife_pre=2 if employed_ly_wife==1 & WEEKLY_HRS1_WIFE_>35 & WEEKLY_HRS1_WIFE_!=. & survey_yr!=1968
+replace ft_pt_wife_pre=1 if employed_ly_wife==1 & inlist(WEEKLY_HRS1_WIFE_,1,2) & survey_yr==1968
+replace ft_pt_wife_pre=2 if employed_ly_wife==1 & inrange(WEEKLY_HRS1_WIFE_,3,8) & survey_yr==1968
+
+gen ft_pt_wife_post=0
+replace ft_pt_wife_post=1 if employed_ly_wife==1 & WEEKLY_HRS_WIFE_ >0 & WEEKLY_HRS_WIFE_<=35
+replace ft_pt_wife_post=2 if employed_ly_wife==1 & WEEKLY_HRS_WIFE_>35 & WEEKLY_HRS_WIFE_!=.
 
 label define ft_pt 0 "Not Employed" 1 "PT" 2 "FT"
+label values ft_pt_head_pre ft_pt_head_post ft_pt_wife_pre ft_pt_wife_post ft_pt
+
+gen ft_pt_head=.
+replace ft_pt_head = ft_pt_head_pre if inrange(survey_yr,1968,1993)
+replace ft_pt_head = ft_pt_head_post if inrange(survey_yr,1994,2019)
+
+gen ft_pt_wife=.
+replace ft_pt_wife = ft_pt_wife_pre if inrange(survey_yr,1968,1993)
+replace ft_pt_wife = ft_pt_wife_post if inrange(survey_yr,1994,2019)
+
 label values ft_pt_head ft_pt_wife ft_pt
 
 gen ft_head=0
@@ -247,29 +268,95 @@ replace either_enrolled = 1 if ENROLLED_WIFE_==1 | ENROLLED_HEAD_==1
 drop if RACE_1_WIFE_==9 | RACE_1_HEAD_==9
 
 browse id survey_yr RACE_1_WIFE_ RACE_2_WIFE_ RACE_3_WIFE_ RACE_1_HEAD_ RACE_2_HEAD_ RACE_3_HEAD_ RACE_4_HEAD_
-gen race_wife=RACE_1_WIFE_
-recode race_wife(5/7=5)
-replace race_wife=6 if RACE_2_WIFE_!=0
+// wait race of wife not asked until 1985?! that's wild. also need to see if codes changed in between. try to fill in historical for wife if in survey in 1985 and prior.
+/*
+1968-1984: 1=White; 2=Negro; 3=PR or Mexican; 7=Other
+1985-1989: 1=White; 2=Black; 3=Am Indian 4=Asian 7=Other; 8 =more than 2
+1990-2003: 1=White; 2=Black; 3=Am India; 4=Asian; 5=Latino; 6=Other; 7=Other
+2005-2019: 1=White; 2=Black; 3=Am India; 4=Asian; 5=Native Hawaiian/Pac Is; 7=Other
+*/
 
-gen race_head=RACE_1_HEAD_
-recode race_head(5/7=5)
-replace race_head=6 if RACE_2_HEAD_!=0
 
-label define race 1 "White" 2 "Black" 3 "Indian" 4 "Asian" 5 "Other" 6 "Multi-racial"
+gen race_1_head_rec=.
+replace race_1_head_rec=1 if RACE_1_HEAD_==1
+replace race_1_head_rec=2 if RACE_1_HEAD_==2
+replace race_1_head_rec=3 if (inrange(survey_yr,1985,2019) & RACE_1_HEAD_==3)
+replace race_1_head_rec=4 if (inrange(survey_yr,1985,2019) & RACE_1_HEAD_==4)
+replace race_1_head_rec=5 if (inrange(survey_yr,1968,1984) & RACE_1_HEAD_==3) | (inrange(survey_yr,1990,2003) & RACE_1_HEAD_==5)
+replace race_1_head_rec=6 if RACE_1_HEAD_==7 | (inrange(survey_yr,1990,2003) & RACE_1_HEAD_==6) | (inrange(survey_yr,2005,2019) & RACE_1_HEAD_==5) | (inrange(survey_yr,1985,1989) & RACE_1_HEAD_==8)
+
+gen race_2_head_rec=.
+replace race_2_head_rec=1 if RACE_2_HEAD_==1
+replace race_2_head_rec=2 if RACE_2_HEAD_==2
+replace race_2_head_rec=3 if (inrange(survey_yr,1985,2019) & RACE_2_HEAD_==3)
+replace race_2_head_rec=4 if (inrange(survey_yr,1985,2019) & RACE_2_HEAD_==4)
+replace race_2_head_rec=5 if (inrange(survey_yr,1968,1984) & RACE_2_HEAD_==3) | (inrange(survey_yr,1990,2003) & RACE_2_HEAD_==5)
+replace race_2_head_rec=6 if RACE_2_HEAD_==7 | (inrange(survey_yr,1990,2003) & RACE_2_HEAD_==6) | (inrange(survey_yr,2005,2019) & RACE_2_HEAD_==5) | (inrange(survey_yr,1985,1989) & RACE_2_HEAD_==8)
+
+gen race_3_head_rec=.
+replace race_3_head_rec=1 if RACE_3_HEAD_==1
+replace race_3_head_rec=2 if RACE_3_HEAD_==2
+replace race_3_head_rec=3 if (inrange(survey_yr,1985,2019) & RACE_3_HEAD_==3)
+replace race_3_head_rec=4 if (inrange(survey_yr,1985,2019) & RACE_3_HEAD_==4)
+replace race_3_head_rec=5 if (inrange(survey_yr,1968,1984) & RACE_3_HEAD_==3) | (inrange(survey_yr,1990,2003) & RACE_3_HEAD_==5)
+replace race_3_head_rec=6 if RACE_3_HEAD_==7 | (inrange(survey_yr,1990,2003) & RACE_3_HEAD_==6) | (inrange(survey_yr,2005,2019) & RACE_3_HEAD_==5) | (inrange(survey_yr,1985,1989) & RACE_3_HEAD_==8)
+
+gen race_4_head_rec=.
+replace race_4_head_rec=1 if RACE_4_HEAD_==1
+replace race_4_head_rec=2 if RACE_4_HEAD_==2
+replace race_4_head_rec=3 if (inrange(survey_yr,1985,2019) & RACE_4_HEAD_==3)
+replace race_4_head_rec=4 if (inrange(survey_yr,1985,2019) & RACE_4_HEAD_==4)
+replace race_4_head_rec=5 if (inrange(survey_yr,1968,1984) & RACE_4_HEAD_==3) | (inrange(survey_yr,1990,2003) & RACE_4_HEAD_==5)
+replace race_4_head_rec=6 if RACE_4_HEAD_==7 | (inrange(survey_yr,1990,2003) & RACE_4_HEAD_==6) | (inrange(survey_yr,2005,2019) & RACE_4_HEAD_==5) | (inrange(survey_yr,1985,1989) & RACE_4_HEAD_==8)
+
+gen race_1_wife_rec=.
+replace race_1_wife_rec=1 if RACE_1_WIFE_==1
+replace race_1_wife_rec=2 if RACE_1_WIFE_==2
+replace race_1_wife_rec=3 if (inrange(survey_yr,1985,2019) & RACE_1_WIFE_==3)
+replace race_1_wife_rec=4 if (inrange(survey_yr,1985,2019) & RACE_1_WIFE_==4)
+replace race_1_wife_rec=5 if (inrange(survey_yr,1968,1984) & RACE_1_WIFE_==3) | (inrange(survey_yr,1990,2003) & RACE_1_WIFE_==5)
+replace race_1_wife_rec=6 if RACE_1_WIFE_==7 | (inrange(survey_yr,1990,2003) & RACE_1_WIFE_==6) | (inrange(survey_yr,2005,2019) & RACE_1_WIFE_==5) | (inrange(survey_yr,1985,1989) & RACE_1_WIFE_==8)
+
+gen race_2_wife_rec=.
+replace race_2_wife_rec=1 if RACE_2_WIFE_==1
+replace race_2_wife_rec=2 if RACE_2_WIFE_==2
+replace race_2_wife_rec=3 if (inrange(survey_yr,1985,2019) & RACE_2_WIFE_==3)
+replace race_2_wife_rec=4 if (inrange(survey_yr,1985,2019) & RACE_2_WIFE_==4)
+replace race_2_wife_rec=5 if (inrange(survey_yr,1968,1984) & RACE_2_WIFE_==3) | (inrange(survey_yr,1990,2003) & RACE_2_WIFE_==5)
+replace race_2_wife_rec=6 if RACE_2_WIFE_==7 | (inrange(survey_yr,1990,2003) & RACE_2_WIFE_==6) | (inrange(survey_yr,2005,2019) & RACE_2_WIFE_==5) | (inrange(survey_yr,1985,1989) & RACE_2_WIFE_==8)
+
+gen race_3_wife_rec=.
+replace race_3_wife_rec=1 if RACE_3_WIFE_==1
+replace race_3_wife_rec=2 if RACE_3_WIFE_==2
+replace race_3_wife_rec=3 if (inrange(survey_yr,1985,2019) & RACE_3_WIFE_==3)
+replace race_3_wife_rec=4 if (inrange(survey_yr,1985,2019) & RACE_3_WIFE_==4)
+replace race_3_wife_rec=5 if (inrange(survey_yr,1968,1984) & RACE_3_WIFE_==3) | (inrange(survey_yr,1990,2003) & RACE_3_WIFE_==5)
+replace race_3_wife_rec=6 if RACE_3_WIFE_==7 | (inrange(survey_yr,1990,2003) & RACE_3_WIFE_==6) | (inrange(survey_yr,2005,2019) & RACE_3_WIFE_==5) | (inrange(survey_yr,1985,1989) & RACE_3_WIFE_==8)
+
+gen race_wife=race_1_wife_rec
+replace race_wife=7 if race_2_wife_rec!=.
+
+gen race_head=race_1_head_rec
+replace race_head=7 if race_2_head_rec!=.
+
+label define race 1 "White" 2 "Black" 3 "Indian" 4 "Asian" 5 "Latino" 6 "Other" 7 "Multi-racial"
 label values race_wife race_head race
+
+// wife - not asked until 1985, need to figure out
+	browse id survey_yr race_wife if inlist(id,3,12,16)
+	bysort id (race_wife): replace race_wife=race_wife[1] if race_wife==.
 
 // need to figure out ethnicity
 
 gen same_race=0
-replace same_race=1 if race_head==race_wife
+replace same_race=1 if race_head==race_wife & race_head!=.
 
 gen children=0
 replace children=1 if NUM_CHILDREN_>=1
 
 gen metro=(METRO_==1) // a lot of missing, don't use for now, control for STATE_ for now
 
-// religion is new, but think I need to add given historical research. coding changes between 1984 and 1985, then again between 1994 and 1995. using past then, so this is fine. otherwise, need to recode in MAIN FILE before combining. okay still somewhat sketchy. coding like this for now, will update in real analysis
-
+/* religion is new, but think I need to add given historical research. coding changes between 1984 and 1985, then again between 1994 and 1995 Need to recode, so tabling for now, not important for these purposes anyway
 label define update_religion  ///
        1 "Catholic"  ///
        2 "Jewish"  ///
@@ -285,15 +372,21 @@ recode RELIGION_HEAD_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_head)
 recode RELIGION_WIFE_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_wife)
 	   
 label values religion_head religion_wife update_religion
+*/
 
 // also age at relationship start
-browse id survey_yr relationship_start BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
+browse id survey_yr relationship_start FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
 gen yr_born_head = survey_yr - AGE_REF_
 gen yr_born_wife = survey_yr-AGE_SPOUSE_
 
-gen age_mar_head = relationship_start -  yr_born_head
-gen age_mar_wife = relationship_start -  yr_born_wife
+gen relationship_start_v2 = relationship_start
+replace relationship_start_v2 = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
 
-browse id survey_yr yr_born_head yr_born_wife relationship_start age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
+browse id survey_yr relationship_start_v2 relationship_start FIRST_MARRIAGE_YR_START
+
+gen age_mar_head = relationship_start_v2 -  yr_born_head
+gen age_mar_wife = relationship_start_v2 -  yr_born_wife
+
+browse id survey_yr yr_born_head yr_born_wife relationship_start_v2 age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
 
 save "$data_keep\PSID_marriage_validation_sample.dta", replace
