@@ -93,18 +93,34 @@ keep if per_id==1
 
 unique id, by(relationship_start) // can I get this to match S&H?
 unique id if dissolve==1, by(relationship_start)
-
+ 
 // education
-gen college_wife= 0 
-replace college_wife=1 if COLLEGE_WIFE_ == 1
-gen college_head = 0
-replace college_head = 1 if COLLEGE_HEAD_ == 1
+browse survey_yr id  EDUC1_WIFE_ EDUC_WIFE_ EDUC1_HEAD_ EDUC_HEAD_
+// educ1 until 1990, but educ started 1975, okay but then a gap until 1991? wife not asked 1969-1971 - might be able to fill in if she is in sample either 1968 or 1972? (match to the id)
+// codes are also different between the two, use educ1 until 1990, then educ 1991 post
 
-recode EDUC_WIFE_ (0/11=1) (12=2) (13/15=3) (16/17=4) (99=.), gen(educ_wife)
-recode EDUC_HEAD_ (0/11=1) (12=2) (13/15=3) (16/17=4) (99=.), gen(educ_head)
+recode EDUC1_WIFE_ (1/3=1)(4/5=2)(6=3)(7/8=4)(9=.)(0=1), gen(educ_wife_early)
+recode EDUC1_HEAD_ (1/3=1)(4/5=2)(6=3)(7/8=4)(9=.)(0=1), gen(educ_head_early)
+recode EDUC_WIFE_ (0/11=1) (12=2) (13/15=3) (16/17=4) (99=.), gen(educ_wife_1975)
+recode EDUC_HEAD_ (0/11=1) (12=2) (13/15=3) (16/17=4) (99=.), gen(educ_head_1975)
 
 label define educ 1 "LTHS" 2 "HS" 3 "Some College" 4 "College"
+label values educ_wife_early educ_head_early educ_wife_1975 educ_head_1975 educ
+
+gen educ_wife=.
+replace educ_wife=educ_wife_early if inrange(survey_yr,1968,1990)
+replace educ_wife=educ_wife_1975 if inrange(survey_yr,1991,2019)
+
+gen educ_head=.
+replace educ_head=educ_head_early if inrange(survey_yr,1968,1990)
+replace educ_head=educ_head_1975 if inrange(survey_yr,1991,2019)
+
 label values educ_wife educ_head educ
+
+	// trying to fill in missing wife years when possible
+	browse id survey_yr educ_wife if inlist(id,3,12,25,117)
+	bysort id (educ_wife): replace educ_wife=educ_wife[1] if educ_wife==.
+
 
 gen college_complete_wife=0
 replace college_complete_wife=1 if educ_wife==4
@@ -125,30 +141,33 @@ replace educ_type=3 if educ_head == educ_wife
 label define educ_type 1 "Hyper" 2 "Hypo" 3 "Homo"
 label values educ_type educ_type
 
-logit dissolve i.educ_type if relationship_type==2, or // Schwartz and Han validation; homo should be sig less, no diff hyper and hypo
-// okay matches, homo coefficient also v similar, though hyper isn't - potentially because no controls yet
 
 // income / structure
-browse id survey_yr FAMILY_INTERVIEW_NUM_ TAXABLE_HEAD_WIFE_ TOTAL_FAMILY_INCOME_ EMPLOY_STATUS1_HEAD_ LABOR_INCOME_HEAD_ WAGES_HEAD_  LABOR_INCOME_WIFE_ WAGES_WIFE_ WAGES_WIFE_PRE_ WAGES1_WIFE_ SALARY_WIFE_ AMOUNTEARN_*_WIFE_
+browse id survey_yr FAMILY_INTERVIEW_NUM_ TAXABLE_HEAD_WIFE_ TOTAL_FAMILY_INCOME_ LABOR_INCOME_HEAD_ WAGES_HEAD_  LABOR_INCOME_WIFE_ WAGES_WIFE_ 
 
-	// to use: WAGES_HEAD_ WAGES_WIFE_
+	// to use: WAGES_HEAD_ WAGES_WIFE_ -- wife not asked until 1993? okay labor income??
+	// wages and labor income asked for head whole time. labor income wife 1968-1993, wages for wife, 1993 onwards
 
-inspect WAGES_WIFE_ if EMPLOY_STATUS1_WIFE_==1 // okay, this is okay, no missing
-inspect WAGES_HEAD_ if EMPLOY_STATUS1_HEAD_==1 // okay, this is okay, no missing
+gen earnings_wife=.
+replace earnings_wife = LABOR_INCOME_WIFE_ if inrange(survey_yr,1968,1993)
+replace earnings_wife = WAGES_WIFE_ if inrange(survey_yr,1994,2019)
 
-// validate this is aligning with total
-browse id survey_yr FAMILY_INTERVIEW_NUM_ TAXABLE_HEAD_WIFE_ TOTAL_FAMILY_INCOME_ EMPLOY_STATUS1_HEAD_ WAGES_HEAD_ EMPLOY_STATUS1_WIFE_ WAGES_WIFE_
+gen earnings_head=.
+replace earnings_head = LABOR_INCOME_HEAD_ if inrange(survey_yr,1968,1993)
+replace earnings_head = WAGES_HEAD_ if inrange(survey_yr,1994,2019)
 
-	// helpful note: 2001, id 23 and 70 are both in family 285, head + wife = total taxable, family income is greater, so someone else must be working.
+egen couple_earnings = rowtotal(earnings_wife earnings_head)
+
+browse id survey_yr earnings_wife earnings_head couple_earnings
 	
-gen female_earn_pct = WAGES_WIFE_/(TAXABLE_HEAD_WIFE_)
+gen female_earn_pct = earnings_wife/(couple_earnings)
 
 gen hh_earn_type_bkd=.
 replace hh_earn_type_bkd=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
 replace hh_earn_type_bkd=2 if female_earn_pct < .4000 & female_earn_pct > 0
 replace hh_earn_type_bkd=3 if female_earn_pct ==0
 replace hh_earn_type_bkd=4 if female_earn_pct > .6000 & female_earn_pct <=1
-replace hh_earn_type_bkd=5 if WAGES_HEAD_==0 & WAGES_WIFE_==0
+replace hh_earn_type_bkd=5 if earnings_head==0 & earnings_wife==0
 
 label define earn_type_bkd 1 "Dual Earner" 2 "Male Primary" 3 "Male Sole" 4 "Female BW" 5 "No Earners"
 label values hh_earn_type_bkd earn_type_bkd
@@ -158,40 +177,50 @@ gen hh_earn_type_lag=.
 replace hh_earn_type_lag=hh_earn_type_bkd[_n-1] if id==id[_n-1]
 label values hh_earn_type_lag earn_type_bkd
 
-browse id survey_yr WAGES_HEAD_ WAGES_WIFE_ hh_earn_type_bkd hh_earn_type_lag
+browse id survey_yr earnings_head earnings_wife hh_earn_type_bkd hh_earn_type_lag
 	
-// restrict to working age (18-55) - at time of marriage or all? check what others do - Killewald said ages 18-55
+// restrict to working age (18-55) - at time of marriage or all? check what others do - Killewald said ages 18-55 - others have different restrictions, table this part for now
+/*
 browse id survey_yr AGE_ AGE_REF_ AGE_SPOUSE_ RELATION_
 keep if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55)
+*/
 
 // employment
-browse id survey_yr EMPLOY_STATUS1_HEAD_ EMPLOY_STATUS2_HEAD_ EMPLOY_STATUS3_HEAD_ EMPLOY_STATUS1_WIFE_ EMPLOY_STATUS2_WIFE_ EMPLOY_STATUS3_WIFE_
+browse id survey_yr EMPLOY_STATUS_HEAD_ EMPLOY_STATUS1_HEAD_ EMPLOY_STATUS2_HEAD_ EMPLOY_STATUS3_HEAD_ EMPLOY_STATUS_WIFE_ EMPLOY_STATUS1_WIFE_ EMPLOY_STATUS2_WIFE_ EMPLOY_STATUS3_WIFE_
+// not numbered until 1994; 1-3 arose in 1994. codes match
+// wife not asked until 1976?
+
+gen employ_head=0
+replace employ_head=1 if EMPLOY_STATUS_HEAD_==1
 gen employ1_head=0
 replace employ1_head=1 if EMPLOY_STATUS1_HEAD_==1
 gen employ2_head=0
 replace employ2_head=1 if EMPLOY_STATUS2_HEAD_==1
 gen employ3_head=0
 replace employ3_head=1 if EMPLOY_STATUS3_HEAD_==1
-egen employed_head=rowtotal(employ1_head employ2_head employ3_head)
+egen employed_head=rowtotal(employ_head employ1_head employ2_head employ3_head)
 
+gen employ_wife=0
+replace employ_wife=1 if EMPLOY_STATUS_WIFE_==1
 gen employ1_wife=0
 replace employ1_wife=1 if EMPLOY_STATUS1_WIFE_==1
 gen employ2_wife=0
 replace employ2_wife=1 if EMPLOY_STATUS2_WIFE_==1
 gen employ3_wife=0
 replace employ3_wife=1 if EMPLOY_STATUS3_WIFE_==1
-egen employed_wife=rowtotal(employ1_wife employ2_wife employ3_wife)
+egen employed_wife=rowtotal(employ_wife employ1_wife employ2_wife employ3_wife)
 
-// browse id survey_yr employed_head employed_wife HOURS_WK_HEAD_ TOTAL_HOURS_HEAD_ TOTAL_HOURS_WIFE_ TOTAL_WEEKS_HEAD_ TOTAL_WEEK_WIFE_ // okay so have for husband, but don't have weekly hours for wife. I do have total weeks but seems to be 0 always (or could divide...)
+browse id survey_yr employed_head employed_wife employ_head employ1_head employ_wife employ1_wife
 
 // problem is this employment is NOW not last year. I want last year? use if wages = employ=yes, then no? (or hours)
 gen employed_ly_head=0
-replace employed_ly_head=1 if WAGES_HEAD_ > 0 & WAGES_HEAD_!=.
+replace employed_ly_head=1 if earnings_head > 0 & earnings_head!=.
 
 gen employed_ly_wife=0
-replace employed_ly_wife=1 if WAGES_WIFE_ > 0 & WAGES_WIFE_!=.
+replace employed_ly_wife=1 if earnings_wife > 0 & earnings_wife!=.
 
-browse id survey_yr employed_ly_head employed_ly_wife WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ WAGES_HEAD_ WAGES_WIFE_
+browse id survey_yr employed_ly_head employed_ly_wife WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ earnings_head earnings_wife
+// weekly_hrs not asked until 1994, was something asked PRIOR? i think I maybe didn't pull in GAH, use weekly_hrs1 prior to 1994 / 2001 is last yr
 
 gen ft_pt_head=0
 replace ft_pt_head=1 if employed_ly_head==1 & WEEKLY_HRS_HEAD_ >0 & WEEKLY_HRS_HEAD_<=35
@@ -267,4 +296,4 @@ gen age_mar_wife = relationship_start -  yr_born_wife
 
 browse id survey_yr yr_born_head yr_born_wife relationship_start age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
 
-save "$data_tmp\PSID_all_marriages.dta", replace
+save "$data_keep\PSID_marriage_validation_sample.dta", replace
