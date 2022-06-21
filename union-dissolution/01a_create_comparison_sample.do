@@ -30,18 +30,20 @@ browse survey_yr id main_per_id SEQ_NUMBER_ relationship RELATION_ FIRST_MARRIAG
 
 browse id survey_yr relationship MARITAL_STATUS_HEAD_
 gen relationship_yr = survey_yr if relationship==1
+sort id survey_yr
 gen enter_rel=0
 replace enter_rel=1 if relationship==1 & relationship[_n-1]==0 & id==id[_n-1]
 replace enter_rel=1 if relationship_yr==1968 // since can't transition, but call this "relationship 1"
 
 gen exit_rel=0
+sort id survey_yr
 replace exit_rel=1 if relationship==0 & relationship[_n-1]==1 & id==id[_n-1]
 
 browse id survey_yr relationship enter_rel MARITAL_STATUS_HEAD_ exit_rel
 
 gen relationship_start = survey_yr if enter_rel==1
 bysort id: egen marrno=rank(relationship_start)
-browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start marrno
+browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start FIRST_MARRIAGE_YR_START marrno
 
 gen rel1_start=.
 replace rel1_start=relationship_start if marrno==1
@@ -54,7 +56,10 @@ replace rel3_start=relationship_start if marrno==3
 bysort id (rel3_start): replace rel3_start=rel3_start[1]
 
 sort id survey_yr
-browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel rel1_start rel2_start marrno
+gen rel1_start_retain = rel1_start
+replace rel1_start = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
+
+browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel rel1_start FIRST_MARRIAGE_YR_START rel1_start_retain rel2_start marrno
 
 gen relationship_end = survey_yr if exit_rel==1
 bysort id: egen exitno=rank(relationship_end)
@@ -103,6 +108,8 @@ browse id survey_yr relationship rel_start_all rel_end_all dissolve SEQ_NUMBER_ 
 
 // trying to identify if married or cohabiting. .. need relation_?
 egen year_family=concat(survey_yr FAMILY_INTERVIEW_NUM_), punct(_)
+keep if inlist(RELATION_,1,2,10,20,22)
+
 bysort survey_yr FAMILY_INTERVIEW_NUM_ (RELATION_): egen either_cohab=max(RELATION_)
 
 sort survey_yr FAMILY_INTERVIEW_NUM_ id
@@ -115,26 +122,23 @@ gen relationship_type=0
 replace relationship_type=1 if NUM_MARRIED==0
 replace relationship_type=2 if NUM_MARRIED>=1
 replace relationship_type=1 if either_cohab==22
-replace relationship_type=1 if MARITAL_STATUS_REF_!=1 & MARITAL_STATUS_REF_!=.
+replace relationship_type=1 if inrange(MARITAL_STATUS_REF_,2,9) & dissolve==0
+sort id survey_yr
+replace relationship_type=1 if relationship_type==2 & relationship_type[_n-1]==1 & dissolve==1 & id==id[_n-1]
 
 label define relationship_type 1 "Cohab" 2 "Married"
 label values relationship_type relationship_type
 
-keep if inlist(RELATION_,1,2,10,20,22)
-
-browse id survey_yr FAMILY_INTERVIEW_NUM_ relationship relationship_type RELATION_ relationship_start relationship_end dissolve NUM_MARRIED
+tab MARITAL_STATUS_REF_ relationship_type
 tab relationship_type RELATION_
 
 // drop if relationship_type==1
 tab RELATION_ // okay pretty equal numbers.
 
-// keep if NUM_MARRIED<=1 - I don't know if this variable applies to all years - right not asked until at least 1985
-keep if inlist(NUM_MARRIED,1,99)
-
 sort id survey_yr
-browse id survey_yr relationship_type relationship_start relationship_end dissolve 
-
-gen dur = survey_yr - relationship_start
+gen dur = survey_yr - rel_start_all
+browse id survey_yr relationship_type rel_start_all rel_end_all dissolve dur
+browse id survey_yr relationship_type rel_start_all rel_end_all dissolve dur if FAMILY_INTERVIEW_NUM_ == 7439
 
 save "$data_tmp\PSID_all_unions.dta", replace
 
@@ -436,19 +440,14 @@ label values religion_head religion_wife update_religion
 */
 
 // also age at relationship start
-browse id survey_yr relationship_start FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
+browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
 gen yr_born_head = survey_yr - AGE_REF_
 gen yr_born_wife = survey_yr-AGE_SPOUSE_
 
-gen relationship_start_v2 = relationship_start
-replace relationship_start_v2 = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
+gen age_mar_head = rel_start_all -  yr_born_head
+gen age_mar_wife = rel_start_all -  yr_born_wife
 
-browse id survey_yr relationship_start_v2 relationship_start FIRST_MARRIAGE_YR_START
-
-gen age_mar_head = relationship_start_v2 -  yr_born_head
-gen age_mar_wife = relationship_start_v2 -  yr_born_wife
-
-browse id survey_yr yr_born_head yr_born_wife relationship_start_v2 age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
+browse id survey_yr yr_born_head yr_born_wife rel_start_all age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
 
 save "$data_keep\PSID_union_validation_sample.dta", replace
 
