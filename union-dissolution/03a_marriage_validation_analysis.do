@@ -6,34 +6,41 @@
 
 use "$data_keep\PSID_marriage_validation_sample.dta", clear
 
-tab relationship_start_v2
+tab rel_start_all
+browse id survey_yr rel_start_all rel1_start rel2_start rel3_start FIRST_MARRIAGE_YR_START cohort_sh
 
 ********************************************************************************
 * Schwartz and Han 2014 - VALIDATED
 ********************************************************************************
 gen cohort_sh=.
-replace cohort_sh=1 if inrange(relationship_start_v2,1950,1959)
-replace cohort_sh=2 if inrange(relationship_start_v2,2000,2010)
-replace cohort_sh=3 if inrange(relationship_start_v2,1970,1979) // worried about my pre-1970 marriages, seeing if even like 1970 matches
+replace cohort_sh=1 if inrange(rel_start_all,1950,1959)
+replace cohort_sh=2 if inrange(rel_start_all,2000,2010)
+replace cohort_sh=3 if inrange(rel_start_all,1970,1979) // worried about my pre-1970 marriages, seeing if even like 1970 matches
 
 //k their findings: cohort 1 - hypo sig worse than hyper, no diff with homo
 // cohort 2 - hyper and hypo similar, homo = sig less
 
-logit dissolve i.educ_type if cohort_sh==1, or
-logit dissolve i.educ_type if cohort_sh==3, or // yes, hypo sig worse, homo = same. 
+logit dissolve i.educ_type if cohort_sh==1, or // homo sig less
+logit dissolve i.educ_type if cohort_sh==3, or // nothing is significant here now that i've updated things GAH
 logit dissolve i.educ_type if cohort_sh==2, or // k yes, homo sig less, hypo + hyper = same
 
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife"
 logit dissolve i.educ_type `controls' if cohort_sh==1, or
-logit dissolve i.educ_type `controls' if cohort_sh==3, or // yes, hypo sig worse, homo = same. 
+logit dissolve i.educ_type `controls' if cohort_sh==3, or // nothing different
 logit dissolve i.educ_type `controls' if cohort_sh==2, or // k yes, homo sig less, hypo + hyper = same
+
+// trying first marriages only - okay but this is first ALL RELATIONSHIPS so people with a cohab and a marriage are being restricted GAH but I only care about marriage so this isn't perfect either - come back to this.
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife"
+logit dissolve i.educ_type `controls' if cohort_sh==1 & rel2_start==., or // nothing sig but hypo and homo both lower
+logit dissolve i.educ_type `controls' if cohort_sh==3 & rel2_start==., or // hypo higher but not sig
+logit dissolve i.educ_type `controls' if cohort_sh==2 & rel2_start==., or // nothing sig GAH.
 
 ********************************************************************************
 * Killewald 2016
 ********************************************************************************
 gen cohort_k=.
-replace cohort_k=1 if relationship_start_v2<=1974
-replace cohort_k=2 if relationship_start_v2>=1975
+replace cohort_k=1 if rel_start_all<=1974
+replace cohort_k=2 if rel_start_all>=1975
 
 gen in_age=0
 replace in_age=1 if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55)
@@ -76,18 +83,18 @@ logit dissolve ft_wife `controls' if in_age==1 & cohort_k==2, or // not sig (OR=
 // did I remove higher order marriages?! that might also do it - CHECK
 
 gen cohort_sgp=.
-replace cohort_sgp=1 if inrange(relationship_start_v2,1969,1979)
-replace cohort_sgp=2 if inrange(relationship_start_v2,1980,1989)
-replace cohort_sgp=3 if inrange(relationship_start_v2,1990,1999)
-replace cohort_sgp=4 if inrange(relationship_start_v2,2000,2009)
+replace cohort_sgp=1 if inrange(rel_start_all,1969,1979)
+replace cohort_sgp=2 if inrange(rel_start_all,1980,1989)
+replace cohort_sgp=3 if inrange(rel_start_all,1990,1999)
+replace cohort_sgp=4 if inrange(rel_start_all,2000,2009)
 
 browse id survey_yr FIRST_MARRIAGE_YR_START FIRST_MARRIAGE_YR_WIFE_ FIRST_MARRIAGE_YR_HEAD_
 
 gen cohort_sgp_alt=.
-replace cohort_sgp_alt=1 if inrange(relationship_start_v2,1968,1979)
-replace cohort_sgp_alt=2 if inrange(relationship_start_v2,1980,1989)
-replace cohort_sgp_alt=3 if inrange(relationship_start_v2,1990,1999)
-replace cohort_sgp_alt=4 if inrange(relationship_start_v2,2000,2009)
+replace cohort_sgp_alt=1 if inrange(rel_start_all,1968,1979)
+replace cohort_sgp_alt=2 if inrange(rel_start_all,1980,1989)
+replace cohort_sgp_alt=3 if inrange(rel_start_all,1990,1999)
+replace cohort_sgp_alt=4 if inrange(rel_start_all,2000,2009)
 
 gen divorce_date = relationship_end if dissolve==1
 bysort id (divorce_date): replace divorce_date = divorce_date[1]
@@ -99,7 +106,7 @@ replace in_div_sample=0 if age_mar_wife<16 | age_mar_wife>40 // restriction they
 replace in_div_sample=0 if SEX_HEAD_ ==2 // head NOT male when I assuming it is (small %)
 replace in_div_sample=0 if inlist(SEX_WIFE_,0,1) // head NOT male when I assuming it is (small %)
 
-browse id survey_yr relationship_start_v2 relationship_end dissolve divorce_date in_div_sample
+browse id survey_yr rel_start_all relationship_end dissolve divorce_date in_div_sample
 
 // weighted?! browse id survey_yr FAMILY_INTERVIEW_NUM_ CORE_WEIGHT_ 
 gen weight = .
