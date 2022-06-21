@@ -37,7 +37,8 @@ replace enter_rel=1 if relationship_yr==1968 // since can't transition, but call
 
 gen exit_rel=0
 sort id survey_yr
-replace exit_rel=1 if relationship==0 & relationship[_n-1]==1 & id==id[_n-1]
+replace exit_rel=1 if relationship==1 & relationship[_n+1]==0 & id==id[_n+1]
+// replace exit_rel=1 if relationship==0 & relationship[_n-1]==1 & id==id[_n-1]
 
 browse id survey_yr relationship enter_rel MARITAL_STATUS_HEAD_ exit_rel
 
@@ -91,11 +92,13 @@ browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start re
 
 bysort id: egen last_survey_yr = max(survey_yr)
 
+sort id survey_yr
 browse id survey_yr relationship marrno  rel_start_all rel_end_all exit_rel
 
 gen dissolve=0
-replace dissolve=1 if exit_rel==1 & inlist(MARITAL_STATUS_HEAD_,2,4,5)
+replace dissolve=1 if exit_rel==1 & inlist(MARITAL_STATUS_HEAD_[_n+1],2,4,5) & id == id[_n+1]
 
+sort id survey_yr
 browse id survey_yr relationship MARITAL_STATUS_HEAD_ dissolve exit_rel rel_start_all rel_end_all
 
 ********************************************************************************

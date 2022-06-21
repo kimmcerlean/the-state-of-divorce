@@ -11,33 +11,31 @@ use "$data_keep\PSID_union_validation_sample.dta", clear
 ********************************************************************************
 * Brines and Joyner 1999
 ********************************************************************************
-keep if relationship_start_v2 >=1976 & relationship_start_v2 <=1985
+keep if rel_start_all >=1976 & rel_start_all <=1985
 unique id, by(relationship_type) // slightly more of both, but also needed to be intact across two waves, how to designate that -- have to have at least two rows
 
 bysort id: egen total_dur = max(dur)
-browse id survey_yr relationship_type relationship_start_v2 dur total_dur
+browse id survey_yr relationship_type rel_start_all dur total_dur
 
-drop if total_dur==0
-// okay much closer count of cohab, but still higher marriages - because I also have marriages that lasted until 2019. gah this is the part that is confusing.
+drop if total_dur==0 | total_dur==1
+unique id, by(relationship_type) // okay much closer count of cohab, but still higher marriages - because I also have marriages that lasted until 2019. gah this is the part that is confusing.
 
 browse id survey_yr MARITAL_STATUS_REF_ dissolve
 
-gen divorce_date = relationship_end if dissolve==1
+gen divorce_date = rel_end_all if dissolve==1
 bysort id (divorce_date): replace divorce_date = divorce_date[1]
 sort id survey_yr
 
 gen in_div_sample=0
 replace in_div_sample=1 if divorce_date <=1989 | divorce_date==.
 
-unique id if in_div_sample, by(relationship_type) // much closer marriages, but now have much less cohab - this is because this REMOVES from sample, whereas they should still be in, but intact.
-// would REMOVING the rows help? because dissolve would go away and would be treated as intact??
+unique id if in_div_sample, by(relationship_type) // cohab is okay, but marriage still much higher. is it because should just remove those rows?
 
-browse id survey_yr relationship_type relationship_start_v2 divorce_date dissolve
 
-/*
+preserve
 drop if survey_yr > 1989
-unique id, by(relationship_type) // okay even lower oooops.
-*/
+unique id, by(relationship_type) // okay actually getting closer
+// restore
 
 // jasso earnings
 egen min_earn=rowmin(earnings_head earnings_wife)
@@ -79,7 +77,7 @@ tab relationship_type if employed_ly_head==1, sum(earn_ratio) // this is less cl
 tab relationship_type if employed_ly_head==1 & employed_ly_wife==1, sum(earn_ratio) // this is very close
 
 // models
-logit dissolve couple_earnings if relationship_type==1 // not sig - B&J sometimes is sig, sometimes isn't. - okay but positive asssociation gah
+logit dissolve couple_earnings if relationship_type==1 // sig neg - B&J sometimes is sig, sometimes isn't. - okay but positive asssociation gah
 logit dissolve couple_earnings if relationship_type==2 // sig negative - matches B&J
 
 logit dissolve female_earn_pct if relationship_type==1 // cohab - not sig
