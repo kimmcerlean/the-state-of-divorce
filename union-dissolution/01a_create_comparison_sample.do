@@ -119,15 +119,16 @@ sort survey_yr FAMILY_INTERVIEW_NUM_ id
 
 // drop if NUM_MARRIED==98
 
-browse MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_ COUPLE_STATUS_REF_ // marital status_head_ = MARRIED OR COHAB IWTH NO DISTINGUISH, marital_status_ref = official - so if DIVROCED, put as cohab?
+browse relationship dissolve MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_ COUPLE_STATUS_REF_ // marital status_head_ = MARRIED OR COHAB IWTH NO DISTINGUISH, marital_status_ref = official - so if DIVROCED, put as cohab?
+
+browse id survey_yr relationship dissolve MARITAL_STATUS_REF_
 
 gen relationship_type=0
 replace relationship_type=1 if NUM_MARRIED==0
 replace relationship_type=2 if NUM_MARRIED>=1
 replace relationship_type=1 if either_cohab==22
-replace relationship_type=1 if inrange(MARITAL_STATUS_REF_,2,9) & dissolve==0
+replace relationship_type=1 if inrange(MARITAL_STATUS_REF_,2,9)
 sort id survey_yr
-replace relationship_type=1 if relationship_type==2 & relationship_type[_n-1]==1 & dissolve==1 & id==id[_n-1]
 
 label define relationship_type 1 "Cohab" 2 "Married"
 label values relationship_type relationship_type
@@ -156,8 +157,8 @@ browse survey_yr FAMILY_INTERVIEW_NUM_ per_id id if inlist(id,12,13)
 
 keep if per_id==1
 
-unique id, by(relationship_start) // can I get this to match S&H?
-unique id if dissolve==1, by(relationship_start)
+unique id, by(rel_start_all) // can I get this to match S&H?
+unique id if dissolve==1, by(rel_start_all)
  
 // education
 browse survey_yr id  EDUC1_WIFE_ EDUC_WIFE_ EDUC1_HEAD_ EDUC_HEAD_
