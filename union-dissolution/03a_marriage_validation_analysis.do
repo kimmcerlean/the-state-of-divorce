@@ -81,6 +81,14 @@ replace cohort_sgp=2 if inrange(relationship_start_v2,1980,1989)
 replace cohort_sgp=3 if inrange(relationship_start_v2,1990,1999)
 replace cohort_sgp=4 if inrange(relationship_start_v2,2000,2009)
 
+browse id survey_yr FIRST_MARRIAGE_YR_START FIRST_MARRIAGE_YR_WIFE_ FIRST_MARRIAGE_YR_HEAD_
+
+gen cohort_sgp_alt=.
+replace cohort_sgp_alt=1 if inrange(relationship_start_v2,1968,1979)
+replace cohort_sgp_alt=2 if inrange(relationship_start_v2,1980,1989)
+replace cohort_sgp_alt=3 if inrange(relationship_start_v2,1990,1999)
+replace cohort_sgp_alt=4 if inrange(relationship_start_v2,2000,2009)
+
 gen divorce_date = relationship_end if dissolve==1
 bysort id (divorce_date): replace divorce_date = divorce_date[1]
 sort id survey_yr
@@ -93,7 +101,7 @@ replace in_div_sample=0 if inlist(SEX_WIFE_,0,1) // head NOT male when I assumin
 
 browse id survey_yr relationship_start_v2 relationship_end dissolve divorce_date in_div_sample
 
-// weighted?! browse id survey_yr FAMILY_INTERVIEW_NUM_ CORE_WEIGHT_ // need to add the 1993-1996 weights GAH
+// weighted?! browse id survey_yr FAMILY_INTERVIEW_NUM_ CORE_WEIGHT_ 
 gen weight = .
 replace weight = CORE_WEIGHT_ if inrange(survey_yr,1968,1992)
 replace weight = COR_IMM_WT_ if inrange(survey_yr,1993,2019)
@@ -161,6 +169,7 @@ logit dissolve dur ib5.female_pct_bucket `controls' if cohort_sgp==3, or // that
 margins female_pct_bucket
 marginsplot
 
+
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
 logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1, or // 2 pos but not sig, 3 and 4 sig
 logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2, or // 3 and 4 super sig here, 2 not
@@ -175,17 +184,16 @@ logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2 & in_div_sam
 logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // none sig
 logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // all sig
 
-local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 2 and 4 sig
+local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife couple_earnings i.employed_ly_wife NUM_MARRIED" 
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 4 sig
 logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 3 and 4 sig
 logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 2 and 3 marginally sig, but 4 very positive
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig
 
-local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife couple_earnings i.employed_ly_wife" // trying to get controls to match table 2
+local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife couple_earnings i.employed_ly_wife NUM_MARRIED" // trying to get controls to match table 2
 logit dissolve i.cohort_sgp##i.female_pct_bucket2 `controls' if in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or
 /// also - is it because I am estimating separately and the association ispositive later, but NOT THE SAME?
 // wait okay with the INTERACTION, is that actually right? - cohort 3, bucket 4, sig negative? is that why the buckets match the chart, but they weren't here?? because interaction v. not?
-
 margins female_pct_bucket2#cohort_sgp
 marginsplot
 
@@ -212,6 +220,21 @@ logit dissolve i.cohort_sgp##i.female_50 `controls', or // okay but the interact
 
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
 logit dissolve i.cohort_sgp##i.female_50 `controls' if in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // with sample restrictions gets better, but still not sig the way theirs is. for 3 and 4
+
+// other checks
+tab cohort_sgp_alt if in_div_sample==1 & inlist(IN_UNIT,1,2), sum(female_earn_pct)
+tab cohort_sgp, sum(female_earn_pct)
+
+tab cohort_sgp if earnings_wife>0 & earnings_head>0 & in_div_sample==1 & inlist(IN_UNIT,1,2), sum(female_earn_pct) // the "dual-earner"
+tab cohort_sgp if earnings_head>0 & in_div_sample==1 & inlist(IN_UNIT,1,2), sum(female_earn_pct)
+
+gen wife_earns_more=0
+replace wife_earns_more=1 if earnings_wife>earnings_head
+
+tab wife_earns_more if cohort_sgp_alt==1 & in_div_sample==1 & inlist(IN_UNIT,1,2) // okay this percentage matches
+tab wife_earns_more if cohort_sgp_alt==1 & in_div_sample==1 & inlist(IN_UNIT,1,2) , sum(female_earn_pct) // so does this
+tab wife_earns_more if cohort_sgp_alt==1 // & in_div_sample==1 & inlist(IN_UNIT,1,2) // okay this percentage matches
+tab wife_earns_more if cohort_sgp_alt==1, sum(female_earn_pct) // so does this
 
 ********************************************************************************
 * Brines and Joyner 1999
