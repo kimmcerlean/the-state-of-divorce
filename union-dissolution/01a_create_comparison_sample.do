@@ -177,6 +177,9 @@ gen hh_earn_type_lag=.
 replace hh_earn_type_lag=hh_earn_type_bkd[_n-1] if id==id[_n-1]
 label values hh_earn_type_lag earn_type_bkd
 
+gen female_earn_pct_lag=.
+replace female_earn_pct_lag=female_earn_pct[_n-1] if id==id[_n-1]
+
 browse id survey_yr earnings_head earnings_wife hh_earn_type_bkd hh_earn_type_lag
 	
 // restrict to working age (18-55) - at time of marriage or all? check what others do - Killewald said ages 18-55 - others have different restrictions, table this part for now
