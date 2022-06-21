@@ -28,22 +28,78 @@ drop if SEQ_NUMBER_==0 // won't have data because not in that year -- like SIPP,
 
 browse survey_yr id main_per_id SEQ_NUMBER_ relationship RELATION_ FIRST_MARRIAGE_YR_START 
 
-bysort id: egen relationship_start=min(survey_yr) if relationship==1
-bysort id: egen relationship_end=max(survey_yr) if relationship==1
+browse id survey_yr relationship MARITAL_STATUS_HEAD_
+gen relationship_yr = survey_yr if relationship==1
+gen enter_rel=0
+replace enter_rel=1 if relationship==1 & relationship[_n-1]==0 & id==id[_n-1]
+replace enter_rel=1 if relationship_yr==1968 // since can't transition, but call this "relationship 1"
+
+gen exit_rel=0
+replace exit_rel=1 if relationship==0 & relationship[_n-1]==1 & id==id[_n-1]
+
+browse id survey_yr relationship enter_rel MARITAL_STATUS_HEAD_ exit_rel
+
+gen relationship_start = survey_yr if enter_rel==1
+bysort id: egen marrno=rank(relationship_start)
+browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start marrno
+
+gen rel1_start=.
+replace rel1_start=relationship_start if marrno==1
+bysort id (rel1_start): replace rel1_start=rel1_start[1]
+gen rel2_start=.
+replace rel2_start=relationship_start if marrno==2
+bysort id (rel2_start): replace rel2_start=rel2_start[1]
+gen rel3_start=.
+replace rel3_start=relationship_start if marrno==3
+bysort id (rel3_start): replace rel3_start=rel3_start[1]
+
+sort id survey_yr
+browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel rel1_start rel2_start marrno
+
+gen relationship_end = survey_yr if exit_rel==1
+bysort id: egen exitno=rank(relationship_end)
+browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start exitno
+
+gen rel1_end=.
+replace rel1_end=relationship_end if exitno==1
+bysort id (rel1_end): replace rel1_end=rel1_end[1]
+gen rel2_end=.
+replace rel2_end=relationship_end if exitno==2
+bysort id (rel2_end): replace rel2_end=rel2_end[1]
+gen rel3_end=.
+replace rel3_end=relationship_end if exitno==3
+bysort id (rel3_end): replace rel3_end=rel3_end[1]
+
+browse id survey_yr relationship enter_rel marrno rel1_start rel1_end rel2_start rel2_end
+
+gen rel_start_all=.
+replace rel_start_all = rel1_start if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace rel_start_all = rel2_start if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace rel_start_all = rel3_start if survey_yr>=rel3_start & survey_yr <=rel3_end
+
+gen rel_end_all=.
+replace rel_end_all = rel1_end if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace rel_end_all = rel2_end if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace rel_end_all = rel3_end if survey_yr>=rel3_start & survey_yr <=rel3_end
+
+browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
+
 bysort id: egen last_survey_yr = max(survey_yr)
 
-browse id survey_yr relationship relationship_start relationship_end last_survey_yr SEQ_NUMBER_ MARITAL_PAIRS_
-gen dissolve=.
-replace dissolve=0 if relationship==1
-replace dissolve=1 if relationship_end < last_survey_yr & relationship_end==survey_yr
+browse id survey_yr relationship marrno  rel_start_all rel_end_all exit_rel
 
-browse id survey_yr relationship relationship_start relationship_end last_survey_yr dissolve SEQ_NUMBER_ MARITAL_PAIRS_
+gen dissolve=0
+replace dissolve=1 if exit_rel==1 & inlist(MARITAL_STATUS_HEAD_,2,4,5)
+
+browse id survey_yr relationship MARITAL_STATUS_HEAD_ dissolve exit_rel rel_start_all rel_end_all
 
 ********************************************************************************
 * Restrict to anyone in a relationship
 ********************************************************************************
-keep if relationship==1
-browse id survey_yr relationship relationship_start relationship_end last_survey_yr dissolve SEQ_NUMBER_ MARITAL_PAIRS_
+gen total_relationship=relationship
+replace total_relationship=1 if dissolve==1
+keep if total_relationship==1 
+browse id survey_yr relationship rel_start_all rel_end_all dissolve SEQ_NUMBER_ MARITAL_PAIRS_
 
 // trying to identify if married or cohabiting. .. need relation_?
 egen year_family=concat(survey_yr FAMILY_INTERVIEW_NUM_), punct(_)
