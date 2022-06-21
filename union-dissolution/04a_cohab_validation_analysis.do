@@ -29,8 +29,7 @@ sort id survey_yr
 gen in_div_sample=0
 replace in_div_sample=1 if divorce_date <=1989 | divorce_date==.
 
-unique id if in_div_sample, by(relationship_type) // cohab is okay, but marriage still much higher. is it because should just remove those rows?
-
+unique id if in_div_sample, by(relationship_type) // cohab is closer, but lower, but marriage still much higher. is it because should just remove those rows?
 
 preserve
 drop if survey_yr > 1989
@@ -77,15 +76,15 @@ tab relationship_type if employed_ly_head==1, sum(earn_ratio) // this is less cl
 tab relationship_type if employed_ly_head==1 & employed_ly_wife==1, sum(earn_ratio) // this is very close
 
 // models
-logit dissolve couple_earnings if relationship_type==1 // sig neg - B&J sometimes is sig, sometimes isn't. - okay but positive asssociation gah
-logit dissolve couple_earnings if relationship_type==2 // sig negative - matches B&J
+logit dissolve couple_earnings if relationship_type==1, or // not sig - B&J sometimes is sig, sometimes isn't. - okay but positive asssociation gah
+logit dissolve couple_earnings if relationship_type==2, or // sig negative - matches B&J
 
 logit dissolve female_earn_pct if relationship_type==1 // cohab - not sig
-logit dissolve female_earn_pct if relationship_type==2 // marriage - sig positive - which makes sense
+logit dissolve female_earn_pct if relationship_type==2 // marriage - now not sig. was sig in my previous go round of this.... (but hadn't dropped the years)
 
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
-logit dissolve couple_earnings `controls' if relationship_type==1 & in_div_sample==1 // not sig - B&J sometimes is sig, sometimes isn't.
-logit dissolve couple_earnings `controls' if relationship_type==2  & in_div_sample==1 // sig negative - matches B&J
+logit dissolve couple_earnings `controls' if relationship_type==1, or // not sig - B&J sometimes is sig, sometimes isn't.
+logit dissolve couple_earnings `controls' if relationship_type==2, or // not sig - doesn't match
 
 logit dissolve female_earn_pct `controls' if relationship_type==1 // cohab - not sig
 logit dissolve female_earn_pct `controls' if relationship_type==2 // marriage - sig positive - which makes sense
@@ -94,19 +93,17 @@ local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head a
 logit dissolve i.wife_earns_more `controls' if relationship_type==1 // not sig
 logit dissolve i.wife_earns_more `controls' if relationship_type==2 // sig positive - which is not consistent, but had to be EMPLOYED MALE PARTNER
 
-logit dissolve earn_ratio `controls' if relationship_type==1 // sig pos
+logit dissolve earn_ratio `controls' if relationship_type==1 // no relation
 logit dissolve earn_ratio `controls' if relationship_type==2 // sig positive
 
 logit dissolve jasso_earn `controls' if relationship_type==1 // sig neg - this aligns
 logit dissolve jasso_earn `controls' if relationship_type==2 // not sig - algins with B&J
 
 logit dissolve jasso_wage `controls' if relationship_type==1 // okay not sig but neg
-logit dissolve jasso_wage `controls' if relationship_type==2 // not sig but less neg
+logit dissolve jasso_wage `controls' if relationship_type==2 // not sig but pos
 
-logit dissolve jasso_wage i.wife_earns_more if relationship_type==1
-logit dissolve jasso_wage i.wife_earns_more if relationship_type==2
-logit dissolve jasso_wage i.wife_earns_more if relationship_type==1 & in_div_sample==1
-logit dissolve jasso_wage i.wife_earns_more if relationship_type==2 & in_div_sample==1
+logit dissolve jasso_wage i.wife_earns_more if relationship_type==1 // nothing sig
+logit dissolve jasso_wage i.wife_earns_more if relationship_type==2 // sig for wife earns more
 
 logit dissolve jasso_wage i.wife_earns_more if relationship_type==1 & employed_ly_head==1
 logit dissolve jasso_wage i.wife_earns_more if relationship_type==2 & employed_ly_head==1
@@ -117,20 +114,18 @@ logit dissolve jasso_wage_alt i.wife_earns_more `controls' if relationship_type=
 
 // okay this islike crux of table 4 and I can't get it to match - cohab, nothing sig. for marriage, wife-earns_more is sig, when I add in divorce sample, nothing sig
 
-logit dissolve jasso_wage_alt i.wife_earns_more if relationship_type==1 // here, marginally sig neg, but wife earns more is not sig.
+logit dissolve jasso_wage_alt i.wife_earns_more if relationship_type==1 // nothing sig
 logit dissolve jasso_wage_alt i.wife_earns_more if relationship_type==2 // wife earns more = sig
-logit dissolve jasso_wage_alt i.wife_earns_more if relationship_type==1 & in_div_sample==1 // nothing sig
-logit dissolve jasso_wage_alt i.wife_earns_more if relationship_type==2 & in_div_sample==1 // nothing sig
 
 gen jasso_wage_lag=.
 replace jasso_wage_lag=jasso_wage[_n-1] if id==id[_n-1]
 
-logit dissolve jasso_wage_lag i.wife_earns_more if relationship_type==1
+logit dissolve jasso_wage_lag i.wife_earns_more if relationship_type==1 // nothing sig
 logit dissolve jasso_wage_lag i.wife_earns_more if relationship_type==2 // wife earns more = sig
 
 // how about my variables - dual earning should stabilize cohab, and male BW = married
-logit dissolve i.hh_earn_type_bkd if relationship_type==1, or // no diffs male bw / male sole and dual, but female BW = sig higher - aligns with B&J overall conclusion - but I in general, am like - is this real or size.  like 300 cohabs, and 100 dissolutions...
-logit dissolve i.hh_earn_type_bkd if relationship_type==2, or // male primary sig less likely to dissolve than dual, female BW = sig higher - so kinda generally aligns with speciailization, but no diff with male sole and dual earning...
+logit dissolve i.hh_earn_type_bkd if relationship_type==1, or // no diffs at all
+logit dissolve i.hh_earn_type_bkd if relationship_type==2, or // female BW more likely to dissolve
 
 logit dissolve female_earn_pct if relationship_type==1 // cohab - not sig, which makes sense, kinda
-logit dissolve female_earn_pct if relationship_type==2 // marriage - sig positive - which makes sense if male BW is particularly stabilizing
+logit dissolve female_earn_pct if relationship_type==2 // marriage - not sig
