@@ -7,7 +7,7 @@
 use "$data_keep\PSID_marriage_validation_sample.dta", clear
 
 tab rel_start_all
-browse id survey_yr marriage_order rel_start_all rel1_start rel2_start rel3_start FIRST_MARRIAGE_YR_START
+browse id survey_yr marriage_order rel_start_all rel1_start rel1_end rel2_start rel3_start FIRST_MARRIAGE_YR_START if rel_start_all==. // are these cohabitations? started in between marriage dates -- think this is why I think cohab not accurate - i am replacing this info with JUST marital history
 
 ********************************************************************************
 * Schwartz and Han 2014 - okay when I fixed coding, no longer can validate
@@ -15,8 +15,13 @@ browse id survey_yr marriage_order rel_start_all rel1_start rel2_start rel3_star
 * are fine.
 * it was either the censor widow or the split start / end dates. check i did both right
 ********************************************************************************
+unique id, by(rel_start_all)
+unique id if dissolve==1, by(rel_start_all)
+unique id if survey_yr <=2009, by(rel_start_all)
+unique id if dissolve==1 & survey_yr <=2009, by(rel_start_all)
+
 gen cohort_sh=.
-replace cohort_sh=1 if inrange(rel_start_all,1950,1967)
+replace cohort_sh=1 if inrange(rel_start_all,1950,1967) // problem with 1950 marriages is that, if in 1968 PSID - biased towards LONGER marriages okay
 replace cohort_sh=2 if inrange(rel_start_all,1969,1979) // worried about my pre-1970 marriages, seeing if even like 1970 matches
 replace cohort_sh=3 if inrange(rel_start_all,2000,2010)
 
@@ -34,45 +39,61 @@ replace in_sh_sample=0 if age_mar_wife<16 | age_mar_wife>40
 replace in_sh_sample=0 if survey_yr > 2009
 replace in_sh_sample=0 if SEX_HEAD_ ==2
 
+sort id survey_yr
+browse id survey_yr rel_start_all rel_end_all dissolve in_sh_sample
+
 //k their findings: cohort 1 - hypo sig worse than hyper, no diff with homo
 // cohort 2 - hyper and hypo similar, homo = sig less
 
-logit dissolve i.educ_type if cohort_sh==1, or // no diffs
-logit dissolve i.educ_type if cohort_sh==3, or // nothing is significant here now that i've updated things GAH
-logit dissolve i.educ_type if cohort_sh==2, or // k yes, homo sig less, hypo + hyper = same
+logit dissolve i.educ_type if cohort_sh==1 & inlist(IN_UNIT,1,2), or // hypo and homo sig less likely that hyper to dissolve in all - WHY?! more educated?
+logit dissolve i.educ_type if cohort_sh==2 & inlist(IN_UNIT,1,2), or //
+logit dissolve i.educ_type if cohort_sh==3 & inlist(IN_UNIT,1,2), or //
 
-local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife"
-logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2), or // nothing different
-logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2), or // nothing different
-logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2), or // k yes, homo sig less, hypo + hyper = same
+logit dissolve i.educ_type if cohort_sh==1 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or // with this, nothing sig - but makes more sense
+logit dissolve i.educ_type if cohort_sh==2 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or
+logit dissolve i.educ_type if cohort_sh==3 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or
 
-// trying first marriages only - okay but this is first ALL RELATIONSHIPS so people with a cohab and a marriage are being restricted GAH but I only care about marriage so this isn't perfect either - come back to this.
-local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife"
-logit dissolve i.educ_type `controls' if cohort_sh==1 & marriage_order==1, or // homo lower, marginally
-logit dissolve i.educ_type `controls' if cohort_sh==2 & marriage_order==1, or // nothing sig
-logit dissolve i.educ_type `controls' if cohort_sh==3 & marriage_order==1, or // homo sig lower - so this matches, but early doesn't
-
-/// gah is this again because I have all the divorces for later time frames?!?!
-local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order"
-logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2) & survey_yr <=2009, or // homo almost lower
-logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2) & survey_yr <=2009, or // nothing sig
-logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2) & survey_yr <=2009, or // k yes, homo sig less, hypo + hyper = same
-
-local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order"
-logit dissolve i.educ_type##cohort_sh `controls' if inlist(IN_UNIT,1,2) & inlist(cohort_sh,2,3), or // is this same issue as Schwartz and GP - need to interact, not run separately -- still can't get hypo to be sig worse than homo
-	// --- but pretty sure they used NSFG for their early waves and only PSID for later waves?
-	
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
-logit dissolve i.cohort_sh_detail##i.educ_type `controls' if inlist(IN_UNIT,1,2), or // is this same issue as Schwartz and GP - need to interact, not run separately -- still 
+logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or // nothing sig
+logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or // hypo worse, but not sig
+logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or // both less
+
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
+logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2), or // nothing sig
+logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2), or // hypo sig worse
+logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2), or // nothing sig
+
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
+logit dissolve i.educ_type `controls' if cohort_sh_detail==1, or
+logit dissolve i.educ_type `controls' if cohort_sh_detail==2, or
+logit dissolve i.educ_type `controls' if cohort_sh_detail==3, or
+logit dissolve i.educ_type `controls' if cohort_sh_detail==4, or
+logit dissolve i.educ_type `controls' if cohort_sh_detail==5, or
+logit dissolve i.educ_type `controls' if cohort_sh_detail==6, or
+logit dissolve i.educ_type `controls' if cohort_sh_detail==7, or
+
+logit dissolve i.educ_type educ_wife age_mar_wife if cohort_sh_detail==1 & in_sh_sample==1, or // hypo sig worse
+logit dissolve i.educ_type educ_wife age_mar_wife if cohort_sh_detail==7 & in_sh_sample==1, or // okay wait adjusting here - makes it look similar to old one? is this why need ot interact? i am losing my mind
+
+
+foreach var in dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife{
+	logit dissolve `var' i.educ_type if cohort_sh_detail==1, or // hypo sig worse
+}
+
+// dur no, race no, age mar wife starts to get there as does educ_wife 
+
+foreach var in dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife{
+	logit dissolve `var' i.educ_type if cohort_sh_detail==7, or // hypo sig worse
+}
+
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
+logit dissolve i.cohort_sh_detail##i.educ_type `controls' if inlist(IN_UNIT,1,2), or // is this same issue as Schwartz and GP - need to interact, not run separately? maybe in cohort one (main effects) hypo IS sig worse, but homo is also sig worse by later cohort? is this because of interacton??
 margins cohort_sh_detail##educ_type
 marginsplot
-	
-local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife couple_earnings"
-logit dissolve i.educ_type `controls' if cohort_sh_detail==1 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or // nothing diff - hypo is higher, but not sig
-logit dissolve i.educ_type `controls' if cohort_sh_detail==2 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or // nothing diff
+logit dissolve i.cohort_sh_detail##i.educ_type `controls' if inlist(IN_UNIT,1,2), or nocons
 
-local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order couple_earnings"
-logit dissolve i.educ_type `controls' i.educ_head##i.educ_wife if cohort_sh_detail==1 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
+logit dissolve i.cohort_sh_detail##i.educ_type `controls' if in_sh_sample==1, nocons or
 
 ********************************************************************************
 * Killewald 2016
@@ -103,7 +124,7 @@ logit dissolve ft_wife `controls' if in_age==1, or // sig pos - same
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
 logit dissolve economic_well_being `controls' if in_age==1 & cohort_k==1, or // not sig - matches killewald
 logit dissolve couple_earnings `controls' if in_age==1 & cohort_k==1, or // not sig - matches killewald
-logit dissolve ft_head `controls' if in_age==1 & cohort_k==1, or // sig - doesn't match killewald, hers NOT sig, but is negative (0.82)
+logit dissolve ft_head `controls' if in_age==1 & cohort_k==1, or // not sig, mathces killewald
 logit dissolve ft_wife `controls' if in_age==1 & cohort_k==1, or // sig positive - also doesn't match killwald, not sig, but odds ratio similar (1.30) - literally matches, this precision (which she says - let me see if gets smaller)
 
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
