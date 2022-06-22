@@ -111,6 +111,14 @@ replace rel_end_all = rel2_end if survey_yr>=rel2_start & survey_yr <=rel2_end
 replace rel_end_all = rel3_end if survey_yr>=rel3_start & survey_yr <=rel3_end
 replace rel_end_all = rel4_end if survey_yr>=rel4_end & survey_yr <=rel4_end
 
+gen status_all=.
+replace status_all = status1 if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace status_all = status2 if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace status_all = status3 if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace status_all = status4 if survey_yr>=rel4_end & survey_yr <=rel4_end
+
+label values status_all status
+
 browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
 
 gen relationship_order=.
@@ -119,19 +127,21 @@ forvalues r=1/4{
 	replace relationship_order=`r' if survey_yr>=rel`r'_start & survey_yr <=rel`r'_end
 }
 
-
 browse id survey_yr relationship relationship_order rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
 
 bysort id: egen last_survey_yr = max(survey_yr)
 
 sort id survey_yr
-browse id survey_yr relationship marrno  rel_start_all rel_end_all exit_rel
+browse id survey_yr relationship rel_start_all rel_end_all exit_rel status1 status2
+
+browse id survey_yr rel_start_all rel_end_all  status_all exit_rel last_survey_yr MARRIAGE_UPDATE MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_
 
 gen dissolve=0
-replace dissolve=1 if exit_rel==1 & inlist(MARITAL_STATUS_HEAD_[_n+1],2,4,5) & id == id[_n+1]
+replace dissolve=1 if survey_yr >=rel_end_all & (inrange(status_all,4,7) & in_marital_history==1)
+replace dissolve=1 if exit_rel==1 & inlist(MARITAL_STATUS_HEAD_[_n+1],2,4,5) & id == id[_n+1] & in_marital_history==0
 
 sort id survey_yr
-browse id survey_yr relationship MARITAL_STATUS_HEAD_ dissolve exit_rel rel_start_all rel_end_all
+browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_
 
 ********************************************************************************
 * Restrict to anyone in a relationship
@@ -139,14 +149,18 @@ browse id survey_yr relationship MARITAL_STATUS_HEAD_ dissolve exit_rel rel_star
 gen total_relationship=relationship
 replace total_relationship=1 if dissolve==1
 keep if total_relationship==1 
-browse id survey_yr relationship rel_start_all rel_end_all dissolve SEQ_NUMBER_ MARITAL_PAIRS_
+browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_
+
+unique id if inrange(status_all,4,7) // 6060
+unique id if dissolve==1 // 6622
 
 // trying to identify if married or cohabiting. .. need relation_?
-egen year_family=concat(survey_yr FAMILY_INTERVIEW_NUM_), punct(_)
+// might need to alter code for cohab because wouldn't be in marital history, so I may have over-wrote some cohab above. 
+// will this as now for married, but for cohab, go back to original code and then ONLY KEEP cohab - will only be accurate for cohab and this file only for marriages? but here at least need to remove some marriages?
+// egen year_family=concat(survey_yr FAMILY_INTERVIEW_NUM_), punct(_)
 keep if inlist(RELATION_,1,2,10,20,22)
 
 bysort survey_yr FAMILY_INTERVIEW_NUM_ (RELATION_): egen either_cohab=max(RELATION_)
-
 sort survey_yr FAMILY_INTERVIEW_NUM_ id
 
 // drop if NUM_MARRIED==98
@@ -167,6 +181,15 @@ label values relationship_type relationship_type
 
 tab MARITAL_STATUS_REF_ relationship_type
 tab relationship_type RELATION_
+tab relationship_type in_marital_history // should they automatically be married if in here since that is the dates I used?? confused...
+
+replace relationship_type=2 if relationship==0 & dissolve==1 & relationship_type[_n-1]==2 & id==id[_n-1]
+tab relationship_type in_marital_history // should they automatically be married if in here since that is the dates I used?? confused...
+tab relationship_type relationship // should they automatically be married if in here since that is the dates I used?? confused...
+drop if survey_yr > rel_end_all & rel_end_all!=.
+
+browse id survey_yr relationship relationship_type rel_start_all rel_end_all status_all dissolve exit_rel  MARITAL_STATUS_HEAD_
+browse id survey_yr relationship relationship_type rel_start_all rel_end_all status_all dissolve exit_rel  MARITAL_STATUS_HEAD_ if in_marital_history==1
 
 // drop if relationship_type==1
 tab RELATION_ // okay pretty equal numbers.
@@ -182,27 +205,30 @@ gen reltype2 = relationship_type if survey_yr>=rel2_start & survey_yr <=rel2_end
 bysort id (reltype2): replace reltype2=reltype2[1]
 gen reltype3 = relationship_type if survey_yr>=rel3_start & survey_yr <=rel3_end
 bysort id (reltype3): replace reltype3=reltype3[1]
+gen reltype4 = relationship_type if survey_yr>=rel4_start & survey_yr <=rel4_end
+bysort id (reltype4): replace reltype4=reltype4[1]
 label values reltype* relationship_type
 
 sort id survey_yr
 browse id survey_yr relationship_type rel_start_all rel_end_all reltype*
 
-egen num_unions=rownonmiss(reltype1 reltype2 reltype3)
-egen num_marriages=anycount(reltype1 reltype2 reltype3), values(2)
-egen num_cohab=anycount(reltype1 reltype2 reltype3), values(1)
+egen ct_unions=rownonmiss(reltype1 reltype2 reltype3 reltype4)
+egen ct_marriages=anycount(reltype1 reltype2 reltype3 reltype4), values(2)
+egen ct_cohab=anycount(reltype1 reltype2 reltype3 reltype4), values(1)
 
-browse id survey_yr relationship_type reltype* num_unions num_marriages num_cohab
+browse id survey_yr relationship_type reltype* ct_unions ct_marriages ct_cohab
 
 gen marriage_order=.
 
-forvalues r=1/3{
+forvalues r=1/4{
 	replace marriage_order=`r' if survey_yr>=rel`r'_start & survey_yr <=rel`r'_end & relationship_type==2 // gah it's labelling as 2 if two in order, not one.
 }
 
+sort id survey_yr
 gen marriage_order_real = marriage_order
-replace marriage_order_real = num_marriages if marriage_order > num_marriages & marriage_order!=. & num_marriages!=. // think this isn't perfect if three relationships, but sufficient for now
+replace marriage_order_real = ct_marriages if marriage_order > ct_marriages & marriage_order!=. & ct_marriages!=. // think this isn't perfect if three relationships, but sufficient for now
 
-browse id survey_yr relationship_type relationship_order marriage_order marriage_order_real rel_start_all rel_end_all num_unions num_marriages num_cohab 
+browse id survey_yr relationship_type relationship_order marriage_order marriage_order_real rel_start_all rel_end_all ct_unions ct_marriages ct_cohab 
 
 save "$data_tmp\PSID_all_unions.dta", replace
 
