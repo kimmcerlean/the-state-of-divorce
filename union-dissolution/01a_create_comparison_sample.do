@@ -47,16 +47,18 @@ bysort id: egen marrno=rank(relationship_start)
 browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start FIRST_MARRIAGE_YR_START marrno
 
 gen rel1_start=.
-replace rel1_start = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
-replace rel1_start=relationship_start if marrno==1 & FIRST_MARRIAGE_YR_START==9999
+// replace rel1_start = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
+replace rel1_start=relationship_start if marrno==1 // & FIRST_MARRIAGE_YR_START==9999
 bysort id (rel1_start): replace rel1_start=rel1_start[1]
 gen rel2_start=.
-replace rel2_start = RECENT_MARRIAGE_YR_START if RECENT_MARRIAGE_YR_START <=2019
-replace rel2_start=relationship_start if marrno==2 & RECENT_MARRIAGE_YR_START ==9999
+replace rel2_start=relationship_start if marrno==2 // & RECENT_MARRIAGE_YR_START ==9999
 bysort id (rel2_start): replace rel2_start=rel2_start[1]
 gen rel3_start=.
 replace rel3_start=relationship_start if marrno==3
 bysort id (rel3_start): replace rel3_start=rel3_start[1]
+gen rel4_start=.
+replace rel4_start=relationship_start if marrno==4
+bysort id (rel4_start): replace rel4_start=rel4_start[1]
 
 sort id survey_yr
 browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start rel1_start FIRST_MARRIAGE_YR_START rel2_start marrno
@@ -74,24 +76,46 @@ bysort id (rel2_end): replace rel2_end=rel2_end[1]
 gen rel3_end=.
 replace rel3_end=relationship_end if exitno==3
 bysort id (rel3_end): replace rel3_end=rel3_end[1]
+gen rel4_end=.
+replace rel4_end=relationship_end if exitno==4
+bysort id (rel4_end): replace rel4_end=rel4_end[1]
 
 browse id survey_yr relationship enter_rel marrno rel1_start rel1_end rel2_start rel2_end
+sort id survey_yr
+browse id survey_yr rel1_start rel1_end rel2_start rel2_end in_marital_history yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 // figuring out how to combine gah
+
+replace rel1_start=yr_married1 if in_marital_history==1
+replace rel2_start=yr_married2 if in_marital_history==1
+replace rel3_start=yr_married3 if in_marital_history==1
+replace rel4_start=yr_married4 if in_marital_history==1
+replace rel1_end=yr_end1 if in_marital_history==1
+replace rel2_end=yr_end2 if in_marital_history==1
+replace rel3_end=yr_end3 if in_marital_history==1
+replace rel4_end=yr_end4 if in_marital_history==1
+
+browse id survey_yr rel1_start rel1_end rel2_start rel2_end in_marital_history yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 // figuring out how to combine gah
+replace rel1_end=. if rel1_end==9999
+replace rel2_end=. if rel2_end==9999
+replace rel3_end=. if rel3_end==9999
+replace rel4_end=. if rel4_end==9999
 
 gen rel_start_all=.
 replace rel_start_all = rel1_start if survey_yr>=rel1_start & survey_yr <=rel1_end
 replace rel_start_all = rel2_start if survey_yr>=rel2_start & survey_yr <=rel2_end
 replace rel_start_all = rel3_start if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace rel_start_all = rel4_start if survey_yr>=rel4_start & survey_yr <=rel4_end
 
 gen rel_end_all=.
 replace rel_end_all = rel1_end if survey_yr>=rel1_start & survey_yr <=rel1_end
 replace rel_end_all = rel2_end if survey_yr>=rel2_start & survey_yr <=rel2_end
 replace rel_end_all = rel3_end if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace rel_end_all = rel4_end if survey_yr>=rel4_end & survey_yr <=rel4_end
 
 browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
 
 gen relationship_order=.
 
-forvalues r=1/3{
+forvalues r=1/4{
 	replace relationship_order=`r' if survey_yr>=rel`r'_start & survey_yr <=rel`r'_end
 }
 

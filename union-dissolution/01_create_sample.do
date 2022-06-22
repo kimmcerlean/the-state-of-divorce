@@ -34,6 +34,8 @@ reshape long `reshape_vars', i(id) j(survey_yr)
 
 save "$data_tmp\PSID_full_long.dta", replace
 
+browse id survey_yr yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 FIRST_MARRIAGE_YR_START in_marital_history // ensuring marital history makes sense
+
 ********************************************************************************
 * First clean up to get a sense of WHO is even eligible
 ********************************************************************************
