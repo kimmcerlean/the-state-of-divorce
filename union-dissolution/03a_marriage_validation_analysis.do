@@ -20,6 +20,20 @@ unique id if dissolve==1, by(rel_start_all)
 unique id if survey_yr <=2009, by(rel_start_all)
 unique id if dissolve==1 & survey_yr <=2009, by(rel_start_all)
 
+gen educ_type_lag=.
+sort id survey_yr
+replace educ_type_lag=educ_type[_n-1] if id==id[_n-1]
+
+label values educ_type_lag educ_type
+
+bysort id: egen first_survey_yr = min(survey_yr)
+gen first_educ_type = .
+replace first_educ_type = educ_type if survey_yr == first_survey_yr
+bysort id (first_educ_type): replace first_educ_type = first_educ_type[1]
+label values first_educ_type educ_type
+
+browse id survey_yr educ_type educ_type_lag first_educ_type
+
 gen cohort_sh=.
 replace cohort_sh=1 if inrange(rel_start_all,1950,1967) // problem with 1950 marriages is that, if in 1968 PSID - biased towards LONGER marriages okay
 replace cohort_sh=2 if inrange(rel_start_all,1969,1979) // worried about my pre-1970 marriages, seeing if even like 1970 matches
@@ -44,7 +58,6 @@ browse id survey_yr rel_start_all rel_end_all dissolve in_sh_sample
 
 //k their findings: cohort 1 - hypo sig worse than hyper, no diff with homo
 // cohort 2 - hyper and hypo similar, homo = sig less
-
 logit dissolve i.educ_type if cohort_sh==1 & inlist(IN_UNIT,1,2), or // hypo and homo sig less likely that hyper to dissolve in all - WHY?! more educated?
 logit dissolve i.educ_type if cohort_sh==2 & inlist(IN_UNIT,1,2), or //
 logit dissolve i.educ_type if cohort_sh==3 & inlist(IN_UNIT,1,2), or //
@@ -53,10 +66,30 @@ logit dissolve i.educ_type if cohort_sh==1 & inlist(IN_UNIT,1,2) & in_sh_sample=
 logit dissolve i.educ_type if cohort_sh==2 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or
 logit dissolve i.educ_type if cohort_sh==3 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or
 
+
+logit dissolve i.first_educ_type if cohort_sh==1 & inlist(IN_UNIT,1,2), or // still all sig less likely...
+logit dissolve i.first_educ_type if cohort_sh==2 & inlist(IN_UNIT,1,2), or //
+logit dissolve i.first_educ_type if cohort_sh==3 & inlist(IN_UNIT,1,2), or //
+
+logit dissolve i.educ_type_lag if cohort_sh==1 & inlist(IN_UNIT,1,2), or // nothing sig
+logit dissolve i.educ_type_lag if cohort_sh==2 & inlist(IN_UNIT,1,2), or // homo < hypo
+logit dissolve i.educ_type_lag if cohort_sh==3 & inlist(IN_UNIT,1,2), or // homo<hypo
+
+
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
 logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or // nothing sig
 logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or // hypo worse, but not sig
 logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or // both less
+
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
+logit dissolve i.first_educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or
+logit dissolve i.first_educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or
+logit dissolve i.first_educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or
+
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
+logit dissolve i.educ_type_lag `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or
+logit dissolve i.educ_type_lag `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or
+logit dissolve i.educ_type_lag `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2)  & in_sh_sample==1, or
 
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
 logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2), or // nothing sig
@@ -135,10 +168,6 @@ logit dissolve ft_wife `controls' if in_age==1 & cohort_k==2, or // not sig (OR=
 
 ********************************************************************************
 * Schwartz and Gonalons-Pons 2016
-* This one is replicating the least which is not great because this is most
-* similar to my variable. My only thought is that I have more dissolution in later
-* years than they do, with more data (2019 v. 2009) so relationship has changed?
-* should I try removing people who divorced after 2009?
 ********************************************************************************
 // did I remove higher order marriages?! that might also do it - CHECK
 
@@ -186,8 +215,8 @@ input group
 1
 end
 
-xtile female_pct_bucket = female_earn_pct, cut(group)
-browse female_pct_bucket female_earn_pct
+xtile female_pct_bucket = female_earn_pct_lag, cut(group)
+browse female_pct_bucket female_earn_pct_lag
 
 // to mimic their table 2
 input group2
@@ -196,15 +225,13 @@ input group2
 .70
 end
 
-xtile female_pct_bucket2 = female_earn_pct, cut(group2)
-browse female_pct_bucket2 female_earn_pct
+xtile female_pct_bucket2 = female_earn_pct_lag, cut(group2)
+browse female_pct_bucket2 female_earn_pct_lag
 
-xtile female_pct_bucket_lag = female_earn_pct_lag, cut(group2)
-
-logit dissolve female_earn_pct, or
-logit dissolve female_earn_pct if cohort_sgp==1, or // sig
-logit dissolve female_earn_pct if cohort_sgp==3, or // not sig
-logit dissolve female_earn_pct if cohort_sgp==4, or // sig again.
+logit dissolve female_earn_pct_lag, or // sig pos
+logit dissolve female_earn_pct_lag if cohort_sgp==1, or // not sig
+logit dissolve female_earn_pct_lag if cohort_sgp==3, or // not sig
+logit dissolve female_earn_pct_lag if cohort_sgp==4, or // not sig.
 
 logit dissolve i.female_pct_bucket##i.cohort_sgp if cohort_sgp<4, or
 margins female_pct_bucket#cohort_sgp
@@ -223,55 +250,43 @@ margins female_pct_bucket#cohort_sgp
 marginsplot
 
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
-logit dissolve dur i.female_pct_bucket `controls', or // essentially monotonically increases
-margins female_pct_bucket
-marginsplot
-
-logit dissolve dur i.female_pct_bucket `controls' if cohort_sgp==1, or // same
-margins female_pct_bucket
-marginsplot
-
-logit dissolve dur i.female_pct_bucket `controls' if cohort_sgp==3, or // k not sig here, which would align
-logit dissolve dur ib5.female_pct_bucket `controls' if cohort_sgp==3, or // that last bucket maybe - again, I wonder if also, people who marry later and divorce later if wife = 100% - so captured in mine, not theirs.
-margins female_pct_bucket
-marginsplot
-
-
-local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1, or // 2 pos but not sig, 3 and 4 sig
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2, or // 3 and 4 super sig here, 2 not
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3, or // nothing sig, but I think their 4 is neg the other way, I have no association
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4, or // 4 very sig here - again for them, not sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1, or // pos and sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2, or // pos and sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3, or // pos in 3 and 4
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4, or // 4=still sig
 
 
 // problem is also - not really not in sample, but in sample as INTACT. okay also need to get rid of immigrant sample
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // all sig
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // 3 and 4 sig, 2 marginally
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // none sig
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // all sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // 2 sig, nothing else is
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // nothing sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // bothing sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2), or // 4 sig
 
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife couple_earnings i.employed_ly_wife NUM_MARRIED" 
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 4 sig
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 3 and 4 sig
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig
-logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 2 and3  sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==2 & inlist(IN_UNIT,1,2) [pweight=weight], or // 3 and 4 sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==3 & inlist(IN_UNIT,1,2) [pweight=weight], or // 3 sig
+logit dissolve dur i.female_pct_bucket2 `controls' if cohort_sgp==4 & inlist(IN_UNIT,1,2) [pweight=weight], or // 4 sig
 
 
 **************This is closest I have gotten**************
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife couple_earnings i.employed_ly_wife NUM_MARRIED" // trying to get controls to match table 2
 logit dissolve i.cohort_sgp##i.female_pct_bucket2 `controls' if in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or
 /// also - is it because I am estimating separately and the association ispositive later, but NOT THE SAME?
-// wait okay with the INTERACTION, is that actually right? - cohort 3, bucket 4, sig negative? is that why the buckets match the chart, but they weren't here?? because interaction v. not?
+// wait okay with the INTERACTION, is that actually right? - cohort 3, bucket 4, sig negative? cohort 4 is just off
 margins female_pct_bucket2#cohort_sgp
 marginsplot
+
+local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife couple_earnings i.employed_ly_wife NUM_MARRIED" // trying to get controls to match table 2
+logit dissolve i.cohort_sgp##i.female_pct_bucket2 `controls' if inlist(IN_UNIT,1,2) [pweight=weight], or
 **************This is closest I have gotten**************
 
 local controls "dur i.race_head i.same_race i.children i.educ_wife i.educ_head age_mar_head age_mar_wife"
-logit dissolve dur i.female_pct_bucket_lag `controls' if cohort_sgp==1 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // 2 and 4 sig
-logit dissolve dur i.female_pct_bucket_lag `controls' if cohort_sgp==2 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig
-logit dissolve dur i.female_pct_bucket_lag `controls' if cohort_sgp==3 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig, 4 quite low, thoug...
-logit dissolve dur i.female_pct_bucket_lag `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or // none sig
+logit dissolve i.female_pct_bucket `controls' if cohort_sgp==1 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or
+logit dissolve i.female_pct_bucket `controls' if cohort_sgp==2 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or
+logit dissolve i.female_pct_bucket `controls' if cohort_sgp==3 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or
+logit dissolve i.female_pct_bucket `controls' if cohort_sgp==4 & in_div_sample==1 & inlist(IN_UNIT,1,2) [pweight=weight], or
 
 // why did the buckets work to match the chart, but these estimates are NOWHERE CLOSE - it's definitely also the 80-100, is it because of 100%, but seems like they do include that?
 
