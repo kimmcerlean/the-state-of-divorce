@@ -7,33 +7,72 @@
 use "$data_keep\PSID_marriage_validation_sample.dta", clear
 
 tab rel_start_all
-browse id survey_yr rel_start_all rel1_start rel2_start rel3_start FIRST_MARRIAGE_YR_START
+browse id survey_yr marriage_order rel_start_all rel1_start rel2_start rel3_start FIRST_MARRIAGE_YR_START
 
 ********************************************************************************
-* Schwartz and Han 2014 - VALIDATED
+* Schwartz and Han 2014 - okay when I fixed coding, no longer can validate
+* historical, but can validate current. does that mean at least my current measurse
+* are fine.
+* it was either the censor widow or the split start / end dates. check i did both right
 ********************************************************************************
 gen cohort_sh=.
-replace cohort_sh=1 if inrange(rel_start_all,1950,1959)
-replace cohort_sh=2 if inrange(rel_start_all,2000,2010)
-replace cohort_sh=3 if inrange(rel_start_all,1970,1979) // worried about my pre-1970 marriages, seeing if even like 1970 matches
+replace cohort_sh=1 if inrange(rel_start_all,1950,1967)
+replace cohort_sh=2 if inrange(rel_start_all,1969,1979) // worried about my pre-1970 marriages, seeing if even like 1970 matches
+replace cohort_sh=3 if inrange(rel_start_all,2000,2010)
+
+gen cohort_sh_detail=.
+replace cohort_sh_detail=1 if inrange(rel_start_all,1970,1974)
+replace cohort_sh_detail=2 if inrange(rel_start_all,1975,1979)
+replace cohort_sh_detail=3 if inrange(rel_start_all,1980,1984)
+replace cohort_sh_detail=4 if inrange(rel_start_all,1985,1989)
+replace cohort_sh_detail=5 if inrange(rel_start_all,1990,1994)
+replace cohort_sh_detail=6 if inrange(rel_start_all,1995,1999)
+replace cohort_sh_detail=7 if inrange(rel_start_all,2000,2004)
+
+gen in_sh_sample=1
+replace in_sh_sample=0 if age_mar_wife<16 | age_mar_wife>40
+replace in_sh_sample=0 if survey_yr > 2009
+replace in_sh_sample=0 if SEX_HEAD_ ==2
 
 //k their findings: cohort 1 - hypo sig worse than hyper, no diff with homo
 // cohort 2 - hyper and hypo similar, homo = sig less
 
-logit dissolve i.educ_type if cohort_sh==1, or // homo sig less
+logit dissolve i.educ_type if cohort_sh==1, or // no diffs
 logit dissolve i.educ_type if cohort_sh==3, or // nothing is significant here now that i've updated things GAH
 logit dissolve i.educ_type if cohort_sh==2, or // k yes, homo sig less, hypo + hyper = same
 
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife"
-logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2), or
-logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2), or // nothing different
-logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2), or // k yes, homo sig less, hypo + hyper = same
+logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2), or // nothing different
+logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2), or // nothing different
+logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2), or // k yes, homo sig less, hypo + hyper = same
 
 // trying first marriages only - okay but this is first ALL RELATIONSHIPS so people with a cohab and a marriage are being restricted GAH but I only care about marriage so this isn't perfect either - come back to this.
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife"
-logit dissolve i.educ_type `controls' if cohort_sh==1 & rel2_start==., or // nothing sig but hypo and homo both lower
-logit dissolve i.educ_type `controls' if cohort_sh==3 & rel2_start==., or // hypo higher but not sig
-logit dissolve i.educ_type `controls' if cohort_sh==2 & rel2_start==., or // nothing sig GAH.
+logit dissolve i.educ_type `controls' if cohort_sh==1 & marriage_order==1, or // homo lower, marginally
+logit dissolve i.educ_type `controls' if cohort_sh==2 & marriage_order==1, or // nothing sig
+logit dissolve i.educ_type `controls' if cohort_sh==3 & marriage_order==1, or // homo sig lower - so this matches, but early doesn't
+
+/// gah is this again because I have all the divorces for later time frames?!?!
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order"
+logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2) & survey_yr <=2009, or // homo almost lower
+logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2) & survey_yr <=2009, or // nothing sig
+logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2) & survey_yr <=2009, or // k yes, homo sig less, hypo + hyper = same
+
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order"
+logit dissolve i.educ_type##cohort_sh `controls' if inlist(IN_UNIT,1,2) & inlist(cohort_sh,2,3), or // is this same issue as Schwartz and GP - need to interact, not run separately -- still can't get hypo to be sig worse than homo
+	// --- but pretty sure they used NSFG for their early waves and only PSID for later waves?
+	
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife"
+logit dissolve i.cohort_sh_detail##i.educ_type `controls' if inlist(IN_UNIT,1,2), or // is this same issue as Schwartz and GP - need to interact, not run separately -- still 
+margins cohort_sh_detail##educ_type
+marginsplot
+	
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife couple_earnings"
+logit dissolve i.educ_type `controls' if cohort_sh_detail==1 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or // nothing diff - hypo is higher, but not sig
+logit dissolve i.educ_type `controls' if cohort_sh_detail==2 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or // nothing diff
+
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order couple_earnings"
+logit dissolve i.educ_type `controls' i.educ_head##i.educ_wife if cohort_sh_detail==1 & inlist(IN_UNIT,1,2) & in_sh_sample==1, or
 
 ********************************************************************************
 * Killewald 2016

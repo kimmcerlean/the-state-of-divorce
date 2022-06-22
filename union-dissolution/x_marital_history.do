@@ -1,0 +1,1 @@
+use "T:\data\PSID\mh_85_19.dta", clear

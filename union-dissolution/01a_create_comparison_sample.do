@@ -26,7 +26,7 @@ bysort id (SEQ_NUMBER_): egen in_sample=max(SEQ_NUMBER_)
 drop if in_sample==0 // people with NO DATA in any year
 drop if SEQ_NUMBER_==0 // won't have data because not in that year -- like SIPP, how do I know if last year is because divorced or last year in sample? right now individual level file, so fine - this is JUST last year in sample at the moment
 
-browse survey_yr id main_per_id SEQ_NUMBER_ relationship RELATION_ FIRST_MARRIAGE_YR_START 
+browse survey_yr id main_per_id relationship RELATION_ FIRST_MARRIAGE_YR_START FIRST_MARRIAGE_YR_HEAD_ FIRST_MARRIAGE_YR_END RECENT_MARRIAGE_YR_START 
 
 browse id survey_yr relationship MARITAL_STATUS_HEAD_
 gen relationship_yr = survey_yr if relationship==1
@@ -47,20 +47,19 @@ bysort id: egen marrno=rank(relationship_start)
 browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start FIRST_MARRIAGE_YR_START marrno
 
 gen rel1_start=.
-replace rel1_start=relationship_start if marrno==1
+replace rel1_start = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
+replace rel1_start=relationship_start if marrno==1 & FIRST_MARRIAGE_YR_START==9999
 bysort id (rel1_start): replace rel1_start=rel1_start[1]
 gen rel2_start=.
-replace rel2_start=relationship_start if marrno==2
+replace rel2_start = RECENT_MARRIAGE_YR_START if RECENT_MARRIAGE_YR_START <=2019
+replace rel2_start=relationship_start if marrno==2 & RECENT_MARRIAGE_YR_START ==9999
 bysort id (rel2_start): replace rel2_start=rel2_start[1]
 gen rel3_start=.
 replace rel3_start=relationship_start if marrno==3
 bysort id (rel3_start): replace rel3_start=rel3_start[1]
 
 sort id survey_yr
-gen rel1_start_retain = rel1_start
-replace rel1_start = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
-
-browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel rel1_start FIRST_MARRIAGE_YR_START rel1_start_retain rel2_start marrno
+browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start rel1_start FIRST_MARRIAGE_YR_START rel2_start marrno
 
 gen relationship_end = survey_yr if exit_rel==1
 bysort id: egen exitno=rank(relationship_end)
