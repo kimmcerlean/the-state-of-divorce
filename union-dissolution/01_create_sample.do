@@ -13,6 +13,13 @@
 use "$PSID\PSID_full_renamed.dta", clear
 rename X1968_PERSON_NUM_1968 main_per_id
 
+// merge on marital history
+merge 1:1 main_per_id INTERVIEW_NUM_1968 using "$data_keep\marital_history_wide.dta"
+
+gen in_marital_history=0
+replace in_marital_history=1 if _merge==3
+drop _merge
+
 egen family_intvw_num=rowmin(FAMILY_INTERVIEW_NUM*) // not working because inconsistent years
 browse family_intvw_num FAMILY_INTERVIEW_NUM*
 
