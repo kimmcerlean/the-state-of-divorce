@@ -7,7 +7,7 @@
 use "$data_keep\PSID_marriage_validation_sample.dta", clear
 
 tab rel_start_all
-browse id survey_yr rel_start_all rel1_start rel2_start rel3_start FIRST_MARRIAGE_YR_START cohort_sh
+browse id survey_yr rel_start_all rel1_start rel2_start rel3_start FIRST_MARRIAGE_YR_START
 
 ********************************************************************************
 * Schwartz and Han 2014 - VALIDATED
@@ -25,9 +25,9 @@ logit dissolve i.educ_type if cohort_sh==3, or // nothing is significant here no
 logit dissolve i.educ_type if cohort_sh==2, or // k yes, homo sig less, hypo + hyper = same
 
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife"
-logit dissolve i.educ_type `controls' if cohort_sh==1, or
-logit dissolve i.educ_type `controls' if cohort_sh==3, or // nothing different
-logit dissolve i.educ_type `controls' if cohort_sh==2, or // k yes, homo sig less, hypo + hyper = same
+logit dissolve i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2), or
+logit dissolve i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2), or // nothing different
+logit dissolve i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2), or // k yes, homo sig less, hypo + hyper = same
 
 // trying first marriages only - okay but this is first ALL RELATIONSHIPS so people with a cohab and a marriage are being restricted GAH but I only care about marriage so this isn't perfect either - come back to this.
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife"

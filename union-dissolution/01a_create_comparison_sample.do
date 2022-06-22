@@ -90,6 +90,15 @@ replace rel_end_all = rel3_end if survey_yr>=rel3_start & survey_yr <=rel3_end
 
 browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
 
+gen relationship_order=.
+
+forvalues r=1/3{
+	replace relationship_order=`r' if survey_yr>=rel`r'_start & survey_yr <=rel`r'_end
+}
+
+
+browse id survey_yr relationship relationship_order rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
+
 bysort id: egen last_survey_yr = max(survey_yr)
 
 sort id survey_yr
@@ -143,6 +152,34 @@ sort id survey_yr
 gen dur = survey_yr - rel_start_all
 browse id survey_yr relationship_type rel_start_all rel_end_all dissolve dur
 browse id survey_yr relationship_type rel_start_all rel_end_all dissolve dur if FAMILY_INTERVIEW_NUM_ == 7439
+
+gen reltype1 = relationship_type if survey_yr>=rel1_start & survey_yr <=rel1_end
+bysort id (reltype1): replace reltype1=reltype1[1]
+gen reltype2 = relationship_type if survey_yr>=rel2_start & survey_yr <=rel2_end
+bysort id (reltype2): replace reltype2=reltype2[1]
+gen reltype3 = relationship_type if survey_yr>=rel3_start & survey_yr <=rel3_end
+bysort id (reltype3): replace reltype3=reltype3[1]
+label values reltype* relationship_type
+
+sort id survey_yr
+browse id survey_yr relationship_type rel_start_all rel_end_all reltype*
+
+egen num_unions=rownonmiss(reltype1 reltype2 reltype3)
+egen num_marriages=anycount(reltype1 reltype2 reltype3), values(2)
+egen num_cohab=anycount(reltype1 reltype2 reltype3), values(1)
+
+browse id survey_yr relationship_type reltype* num_unions num_marriages num_cohab
+
+gen marriage_order=.
+
+forvalues r=1/3{
+	replace marriage_order=`r' if survey_yr>=rel`r'_start & survey_yr <=rel`r'_end & relationship_type==2 // gah it's labelling as 2 if two in order, not one.
+}
+
+gen marriage_order_real = marriage_order
+replace marriage_order_real = num_marriages if marriage_order > num_marriages & marriage_order!=. & num_marriages!=. // think this isn't perfect if three relationships, but sufficient for now
+
+browse id survey_yr relationship_type relationship_order marriage_order marriage_order_real rel_start_all rel_end_all num_unions num_marriages num_cohab 
 
 save "$data_tmp\PSID_all_unions.dta", replace
 
