@@ -566,12 +566,14 @@ save "$data_keep\PSID_marriage_validation_sample.dta", replace
 
 tab MARITAL_PAIRS_ if dissolve==1 // 35% have no spouse in year of dissolution - so all of my partner variables are moot.
 browse id survey_yr earnings_wife earnings_head female_earn_pct female_earn_pct_lag ft_head ft_wife educ_wife educ_head educ_type age_mar_wife MARITAL_PAIRS_ if dissolve==1 & MARITAL_PAIRS_==0
+browse id survey_yr rel_start_all rel_end_all dissolve earnings_wife earnings_head female_earn_pct female_earn_pct_lag ft_head ft_wife educ_wife educ_head educ_type age_mar_wife MARITAL_PAIRS_
 tab hh_earn_type_bkd if dissolve==1 & MARITAL_PAIRS_==0
 tab hh_earn_type_lag if dissolve==1 & MARITAL_PAIRS_==0 // much more distributed. but do lag for ALL or just if marital_pairs = 0 when dissolve ==1?
 
 // one problem - any wife MISSING on educ is automatically HYPO - that is a small percentage, but still.
 // I think earnings missing in year when marital pairs are 0, I think educ for wife is filled in, because educ wife not asked every year, and I manually filled in -which Ithink is also why "first educ" type isn't different - because this isn't 100% time varying.
 
+/*
 sort id survey_yr
 foreach var in SEX_WIFE_ HRLY_RATE_WIFE_ ENROLLED_WIFE_ RELIGION_WIFE_ WEEKLY_HRS_WIFE_ TAXABLE_HEAD_WIFE_ WAGE_RATE_WIFE_ educ_wife college_complete_wife earnings_wife employ_wife employ1_wife employ2_wife employ3_wife employed_wife employed_ly_wife ft_pt_wife_pre ft_pt_wife_post ft_pt_wife ft_wife race_1_wife_rec race_2_wife_rec race_3_wife_rec race_wife yr_born_wife age_mar_wife female_earn_pct educ_type couple_educ_gp couple_earnings hh_earn_type_bkd either_enrolled same_race{
 	replace `var'=`var'[_n-1] if MARITAL_PAIRS_==0 & id==id[_n-1] // & (`var'==0 | `var'==.) // deleted this because want to OVERWWRITE whatever is there for some created variables, so might not be 0
@@ -580,4 +582,35 @@ foreach var in SEX_WIFE_ HRLY_RATE_WIFE_ ENROLLED_WIFE_ RELIGION_WIFE_ WEEKLY_HR
 // some created variables - like couple_earnings, should I take from year prior? or recreate? I guess I want in  year prior if that's last full year for both - don't want to use like husband info from one year and wife from another....
 // this is also where wide would help - can just take year prior?
 
+// WAIT - do I also need to update the same husband variables?! because want the husband and wife info to come from same year, right? so right now, husband info will come from year wife isn't there an dwife will come frm year prior. okay - actually move UP the dissolve to the prior row? so it's there the last year they are both living together? try this then need to remove this extraneous row
+*/
+
+// id 749 as example.
+sort id survey_yr
+gen dissolve_lag = dissolve
+replace dissolve_lag = 1 if dissolve==0 & dissolve[_n+1]==1 & id == id[_n+1] & MARITAL_PAIRS_[_n+1]==0
+
+tab dissolve // 4163
+tab dissolve_lag // 5193
+// was going to do drop if dissolve==1 & dissolve_lag==1 but for 754 - that is valid, but NOT valid for 749
+drop if dissolve==1 & dissolve_lag==1 & MARITAL_PAIRS_==0 & (rel_start_all==rel_start_all[_n-1])  // k do has to be part of same relationship
+tab dissolve_lag // 4191
+
+// eventually also drop people where only one row and NO wife info - aka marital_pairs==0 - because can't include.
+tab dur if MARITAL_PAIRS_ ==0
+sort id survey_yr
+browse id survey_yr rel_start_all rel_end_all dur earnings_wife MARITAL_PAIRS_ dissolve dissolve_lag if id==1877
+bysort id: egen num_years = count(survey_yr)
+sort id survey_yr
+tab num_years if MARITAL_PAIRS_ ==0 // k mostly 1
+browse id survey_yr rel_start_all rel_end_all dur num_years if dissolve==1 & MARITAL_PAIRS_==0
+browse id survey_yr rel_start_all rel_end_all dur num_years if dur==.
+browse id survey_yr num_years rel_start_all rel_end_all dur earnings_wife MARITAL_PAIRS_ dissolve dissolve_lag if id==87
+browse id survey_yr num_years rel_start_all rel_end_all dur earnings_wife MARITAL_PAIRS_ dissolve dissolve_lag if id==376
+browse id survey_yr num_years rel_start_all rel_end_all dur earnings_wife MARITAL_PAIRS_ dissolve dissolve_lag if id==5614
+// okay some people also missing relationship start and end info for years here - so want to drop, but think this is going to ruin my dissolve_lag (as in the example above)
+
+drop if dur==0 | dur==.
+drop if num_years==1
+drop if MARITAL_PAIRS_==0
 save "$data_keep\PSID_marriage_recoded_sample.dta", replace
