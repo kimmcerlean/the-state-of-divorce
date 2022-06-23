@@ -435,6 +435,50 @@ tab ft_pt_wife if in_cooke_sample==1 & cohort_cooke==1 // the 0s here are higher
 tab employed_ly_wife if in_cooke_sample==1 & cohort_cooke==1 //closer?
 
 ********************************************************************************
+* South 2001
+********************************************************************************
+
+gen cohort_south=.
+replace cohort_south=1 if inrange(rel_start_all,1969,1993)
+
+gen in_south_sample=0
+replace in_south_sample=1 if survey_yr <=1993
+
+logit dissolve_lag ft_wife if cohort_south==1, or // positive - sorta tracks
+logit dissolve_lag i.ft_pt_wife if cohort_south==1, or // pt better than no job, ft worse - kinda aligns with their findings that more hours = more likely to dissolve
+logit dissolve_lag i.educ_wife if cohort_south==1, or // all higher = less likely than HS - that aligns
+logit dissolve_lag earnings_wife if cohort_south==1, or // negative - does NOT align
+logit dissolve_lag female_earn_pct if cohort_south==1, or // no assoc - aligns
+logit dissolve_lag i.educ_head if cohort_south==1, or // negative - aligns
+logit dissolve_lag earnings_head if cohort_south==1, or //  negative - aligns
+
+logit dissolve_lag ft_wife if cohort_south==1 & in_south_sample==1, or // positive
+logit dissolve_lag i.ft_pt_wife if cohort_south==1 & in_south_sample==1, or // as above
+logit dissolve_lag i.educ_wife if cohort_south==1 & in_south_sample==1, or //  negative
+logit dissolve_lag earnings_wife if cohort_south==1 & in_south_sample==1, or // no assoication
+logit dissolve_lag female_earn_pct if cohort_south==1 & in_south_sample==1, or //  positive - they find no assoiation, but kinda aligns with the positive association with wive's income (though I find none)
+logit dissolve_lag i.educ_head if cohort_south==1 & in_south_sample==1, or // neg
+logit dissolve_lag earnings_head if cohort_south==1 & in_south_sample==1, or //  neg
+
+local controls  "dur i.race_head i.same_race i.children i.educ_wife i.educ_head AGE_REF_ age_mar_wife couple_earnings"
+logit dissolve_lag ft_wife `controls' if cohort_south==1 & in_south_sample==1, or // positive
+logit dissolve_lag i.ft_pt_wife `controls' if cohort_south==1 & in_south_sample==1, or // ft = bad, pt no assoc - aligns generally
+logit dissolve_lag i.educ_wife `controls' if cohort_south==1 & in_south_sample==1, or // negative
+logit dissolve_lag earnings_wife `controls' if cohort_south==1 & in_south_sample==1, or // positive - okay so does align no - again WHEN COUPLE EARNINGS CONSIDERED - wife's earnings bad - so like kinda mutual dependency? - higher earnings better - if earnings hit certain point, wife is negative? (is that an interpretation?) - but speaks ot need ot split by educaton? 
+logit dissolve_lag female_earn_pct `controls' if cohort_south==1 & in_south_sample==1, or // positive
+logit dissolve_lag i.educ_head `controls'  if cohort_south==1 & in_south_sample==1, or // negative
+logit dissolve_lag earnings_head `controls' if cohort_south==1 & in_south_sample==1, or // negative
+
+local controls  "dur i.race_head i.same_race i.children i.educ_wife i.educ_head AGE_REF_ age_mar_wife"
+logit dissolve_lag ft_wife `controls' if cohort_south==1 & in_south_sample==1, or // pos
+logit dissolve_lag i.ft_pt_wife `controls' if cohort_south==1 & in_south_sample==1, or // ft pos, pt not
+logit dissolve_lag i.educ_wife `controls' if cohort_south==1 & in_south_sample==1, or // neg 
+logit dissolve_lag earnings_wife `controls' if cohort_south==1 & in_south_sample==1, or // pos - okay not controlled for here though
+logit dissolve_lag female_earn_pct `controls' if cohort_south==1 & in_south_sample==1, or // pos
+logit dissolve_lag i.educ_head `controls'  if cohort_south==1 & in_south_sample==1, or // pos
+logit dissolve_lag earnings_head `controls' if cohort_south==1 & in_south_sample==1, or //  marginally neg
+
+********************************************************************************
 * Brines and Joyner 1999
 ********************************************************************************
 
