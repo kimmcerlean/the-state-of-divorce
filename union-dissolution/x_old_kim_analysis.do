@@ -4,80 +4,103 @@
 * Kim McErlean
 ********************************************************************************
 
-use "$data_keep\PSID_marriage_recoded_sample.dta", clear // created in 1a - no longer using my original order
+use "$data_keep\PSID_relationships_post2000.dta", clear
 
-keep if rel_start_all >=2000 // need to decide - ALL MARRIAGES or just first? - killewald restricts to just first, so does cooke. My validation is MUCH BETTER against those with first marraiges only...
-keep if marriage_order_real==1
-
-// need to make religion
-// religion is new, but think I need to add given historical research. coding changes between 1984 and 1985, then again between 1994 and 1995. using past then, so this is fine. otherwise, need to recode in MAIN FILE before combining. okay still somewhat sketchy. coding like this for now, will update in real analysis
-
-label define update_religion  ///
-       1 "Catholic"  ///
-       2 "Jewish"  ///
-       8 "Protestant unspecified"  ///
-      10 "Other non-Christian: Muslim, Rastafarian, etc."  ///
-      13 "Greek/Russian/Eastern Orthodox"  ///
-      97 "Other"  ///
-      98 "DK"  ///
-      99 "NA; refused"  ///
-       0 "None"
-
-recode RELIGION_HEAD_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_head)
-recode RELIGION_WIFE_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_wife)
-	   
-label values religion_head religion_wife update_religion
-*/
+keep if relationship_type==2 // only keep those married - will replicate for cohab in new step
 
 local controls "i.race_head i.same_race i.children i.either_enrolled TAXABLE_HEAD_WIFE_ i.religion_head age_mar_head age_mar_wife"
 
 // overall
-logit dissolve_lag dur i.hh_earn_type_bkd, or
+logit dissolve dur i.hh_earn_type_lag, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
-logit dissolve_lag dur i.hh_earn_type_bkd i.couple_educ_gp, or
+logit dissolve dur i.hh_earn_type_lag i.couple_educ_gp, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur TAXABLE_HEAD_WIFE_ i.couple_educ_gp, or // total earnings
+logit dissolve dur TAXABLE_HEAD_WIFE_ i.couple_educ_gp, or // total earnings
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - Earnings) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife i.couple_educ_gp, or // employment
+logit dissolve dur i.ft_head i.ft_wife i.couple_educ_gp, or // emmployment
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - Employment) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur female_earn_pct i.couple_educ_gp, or
+logit dissolve dur female_earn_pct i.couple_educ_gp, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.hh_earn_type_bkd i.couple_educ_gp `controls', or
+logit dissolve dur i.hh_earn_type_lag i.couple_educ_gp `controls', or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 // no college
-logit dissolve_lag dur i.hh_earn_type_bkd if couple_educ_gp==0, or
+logit dissolve dur i.hh_earn_type_lag if couple_educ_gp==0, or
+logit dissolve dur i.hh_earn_type_lag if couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur TAXABLE_HEAD_WIFE_ if couple_educ_gp==0, or // earnings
+logit dissolve dur TAXABLE_HEAD_WIFE_ if couple_educ_gp==0, or // earnings
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - Earn) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==0, or 
+logit dissolve dur i.ft_head i.ft_wife if couple_educ_gp==0, or 
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - Employ) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur female_earn_pct if couple_educ_gp==0, or
+logit dissolve dur female_earn_pct if couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==0, or
+logit dissolve dur i.hh_earn_type_lag `controls' if couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 // college
-logit dissolve_lag dur i.hh_earn_type_bkd if couple_educ_gp==1, or
+logit dissolve dur i.hh_earn_type_lag if couple_educ_gp==1, or
+logit dissolve dur i.hh_earn_type_lag if couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur TAXABLE_HEAD_WIFE_ if couple_educ_gp==1, or // earnings
+logit dissolve dur TAXABLE_HEAD_WIFE_ if couple_educ_gp==1, or // earnings
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - Earn) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==1, or 
+logit dissolve dur i.ft_head i.ft_wife if couple_educ_gp==1, or 
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - Employ) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur female_earn_pct if couple_educ_gp==1, or
+logit dissolve dur female_earn_pct if couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==1, or
+logit dissolve dur i.hh_earn_type_lag `controls' if couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+/// to validate Schwartz and GP
+input group
+.10
+.20
+.30
+.40
+.50
+.60
+.70
+.80
+1
+end
+
+xtile female_pct_bucket = female_earn_pct, cut(group)
+browse female_pct_bucket female_earn_pct
+
+logit dissolve dur i.female_pct_bucket, or
+margins female_pct_bucket
+marginsplot
+
+logit dissolve dur ib5.female_pct_bucket, or
+logit dissolve dur i.female_pct_bucket, or nocons
+
+// test spline at 0.5
+mkspline ratio1 0.5 ratio2 = female_earn_pct
+browse female_earn_pct ratio1 ratio2 
+
+logit dissolve dur ratio1 ratio2, or // ratio UNDER 0.5 = fine; above 0.5 = positively associated with dissolution.
+
+// to mimic their table 2
+input group2
+.10
+.50
+.70
+end
+
+xtile female_pct_bucket2 = female_earn_pct, cut(group2)
+browse female_pct_bucket2 female_earn_pct
+
+logit dissolve dur i.female_pct_bucket2, or
+logit dissolve dur i.female_pct_bucket2 if WAGES_HEAD_!=0, or // okay when I exclude husbands with NO earnings - no longer positive, aka allowing the 100% wives. cannot tell if Schwartz and GP used 100% wives.

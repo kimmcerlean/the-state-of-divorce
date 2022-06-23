@@ -90,12 +90,12 @@ logit dissolve_lag i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2) 
 logit dissolve_lag i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2) [pweight=weight], or // nothing sig
 logit dissolve_lag i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2) [pweight=weight], or // nothing sig
 
-local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife ct_marriages"
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife ct_marriages couple_earnings"
 logit dissolve_lag i.educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2)  & in_sh_sample==1 [pweight=weight], or // hypo and homo all less than hyper
 logit dissolve_lag i.educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2)  & in_sh_sample==1 [pweight=weight], or // hypo and homo all less than hyper
 logit dissolve_lag i.educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2)  & in_sh_sample==1 [pweight=weight], or // hypo and homo all less than hyper
 
-local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife ct_marriages"
+local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife ct_marriages couple_earnings"
 logit dissolve_lag i.first_educ_type `controls' if cohort_sh==1 & inlist(IN_UNIT,1,2)  & in_sh_sample==1 [pweight=weight], or // hypo and homo all less than hyper
 logit dissolve_lag i.first_educ_type `controls' if cohort_sh==2 & inlist(IN_UNIT,1,2)  & in_sh_sample==1 [pweight=weight], or //
 logit dissolve_lag i.first_educ_type `controls' if cohort_sh==3 & inlist(IN_UNIT,1,2)  & in_sh_sample==1 [pweight=weight], or // hypo and homo all less than hyper
