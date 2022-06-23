@@ -359,9 +359,82 @@ tab wife_earns_more if cohort_sgp_alt==1 // & in_survey_sample==1 & inlist(IN_UN
 tab wife_earns_more if cohort_sgp_alt==1, sum(female_earn_pct) // so does this
 
 ********************************************************************************
+* Cooke 2006
+********************************************************************************
+/* okay helpful on WEIGHT debate: see p 12
+In both panels, new members marrying into the sample can be assigned
+a weight of zero if they are not within the original sampling frame. For
+this reason, unweighted data are used for the analysis, although a comparison of weighted and unweighted sample descriptive statistics indicates
+that the two are highly similar.
+
+In the data set, each year of a couple's marriage is a distinct observation - so they do use PY?  Constructing couple-years in
+this way automatically incorporates the time-varying aspects of the independent variables, but also violates the assumption that error terms
+not be correlated. Consequently, robust standard errors clustering on a
+unique couple identification number are used.
+*/
+
+gen cohort_cooke=.
+replace cohort_cooke=1 if inrange(rel_start_all,1985,1995) & marriage_order_real==1
+
+gen in_cooke_sample=0
+replace in_cooke_sample=1 if survey_yr <=1997 // these are such short marriages, no? like barely longer than 10 years and some even shorter
+
+unique id if cohort_cooke==1 & in_cooke_sample==1 // they have 506 couples + 4204 couple years, lol why do I have 2000? is it because they only had peoople who also ANSWERED in these years, but I have the HISTORY of people?. 223 divorced so about half; i have 268 divorces, which seems low relative to my total number of couples...
+
+gen wife_out_lf=0
+replace wife_out_lf=1 if ft_pt_wife==0
+
+logit dissolve_lag ft_wife if cohort_cooke==1, or // no association  (should be sig pos) - but i have WAY more dvorces than they do in this view since tracked to 2019 - the later the divorce, the less this is probably harmful?
+logit dissolve_lag i.ft_pt_wife if cohort_cooke==1, or // pt sig lower than none
+logit dissolve_lag ft_head if cohort_cooke==1, or // neg but not sig 
+logit dissolve_lag female_earn_pct if cohort_cooke==1, or // not sig
+
+logit dissolve_lag ft_wife if cohort_cooke==1 & in_cooke_sample==1, or // still not sig (but this aligns with Killewald's "later" cohort where this is no / small association past 1975) - okay but why is this so different to killewald? also other age restrictions I missed?
+logit dissolve_lag i.ft_pt_wife if cohort_cooke==1 & in_cooke_sample==1, or // pt still good
+logit dissolve_lag ft_head if cohort_cooke==1 & in_cooke_sample==1, or // sig neg
+logit dissolve_lag female_earn_pct if cohort_cooke==1 & in_cooke_sample==1, or // no association
+logit dissolve_lag wife_out_lf if cohort_cooke==1 & in_cooke_sample==1, or // marginally sig pos - okay does align, male BW more likely to divorce- but this is counter to the earnings being higher and more likely to divorce....
+logit dissolve_lag i.hh_earn_type_bkd if cohort_cooke==1 & in_cooke_sample==1, or // nothing sig - all male marginally higher
+
+local controls  "dur i.race_head i.same_race i.children i.educ_wife i.educ_head AGE_REF_ age_mar_wife couple_earnings"
+logit dissolve_lag ft_wife `controls' if cohort_cooke==1 & in_cooke_sample==1, or // marginally sig positive - so opposite, they have, when wife out of labor force = more likely to divorce aka male BW couples more likely to divorce. okay wait this lumps part time and full time GAH
+logit dissolve_lag i.ft_pt_wife `controls' if cohort_cooke==1 & in_cooke_sample==1, or // nothing sig
+logit dissolve_lag ft_head `controls' if cohort_cooke==1 & in_cooke_sample==1, or // sig negative
+logit dissolve_lag female_earn_pct `controls' if cohort_cooke==1 & in_cooke_sample==1, or // positive association - so this aligns
+logit dissolve_lag wife_out_lf `controls' if cohort_cooke==1 & in_cooke_sample==1, or // no association once controls added - was sig (which aligned) without controls
+logit dissolve_lag i.hh_earn_type_bkd `controls' if cohort_cooke==1 & in_cooke_sample==1, or // with controls, though - male sole LEAST likely to dissolve.
+
+// test spline at 0.5
+mkspline ratio1 0.5 ratio2 = female_earn_pct
+browse female_earn_pct ratio1 ratio2 
+
+local controls  "dur i.race_head i.same_race i.children i.educ_wife i.educ_head AGE_REF_ age_mar_wife couple_earnings"
+logit dissolve_lag ratio1 ratio2 if cohort_cooke==1 & in_cooke_sample==1, or // not sig but definitely WORSE when above 50, and not as bad below 50
+logit dissolve_lag ratio1 ratio2 `controls' if cohort_cooke==1 & in_cooke_sample==1, or  // lol with controls, both bad. think there is also something about controlling for couple earnings, which makes sense - but couple earnings are highly correlated with hh type - male BW = lower than dual earner
+
+local controls  "dur i.race_head i.same_race i.children i.educ_wife i.educ_head AGE_REF_ age_mar_wife"
+logit dissolve_lag ratio1 ratio2 `controls' if cohort_cooke==1 & in_cooke_sample==1, or  // yeah when I remove earnings - different
+
+local controls  "dur i.race_head i.same_race i.children i.educ_wife i.educ_head AGE_REF_ age_mar_wife couple_earnings"
+logit dissolve_lag wife_out_lf female_earn_pct `controls' if cohort_cooke==1 & in_cooke_sample==1, or  // when both in model (like they seem to do) - nothing sig. when couple earnigns added -female earn perecntage iss negatively assoicated. so this does speak to need ot ocnside education, beacuse also correlated? - like higher female percentage - to an extent = higher couple earnings, but then if she is primary earner, probably negative.
+
+// how to disentangle total earnings + who is working + who contributes most??
+
+
+/*
+Together these results suggest that the male
+breadwinner couples reinforced by policy are the most stable in West
+Germany, whereas dual-earner couples are the most stable in the United
+States provided a woman's earnings do not exceed her husband's
+*/
+
+// also they put some in same model, do that
+
+sum female_earn_pct if in_cooke_sample==1 & cohort_cooke==1 // matches p 15
+tab ft_pt_wife if in_cooke_sample==1 & cohort_cooke==1 // the 0s here are higher than them (25%)
+tab employed_ly_wife if in_cooke_sample==1 & cohort_cooke==1 //closer?
+
+********************************************************************************
 * Brines and Joyner 1999
 ********************************************************************************
 
-********************************************************************************
-* Cooke 2006
-********************************************************************************

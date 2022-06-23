@@ -500,7 +500,7 @@ label values race_wife race_head race
 	browse id survey_yr race_wife if inlist(id,3,12,16)
 	bysort id (race_wife): replace race_wife=race_wife[1] if race_wife==.
 
-// need to figure out ethnicity
+// need to figure out ethnicity  okay DUH - see Cooke 2006 - bc only in sample in 1990-1995, otherwise there are actually no Hispanics in sample DUH
 
 gen same_race=0
 replace same_race=1 if race_head==race_wife & race_head!=.
