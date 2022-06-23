@@ -286,13 +286,12 @@ label define couple_educ 0 "Neither College" 1 "At Least One College"
 label values couple_educ_gp couple_educ
 
 gen educ_type=.
-replace educ_type=1 if educ_head > educ_wife
-replace educ_type=2 if educ_head < educ_wife
-replace educ_type=3 if educ_head == educ_wife
+replace educ_type=1 if educ_head > educ_wife & educ_head!=. & educ_wife!=.
+replace educ_type=2 if educ_head < educ_wife & educ_head!=. & educ_wife!=.
+replace educ_type=3 if educ_head == educ_wife & educ_head!=. & educ_wife!=.
 
 label define educ_type 1 "Hyper" 2 "Hypo" 3 "Homo"
 label values educ_type educ_type
-
 
 // income / structure
 browse id survey_yr FAMILY_INTERVIEW_NUM_ TAXABLE_HEAD_WIFE_ TOTAL_FAMILY_INCOME_ LABOR_INCOME_HEAD_ WAGES_HEAD_  LABOR_INCOME_WIFE_ WAGES_WIFE_ 
@@ -531,15 +530,54 @@ label values religion_head religion_wife update_religion
 
 // also age at relationship start
 browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
+sort id survey_yr
+gen age_spouse=AGE_SPOUSE_
+replace age_spouse=AGE_SPOUSE_[_n-1]+1 if MARITAL_PAIRS_==0 & id==id[_n-1]
+
+//browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_ age_spouse if MARITAL_PAIRS_==0 // some not updating- do they not have prior records? - are they all relationships that started PRIOR to 1968?
+tab rel_start_all if age_spouse==0
+browse id survey_yr rel_start_all rel_end_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_ age_spouse if id == 32701
+
+// for now - setting to 2 years younger than partner.
+replace age_spouse = AGE_REF_ - 2 if age_spouse==0 // i am creating year born - but need to figure out if that is also provided. but I guess same challenge - if she isn't in HH and there is only one record, I won't know??
+
 gen yr_born_head = survey_yr - AGE_REF_
-gen yr_born_wife = survey_yr-AGE_SPOUSE_
+gen yr_born_wife = survey_yr-age_spouse
 
 gen age_mar_head = rel_start_all -  yr_born_head
 gen age_mar_wife = rel_start_all -  yr_born_wife
 
+drop if age_mar_head < 0 | age_mar_wife < 0
+
 browse id survey_yr yr_born_head yr_born_wife rel_start_all age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
+browse id survey_yr yr_born_head yr_born_wife rel_start_all age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_ if dissolve==1
+browse id survey_yr yr_born_head yr_born_wife rel_start_all rel_end_all age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_ MARITAL_PAIRS_ if id==84
+
+browse id survey_yr rel_start_all rel_end_all status_all dissolve MARITAL_PAIRS_
+browse id survey_yr rel_end_all dissolve in_marital_history dur MARITAL_PAIRS_ if dissolve==1
+tab in_marital_history , m
+tab in_marital_history if dissolve==1 & MARITAL_PAIRS_==0,m // is in marital history over or under reprsented - like is that more or less contribuitng to this problem? okay yes, so ALL in marital history. does it depend like month of survey v. month of dissolve? because marital history updated retrospetively so like maybe when answered 2005 survey, they were together and living together in month 8, but then then divorce month 10 - marital history will update, but there will still be interview data for wife because she was there at time of survey. so it's probably people who divorced later v. earler in year - so I want last full year of data I can get, whenever that is? technically I do have months in marital history... but it really doesn't matter like I don't get that info either way...
+ // do I have to lag alll info though? or like JUST update year of dissolution? replace year of dissolution with all prior values of wife variables?
 
 save "$data_keep\PSID_union_validation_sample.dta", replace
 
 keep if relationship_type==2
 save "$data_keep\PSID_marriage_validation_sample.dta", replace
+
+tab MARITAL_PAIRS_ if dissolve==1 // 35% have no spouse in year of dissolution - so all of my partner variables are moot.
+browse id survey_yr earnings_wife earnings_head female_earn_pct female_earn_pct_lag ft_head ft_wife educ_wife educ_head educ_type age_mar_wife MARITAL_PAIRS_ if dissolve==1 & MARITAL_PAIRS_==0
+tab hh_earn_type_bkd if dissolve==1 & MARITAL_PAIRS_==0
+tab hh_earn_type_lag if dissolve==1 & MARITAL_PAIRS_==0 // much more distributed. but do lag for ALL or just if marital_pairs = 0 when dissolve ==1?
+
+// one problem - any wife MISSING on educ is automatically HYPO - that is a small percentage, but still.
+// I think earnings missing in year when marital pairs are 0, I think educ for wife is filled in, because educ wife not asked every year, and I manually filled in -which Ithink is also why "first educ" type isn't different - because this isn't 100% time varying.
+
+sort id survey_yr
+foreach var in SEX_WIFE_ HRLY_RATE_WIFE_ ENROLLED_WIFE_ RELIGION_WIFE_ WEEKLY_HRS_WIFE_ TAXABLE_HEAD_WIFE_ WAGE_RATE_WIFE_ educ_wife college_complete_wife earnings_wife employ_wife employ1_wife employ2_wife employ3_wife employed_wife employed_ly_wife ft_pt_wife_pre ft_pt_wife_post ft_pt_wife ft_wife race_1_wife_rec race_2_wife_rec race_3_wife_rec race_wife yr_born_wife age_mar_wife female_earn_pct educ_type couple_educ_gp couple_earnings hh_earn_type_bkd either_enrolled same_race{
+	replace `var'=`var'[_n-1] if MARITAL_PAIRS_==0 & id==id[_n-1] // & (`var'==0 | `var'==.) // deleted this because want to OVERWWRITE whatever is there for some created variables, so might not be 0
+}
+
+// some created variables - like couple_earnings, should I take from year prior? or recreate? I guess I want in  year prior if that's last full year for both - don't want to use like husband info from one year and wife from another....
+// this is also where wide would help - can just take year prior?
+
+save "$data_keep\PSID_marriage_recoded_sample.dta", replace
