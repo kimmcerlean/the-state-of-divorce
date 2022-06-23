@@ -132,8 +132,23 @@ logit dissolve_lag i.educ_type `controls' if cohort_sh_detail==5 & inlist(IN_UNI
 logit dissolve_lag i.educ_type `controls' if cohort_sh_detail==6 & inlist(IN_UNIT,1,2) & in_sh_sample==1 [pweight=weight], or // both lower, not sig
 logit dissolve_lag i.educ_type `controls' if cohort_sh_detail==7 & inlist(IN_UNIT,1,2) & in_sh_sample==1 [pweight=weight], or // both lower, not sig
 
-logit dissolve_lag i.educ_type educ_wife age_mar_wife if cohort_sh_detail==1 & in_sh_sample==1, or // hypo sig worse
-logit dissolve_lag i.educ_type educ_wife age_mar_wife if cohort_sh_detail==7 & in_sh_sample==1, or // okay wait adjusting here - makes it look similar to old one? is this why need ot interact? i am losing my mind
+logit dissolve_lag i.educ_type i.educ_wife i.educ_head if cohort_sh_detail==1 & in_sh_sample==1, or // nothing sig but hypo highest
+logit dissolve_lag i.educ_type i.educ_wife i.educ_head if cohort_sh_detail==6 & in_sh_sample==1, or // nothing sig
+logit dissolve_lag i.educ_type i.educ_wife i.educ_head if cohort_sh_detail==7 & in_sh_sample==1, or // both lower but not sig
+
+logit dissolve_lag i.educ_type i.educ_wife i.educ_head age_mar_wife if cohort_sh_detail==1, or // hypo higher but not sig
+logit dissolve_lag i.educ_type i.educ_wife i.educ_head age_mar_wife if cohort_sh_detail==6, or // both lower but not sig
+// I think DIVORCE is a lot more sensitive to controls, because there are just SO MANY THINGS correlated?
+
+logit dissolve_lag i.educ_type age_mar_wife i.educ_type#i.educ_wife i.educ_head if cohort_sh_detail==1, or // honestly changes so dramatically based on what and how education of partner is included, which feels concerning - and like I dont;  understand their 6 way interaction, so is this why I acn't get?
+logit dissolve_lag i.educ_type age_mar_wife i.educ_type#i.educ_wife i.educ_head if cohort_sh_detail==6, or
+logit dissolve_lag i.educ_type age_mar_wife i.educ_type#i.educ_wife i.educ_head if cohort_sh_detail==7, or
+
+logit dissolve_lag i.cohort_sh_detail##i.educ_type i.educ_wife i.educ_head  if inlist(IN_UNIT,1,2) [pweight=weight], or // slightly more sense except for last cohort
+logit dissolve_lag i.cohort_sh_detail##i.educ_type i.educ_wife i.educ_head  if inlist(IN_UNIT,1,2) & in_sh_sample==1 [pweight=weight], or // slightly more sense except for last cohort
+
+logit dissolve_lag i.cohort_sh_detail##i.educ_type i.educ_wife i.educ_head dur ct_marriages if inlist(IN_UNIT,1,2) & in_sh_sample==1 [pweight=weight], or // okay the more controls i add - the more the effects are going away...
+logit dissolve_lag i.cohort_sh_detail##i.educ_type i.educ_wife i.educ_head if inlist(IN_UNIT,1,2) & in_sh_sample==1 & marriage_order_real==1 [pweight=weight], or // okay the more controls i add - the more the effects are going away...
 
 local controls "dur i.race_head i.same_race i.children age_mar_head age_mar_wife marriage_order educ_head educ_wife ct_marriages"
 logit dissolve_lag i.cohort_sh_detail##i.educ_type `controls' if inlist(IN_UNIT,1,2) [pweight=weight], or // is this same issue as Schwartz and GP - need to interact, not run separately? maybe in cohort one (main effects) hypo IS sig worse, but homo never gets sig lower in larter cohorts? is this because of interacton??
