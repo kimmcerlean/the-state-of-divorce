@@ -613,4 +613,5 @@ browse id survey_yr num_years rel_start_all rel_end_all dur earnings_wife MARITA
 drop if dur==0 | dur==.
 drop if num_years==1
 drop if MARITAL_PAIRS_==0
+drop if SEX_HEAD_==2
 save "$data_keep\PSID_marriage_recoded_sample.dta", replace
