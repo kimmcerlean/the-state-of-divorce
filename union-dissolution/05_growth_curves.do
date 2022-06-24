@@ -117,3 +117,17 @@ collapse (median) female_earn_pct if ever_children==1 & FIRST_BIRTH_YR!=9999, by
 twoway (line female_earn_pct first_birth_dur if couple_educ_gp==0 & first_birth_dur>=-10 & first_birth_dur<=20) (line female_earn_pct first_birth_dur if couple_educ_gp==1 & first_birth_dur>=-10 & first_birth_dur<=20), legend(on order(1 "Non" 2 "College"))
 graph export "$results\earn_pct_educ_x_children_duration.jpg", as(jpg) name("Graph") quality(90) replace
 restore
+
+preserve
+collapse (median) female_earn_pct if ever_children==1 & FIRST_BIRTH_YR!=9999 & ever_dissolve==0, by(first_birth_dur couple_educ_gp)
+
+twoway (line female_earn_pct first_birth_dur if couple_educ_gp==0 & first_birth_dur>=-10 & first_birth_dur<=20) (line female_earn_pct first_birth_dur if couple_educ_gp==1 & first_birth_dur>=-10 & first_birth_dur<=20), legend(on order(1 "Non" 2 "College"))
+graph export "$results\earn_pct_educ_x_children_duration_intact.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+preserve
+collapse (median) female_earn_pct if ever_children==1 & FIRST_BIRTH_YR!=9999 & ever_dissolve==1, by(first_birth_dur couple_educ_gp)
+
+twoway (line female_earn_pct first_birth_dur if couple_educ_gp==0 & first_birth_dur>=-10 & first_birth_dur<=10) (line female_earn_pct first_birth_dur if couple_educ_gp==1 & first_birth_dur>=-10 & first_birth_dur<=10), legend(on order(1 "Non" 2 "College"))
+graph export "$results\earn_pct_educ_x_children_duration)dissolve.jpg", as(jpg) name("Graph") quality(90) replace
+restore
