@@ -139,6 +139,10 @@ browse id survey_yr rel_start_all rel_end_all  status_all exit_rel last_survey_y
 gen dissolve=0
 replace dissolve=1 if survey_yr >=rel_end_all & (inrange(status_all,4,7) & in_marital_history==1)
 replace dissolve=1 if exit_rel==1 & inlist(MARITAL_STATUS_HEAD_[_n+1],2,4,5) & id == id[_n+1] & in_marital_history==0
+replace dissolve=1 if exit_rel==1 & (inrange(status_all,4,7) & in_marital_history==1)
+
+browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_ if inlist(id,2986,2992)
+// so the survey yr GREATER than part isn't working for people who dissolve in an off year - like 2008. so 2007 not getting flagged as end? 
 
 sort id survey_yr
 browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_
@@ -152,7 +156,7 @@ keep if total_relationship==1
 browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_
 
 unique id if inrange(status_all,4,7) // 6060
-unique id if dissolve==1 // 6622
+unique id if dissolve==1 // 7660
 
 // trying to identify if married or cohabiting. .. need relation_?
 // might need to alter code for cohab because wouldn't be in marital history, so I may have over-wrote some cohab above. 
@@ -589,6 +593,11 @@ foreach var in SEX_WIFE_ HRLY_RATE_WIFE_ ENROLLED_WIFE_ RELIGION_WIFE_ WEEKLY_HR
 sort id survey_yr
 gen dissolve_lag = dissolve
 replace dissolve_lag = 1 if dissolve==0 & dissolve[_n+1]==1 & id == id[_n+1] & MARITAL_PAIRS_[_n+1]==0
+sort id survey_yr
+
+// end dates STILL seem wrong
+browse id survey_yr rel_start_all rel_end_all status_all dissolve_lag dissolve dur MARITAL_PAIRS_ if inlist(id, 2986, 2992)
+
 
 tab dissolve // 4163
 tab dissolve_lag // 5193
