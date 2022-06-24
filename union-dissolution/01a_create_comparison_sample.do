@@ -140,9 +140,10 @@ gen dissolve=0
 replace dissolve=1 if survey_yr >=rel_end_all & (inrange(status_all,4,7) & in_marital_history==1)
 replace dissolve=1 if exit_rel==1 & inlist(MARITAL_STATUS_HEAD_[_n+1],2,4,5) & id == id[_n+1] & in_marital_history==0
 replace dissolve=1 if exit_rel==1 & (inrange(status_all,4,7) & in_marital_history==1)
+replace dissolve=1 if exit_rel[_n+1]==1 & dissolve[_n+1]==0 & (inrange(status_all,4,7) & in_marital_history==1) & id==id[_n+1]
 
-browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_ if inlist(id,2986,2992)
-// so the survey yr GREATER than part isn't working for people who dissolve in an off year - like 2008. so 2007 not getting flagged as end? 
+browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_ if inlist(id,2009,2986,2992) // so the survey yr GREATER than part isn't working for people who dissolve in an off year - like 2008. so 2007 not getting flagged as end? 
+browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_ if id==2009
 
 sort id survey_yr
 browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_
@@ -593,17 +594,20 @@ foreach var in SEX_WIFE_ HRLY_RATE_WIFE_ ENROLLED_WIFE_ RELIGION_WIFE_ WEEKLY_HR
 sort id survey_yr
 gen dissolve_lag = dissolve
 replace dissolve_lag = 1 if dissolve==0 & dissolve[_n+1]==1 & id == id[_n+1] & MARITAL_PAIRS_[_n+1]==0
+bysort id marriage_order_real: egen ever_dissolve=max(dissolve_lag)
 sort id survey_yr
+tab status_all ever_dissolve
 
 // end dates STILL seem wrong
-browse id survey_yr rel_start_all rel_end_all status_all dissolve_lag dissolve dur MARITAL_PAIRS_ if inlist(id, 2986, 2992)
+browse id survey_yr rel_start_all rel_end_all exit_rel status_all ever_dissolve dissolve_lag dissolve dur MARITAL_PAIRS_ // if inlist(id, 2009,2986, 2992)
 
 
-tab dissolve // 4163
-tab dissolve_lag // 5193
+tab dissolve // 6391 -- okay now I think there are too many here OMG
+tab dissolve_lag // 6425
 // was going to do drop if dissolve==1 & dissolve_lag==1 but for 754 - that is valid, but NOT valid for 749
-drop if dissolve==1 & dissolve_lag==1 & MARITAL_PAIRS_==0 & (rel_start_all==rel_start_all[_n-1])  // k do has to be part of same relationship
-tab dissolve_lag // 4191
+drop if dissolve==1 & dissolve_lag==1 & MARITAL_PAIRS_==0 & (rel_start_all==rel_start_all[_n-1])  // k do has to be part of same relationship. i wonder if also my code update above fixed this...
+// see 1121, 20961 as example of it working - okay yes it did.
+tab dissolve_lag // 5423 // is this sketchy it got a lot lower??
 
 // eventually also drop people where only one row and NO wife info - aka marital_pairs==0 - because can't include.
 tab dur if MARITAL_PAIRS_ ==0
