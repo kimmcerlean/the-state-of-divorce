@@ -515,6 +515,35 @@ replace children=1 if NUM_CHILDREN_>=1
 
 gen metro=(METRO_==1) // a lot of missing, don't use for now, control for STATE_ for now
 
+// housework hours - not totally sure if accurate prior to 1976
+browse id survey_yr HOUSEWORK_HEAD_ HOUSEWORK_WIFE_ TOTAL_HOUSEWORK_HW_ MOST_HOUSEWORK_
+
+gen housework_head = HOUSEWORK_HEAD_
+replace housework_head = (HOUSEWORK_HEAD_/52) if inrange(survey_yr,1968,1974)
+gen housework_wife = HOUSEWORK_WIFE_
+replace housework_wife = (HOUSEWORK_WIFE_/52) if inrange(survey_yr,1968,1974)
+
+browse id survey_yr housework_head housework_wife TOTAL_HOUSEWORK_HW_ MOST_HOUSEWORK_
+gen wife_housework_pct = housework_wife / (housework_wife + housework_head)
+
+gen housework_bkt=.
+replace housework_bkt=1 if wife_housework_pct >=.4000 & wife_housework_pct <=.6000
+replace housework_bkt=2 if wife_housework_pct > .6000 & wife_housework_pct <1
+replace housework_bkt=3 if wife_housework_pct ==1
+replace housework_bkt=4 if wife_housework_pct < .4000 & wife_housework_pct >=0
+replace housework_bkt=5 if (housework_wife==0 | housework_wife==.) & (housework_head==0 | housework_head==.)
+
+label define housework_bkt 1 "Dual HW" 2 "Female Primary" 3 "Female All" 4 "Male Primary" 5 "NA"
+label values housework_bkt housework_bkt
+
+sort id survey_yr
+gen housework_bkt_lag=.
+replace housework_bkt_lag=housework_bkt[_n-1] if id==id[_n-1]
+label values housework_bkt_lag housework_bkt
+
+gen wife_hw_pct_lag=.
+replace wife_hw_pct_lag=wife_housework_pct[_n-1] if id==id[_n-1]
+
 /* religion is new, but think I need to add given historical research. coding changes between 1984 and 1985, then again between 1994 and 1995 Need to recode, so tabling for now, not important for these purposes anyway
 label define update_religion  ///
        1 "Catholic"  ///

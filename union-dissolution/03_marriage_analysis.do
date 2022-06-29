@@ -41,6 +41,25 @@ label values religion_head religion_wife update_religion
 mkspline ratio1 0.5 ratio2 = female_earn_pct
 browse female_earn_pct ratio1 ratio2 
 
+// want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?)
+browse id survey_yr rel_start_all dur hh_earn_type_bkd
+bysort id (survey_yr): egen yr_rank=rank(survey_yr)
+gen hh_earn_type_mar = hh_earn_type_bkd if yr_rank==1
+bysort id (hh_earn_type_mar): replace hh_earn_type_mar=hh_earn_type_mar[1]
+label values hh_earn_type_mar earn_type_bkd
+
+browse id survey_yr rel_start_all yr_rank dur hh_earn_type_bkd hh_earn_type_mar
+
+// okay rolling change in female earn pct - absolute or relative?! absolute for now...
+sort id survey_yr
+gen female_earn_pct_chg = (female_earn_pct-female_earn_pct[_n-1]) if id==id[_n-1]
+browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
+
+
+********************************************************************************
+* Models
+********************************************************************************
+
 local controls "i.race_head i.same_race i.children i.either_enrolled TAXABLE_HEAD_WIFE_ i.religion_head age_mar_head age_mar_wife"
 
 // overall
@@ -50,24 +69,40 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 logit dissolve_lag dur i.hh_earn_type_bkd i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
-logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
+logit dissolve_lag dur i.hh_earn_type_mar i.couple_educ_gp if inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or // employment
-outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+logit dissolve_lag dur i.hh_earn_type_mar i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ratio1 ratio2 i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
+logit dissolve_lag dur i.ft_head i.ft_wife i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ratio1 ratio2 i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or
+logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or // employment
+logit dissolve_lag dur i.ft_head i.ft_wife `controls' i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur TAXABLE_HEAD_WIFE_ i.couple_educ_gp if inlist(IN_UNIT,1,2), or // total earnings
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - Earnings) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur female_earn_pct i.couple_educ_gp if inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_earn_pct_chg i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - Female % Chg) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - HW %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt_lag i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - HW Group) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 
 // no college
@@ -77,18 +112,25 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.hh_earn_type_mar if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_earn_type_mar `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
 logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
-outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
-outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve_lag dur ratio1 ratio2 if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ratio1 ratio2 `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.ft_head i.ft_wife `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur TAXABLE_HEAD_WIFE_ if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or // earnings
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - Earn) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -96,6 +138,14 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 logit dissolve_lag dur female_earn_pct if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+logit dissolve_lag dur female_earn_pct_chg if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - Female % Chg) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - HW %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt_lag if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - HW Group) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 // college
 logit dissolve_lag dur i.hh_earn_type_bkd if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
@@ -104,24 +154,40 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.hh_earn_type_mar if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_earn_type_mar `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
 logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
-outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
-outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve_lag dur ratio1 ratio2 if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ratio1 ratio2 `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.ft_head i.ft_wife `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur TAXABLE_HEAD_WIFE_ if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or // earnings
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - Earn) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur female_earn_pct if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_earn_pct_chg if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - Female % Chg) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - HW %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt_lag if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - HW Group) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 tab hh_earn_type_bkd, sum(TAXABLE_HEAD_WIFE_)
 
@@ -166,6 +232,22 @@ label values religion_head religion_wife update_religion
 mkspline ratio1 0.5 ratio2 = female_earn_pct
 browse female_earn_pct ratio1 ratio2 
 
+
+// want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?)
+browse id survey_yr rel_start_all dur hh_earn_type_bkd
+bysort id (survey_yr): egen yr_rank=rank(survey_yr)
+gen hh_earn_type_mar = hh_earn_type_bkd if yr_rank==1
+bysort id (hh_earn_type_mar): replace hh_earn_type_mar=hh_earn_type_mar[1]
+label values hh_earn_type_mar earn_type_bkd
+
+browse id survey_yr rel_start_all yr_rank dur hh_earn_type_bkd hh_earn_type_mar
+
+// okay rolling change in female earn pct - absolute or relative?! absolute for now...
+sort id survey_yr
+gen female_earn_pct_chg = (female_earn_pct-female_earn_pct[_n-1]) if id==id[_n-1]
+browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
+
+
 local controls "i.race_head i.same_race i.children i.either_enrolled TAXABLE_HEAD_WIFE_ i.religion_head age_mar_head age_mar_wife"
 
 // overall
@@ -175,24 +257,40 @@ outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef p
 logit dissolve_lag dur i.hh_earn_type_bkd i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
-logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
+logit dissolve_lag dur i.hh_earn_type_mar i.couple_educ_gp if inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or // employment
-outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+logit dissolve_lag dur i.hh_earn_type_mar i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ratio1 ratio2 i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
+logit dissolve_lag dur i.ft_head i.ft_wife i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ratio1 ratio2 i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or
+logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or // employment
+logit dissolve_lag dur i.ft_head i.ft_wife `controls' i.couple_educ_gp if inlist(IN_UNIT,1,2), or // employment
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur TAXABLE_HEAD_WIFE_ i.couple_educ_gp if inlist(IN_UNIT,1,2), or // total earnings
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - Earnings) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur female_earn_pct i.couple_educ_gp if inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_earn_pct_chg i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - Female % Chg) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - HW %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt_lag i.couple_educ_gp if inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - HW Group) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 
 // no college
@@ -202,18 +300,25 @@ outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef p
 logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.hh_earn_type_mar if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_earn_type_mar `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
 logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
-outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
-outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve_lag dur ratio1 ratio2 if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ratio1 ratio2 `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.ft_head i.ft_wife `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or 
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur TAXABLE_HEAD_WIFE_ if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or // earnings
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - Earn) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -221,6 +326,14 @@ outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef p
 logit dissolve_lag dur female_earn_pct if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+logit dissolve_lag dur female_earn_pct_chg if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - Female % Chg) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - HW %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt_lag if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - HW Group) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 // college
 logit dissolve_lag dur i.hh_earn_type_bkd if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
@@ -229,21 +342,37 @@ outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef p
 logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.hh_earn_type_mar if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_earn_type_mar `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
 logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
-outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
-outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve_lag dur ratio1 ratio2 if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.ft_head i.ft_wife if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve_lag dur ratio1 ratio2 `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur ib2.ft_pt_head i.ft_pt_wife `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+logit dissolve_lag dur i.ft_head i.ft_wife `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur ratio1 ratio2 `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or 
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur TAXABLE_HEAD_WIFE_ if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or // earnings
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - Earn) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag dur female_earn_pct if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - Female %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_earn_pct_chg if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - Female % Chg) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - HW %) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt_lag if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - HW Group) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
