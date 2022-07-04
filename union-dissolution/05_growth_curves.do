@@ -6,6 +6,11 @@
 
 use "$data_keep\PSID_marriage_recoded_sample.dta", clear // created in 1a - no longer using my original order
 
+rename STATE_ statefip
+gen year = survey_yr
+merge m:1 year statefip using "T:/Research Projects/State data/data_keep/2010_2018_state_policies.dta", keepusing(cc_percent_served leave_policy leave_policy_score eitc_credit tanf_rate tanf_basic tanf_cc tanf_max cost_of_living20 tanf_max_cost abortion dems_legis women_legis) // adding in policy info
+drop if _merge==2
+
 gen cohort=.
 replace cohort=1 if inrange(rel_start_all,1969,1989)
 replace cohort=2 if inrange(rel_start_all,1990,2010)
@@ -32,6 +37,13 @@ sort id survey_yr
 // collapse by duration - do steps at a time
 tab dur // when should I cut it off - did 1990 - 2019, so max is 30, but probably not a ton of people, so do 20? because even that is low.
 
+// trying to divide by leave policy (as one example)
+gen leave_policy_group=.
+replace leave_policy_group=0 if leave_policy_score==0
+replace leave_policy_group=1 if leave_policy_score>0 & leave_policy_score<=25
+replace leave_policy_group=2 if leave_policy_score>25 & leave_policy_score<=80
+replace leave_policy_group=3 if leave_policy_score>=85 & leave_policy_score!=.
+
 preserve
 collapse (median) female_earn_pct, by(dur couple_educ_gp ever_dissolve ever_children)
 restore
@@ -41,6 +53,25 @@ collapse (median) female_earn_pct, by(dur couple_educ_gp)
 twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "No College" 2 "College"))
 graph export "$results\earn_pct_education.jpg", as(jpg) name("Graph") quality(90) replace
 restore
+
+preserve
+collapse (median) female_earn_pct if inrange(REGION_,1,4) & couple_educ_gp==1, by(dur REGION_)
+twoway (line female_earn_pct dur if dur <=20 & REGION_==1) (line female_earn_pct dur if dur <=20 & REGION_==2) (line female_earn_pct dur if dur <=20 & REGION_==3) (line female_earn_pct dur if dur <=20 & REGION_==4), legend(on order(1 "Northeast" 2 "North Central" 3 "South" 4 "West"))
+graph export "$results\earn_pct_region_college.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+preserve
+collapse (median) female_earn_pct if inrange(REGION_,1,4) & couple_educ_gp==1, by(dur STATE_)
+twoway (line female_earn_pct dur if dur <=20 & STATE_==6) (line female_earn_pct dur if dur <=20 & STATE_==36) (line female_earn_pct dur if dur <=20 & STATE_==48) (line female_earn_pct dur if dur <=20 & STATE_==17) (line female_earn_pct dur if dur <=20 & STATE_==5), legend(on order(1 "California" 2 "New York" 3 "Texas" 4 "Illinois" 5 "Arkansas"))
+graph export "$results\earn_pct_state_college.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+preserve
+collapse (median) female_earn_pct if couple_educ_gp==1, by(dur leave_policy_group)
+twoway (line female_earn_pct dur if dur <=20 & leave_policy_group==0) (line female_earn_pct dur if dur <=20 & leave_policy_group==1) (line female_earn_pct dur if dur <=20 & leave_policy_group==2) (line female_earn_pct dur if dur <=20 & leave_policy_group==3), legend(on order(1 "None" 2 "Low" 3 "Medium" 4 "High"))
+graph export "$results\earn_pct_policy_college.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
 
 preserve
 collapse (median) female_earn_pct if ever_dissolve==0, by(dur couple_educ_gp)
