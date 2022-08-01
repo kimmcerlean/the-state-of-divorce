@@ -44,6 +44,11 @@ replace leave_policy_group=1 if leave_policy_score>0 & leave_policy_score<=25
 replace leave_policy_group=2 if leave_policy_score>25 & leave_policy_score<=80
 replace leave_policy_group=3 if leave_policy_score>=85 & leave_policy_score!=.
 
+gen leave_policy_group2=.
+replace leave_policy_group2=0 if leave_policy_score==0
+replace leave_policy_group2=1 if leave_policy_score>0 & leave_policy_score<=25
+replace leave_policy_group2=2 if leave_policy_score>25 & leave_policy_score!=.
+
 preserve
 collapse (median) female_earn_pct, by(dur couple_educ_gp ever_dissolve ever_children)
 restore
@@ -70,6 +75,12 @@ preserve
 collapse (median) female_earn_pct if couple_educ_gp==1, by(dur leave_policy_group)
 twoway (line female_earn_pct dur if dur <=20 & leave_policy_group==0) (line female_earn_pct dur if dur <=20 & leave_policy_group==1) (line female_earn_pct dur if dur <=20 & leave_policy_group==2) (line female_earn_pct dur if dur <=20 & leave_policy_group==3), legend(on order(1 "None" 2 "Low" 3 "Medium" 4 "High"))
 graph export "$results\earn_pct_policy_college.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+preserve
+collapse (median) female_earn_pct if year >=2011 & year<2019, by(dur leave_policy_group2)
+twoway (line female_earn_pct dur if dur <=15 & leave_policy_group2==0) (line female_earn_pct dur if dur <=15 & leave_policy_group2==1) (line female_earn_pct dur if dur <=15 & leave_policy_group2==2), legend(on order(1 "Poor" 2 "Average" 3 "Good"))
+graph export "$results\earn_pct_policy_all.jpg", as(jpg) name("Graph") quality(90) replace
 restore
 
 
