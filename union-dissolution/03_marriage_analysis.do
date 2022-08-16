@@ -192,6 +192,34 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 tab hh_earn_type_bkd, sum(TAXABLE_HEAD_WIFE_)
 
 ********************************************************************************
+*Quick descriptives for proposal
+********************************************************************************
+// total
+tab couple_educ_gp
+unique id, by(couple_educ_gp)
+
+tab couple_educ_gp hh_earn_type_bkd, row
+tab couple_educ_gp hh_earn_type_mar, row
+tabstat female_earn_pct, by(couple_educ_gp)
+tab couple_educ_gp ft_head, row
+tab couple_educ_gp ft_wife, row
+tabstat wife_housework_pct, by(couple_educ_gp)
+tabstat TAXABLE_HEAD_WIFE_, by(couple_educ_gp) stat(mean p50)
+ 
+// dissolved
+tab couple_educ_gp if dissolve_lag==1
+unique id if dissolve_lag==1, by(couple_educ_gp)
+
+tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==1, row
+tab couple_educ_gp hh_earn_type_mar if dissolve_lag==1, row
+tabstat female_earn_pct if dissolve_lag==1, by(couple_educ_gp)
+tab couple_educ_gp ft_head if dissolve_lag==1, row
+tab couple_educ_gp ft_wife if dissolve_lag==1, row
+tabstat wife_housework_pct if dissolve_lag==1, by(couple_educ_gp)
+tabstat TAXABLE_HEAD_WIFE_ if dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+ 
+
+********************************************************************************
 * Historical for reference
 ********************************************************************************
 
