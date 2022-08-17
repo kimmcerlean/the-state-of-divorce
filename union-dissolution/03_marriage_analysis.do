@@ -191,6 +191,14 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 
 tab hh_earn_type_bkd, sum(TAXABLE_HEAD_WIFE_)
 
+// margins for figure
+local controls "i.race_head i.same_race i.children i.either_enrolled TAXABLE_HEAD_WIFE_ i.religion_head age_mar_head age_mar_wife"
+logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==0 & inlist(IN_UNIT,1,2), or
+margins hh_earn_type_bkd
+
+logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
+margins hh_earn_type_bkd
+
 ********************************************************************************
 *Quick descriptives for proposal
 ********************************************************************************
@@ -217,6 +225,10 @@ tab couple_educ_gp ft_head if dissolve_lag==1, row
 tab couple_educ_gp ft_wife if dissolve_lag==1, row
 tabstat wife_housework_pct if dissolve_lag==1, by(couple_educ_gp)
 tabstat TAXABLE_HEAD_WIFE_ if dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+
+// pie chart
+tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==1, row nofreq
+tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==0, row nofreq // intact for ref
  
 
 ********************************************************************************
