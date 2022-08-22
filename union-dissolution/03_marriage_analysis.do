@@ -59,7 +59,94 @@ browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
 ********************************************************************************
 * Models
 ********************************************************************************
+* not adding controls to start, but will include education and total earnings
+* Do these need to be COX??
 
+// overall
+logit dissolve_lag dur female_earn_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // continuous female earnings percentage
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag dur i.hh_earnings_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // earnings - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_hours_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or //  continuous paid hours
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // paid hours - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or //  continuous housework
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // housework - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.division_labor i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // combined division of labor
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur c.female_hours_pct##c.wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // testing interactions - 1 (continuous)
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070##i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // testing interactions - 2 (bucketed)
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Overall - 9) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// no college
+logit dissolve_lag dur female_earn_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==0, or // continuous female earnings percentage
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_earnings_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or // earnings - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_hours_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or //  continuous paid hours
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or // paid hours - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or //  continuous housework
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or // housework - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.division_labor i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or // combined division of labor
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur c.female_hours_pct##c.wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==0, or // testing interactions - 1 (continuous)
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070##i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==0, or // testing interactions - 2 (bucketed)
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(No College - 9) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// college
+logit dissolve_lag dur female_earn_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==1, or // continuous female earnings percentage
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_earnings_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or // earnings - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_hours_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or //  continuous paid hours
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or // paid hours - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or //  continuous housework
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or // housework - bucketed
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.division_labor i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or // combined division of labor
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur c.female_hours_pct##c.wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==1, or // testing interactions - 1 (continuous)
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070##i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==1, or // testing interactions - 2 (bucketed)
+outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - 9) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+/* for proposal
 local controls "i.race_head i.same_race i.children i.either_enrolled TAXABLE_HEAD_WIFE_ i.religion_head age_mar_head age_mar_wife"
 
 // overall
@@ -188,6 +275,7 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 
 logit dissolve_lag dur i.housework_bkt_lag if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(College - HW Group) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+*/
 
 tab hh_earn_type_bkd, sum(TAXABLE_HEAD_WIFE_)
 
@@ -287,6 +375,91 @@ sort id survey_yr
 gen female_earn_pct_chg = (female_earn_pct-female_earn_pct[_n-1]) if id==id[_n-1]
 browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
 
+// overall
+logit dissolve_lag dur female_earn_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // continuous female earnings percentage
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag dur i.hh_earnings_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // earnings - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_hours_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or //  continuous paid hours
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // paid hours - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or //  continuous housework
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // housework - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.division_labor i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // combined division of labor
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur c.female_hours_pct##c.wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // testing interactions - 1 (continuous)
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070##i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2), or // testing interactions - 2 (bucketed)
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(Overall - 9) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// no college
+logit dissolve_lag dur female_earn_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==0, or // continuous female earnings percentage
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_earnings_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or // earnings - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_hours_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or //  continuous paid hours
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or // paid hours - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or //  continuous housework
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or // housework - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.division_labor i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==0, or // combined division of labor
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur c.female_hours_pct##c.wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==0, or // testing interactions - 1 (continuous)
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070##i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==0, or // testing interactions - 2 (bucketed)
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(No College - 9) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// college
+logit dissolve_lag dur female_earn_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==1, or // continuous female earnings percentage
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_earnings_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or // earnings - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur female_hours_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or //  continuous paid hours
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070 i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or // paid hours - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or //  continuous housework
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or // housework - bucketed
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.division_labor i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2)  & couple_educ_gp==1, or // combined division of labor
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur c.female_hours_pct##c.wife_housework_pct i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==1, or // testing interactions - 1 (continuous)
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 8) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag dur i.hh_hours_3070##i.housework_bkt i.couple_educ_gp TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & couple_educ_gp==1, or // testing interactions - 2 (bucketed)
+outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - 9) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+/* Proposal
 
 local controls "i.race_head i.same_race i.children i.either_enrolled TAXABLE_HEAD_WIFE_ i.religion_head age_mar_head age_mar_wife"
 
@@ -416,3 +589,4 @@ outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef p
 
 logit dissolve_lag dur i.housework_bkt_lag if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
 outreg2 using "$results/psid_marriage_dissolution_pre.xls", sideway stats(coef pval) label ctitle(College - HW Group) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+*/
