@@ -58,7 +58,7 @@ browse id survey_yr FAMILY_INTERVIEW_NUM_ TAXABLE_HEAD_WIFE_ TOTAL_FAMILY_INCOME
 
 	// helpful note: 2001, id 23 and 70 are both in family 285, head + wife = total taxable, family income is greater, so someone else must be working.
 	
-gen female_earn_pct = WAGES_WIFE_/(TAXABLE_HEAD_WIFE_)
+gen female_earn_pct = WAGES_WIFE_/(WAGES_WIFE_ + WAGES_HEAD_)
 
 gen hh_earn_type_bkd=.
 replace hh_earn_type_bkd=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
@@ -76,6 +76,50 @@ replace hh_earn_type_lag=hh_earn_type_bkd[_n-1] if id==id[_n-1]
 label values hh_earn_type_lag earn_type_bkd
 
 browse id survey_yr WAGES_HEAD_ WAGES_WIFE_ hh_earn_type_bkd hh_earn_type_lag
+//browse WAGES_WIFE_ WAGES_HEAD_ TAXABLE_HEAD_WIFE_ female_earn_pct if female_earn_pct>1
+
+// alternate specification to try
+gen hh_earnings_3070=.
+replace hh_earnings_3070=1 if female_earn_pct >=.3000 & female_earn_pct <=.7000
+replace hh_earnings_3070=2 if female_earn_pct <.3000
+replace hh_earnings_3070=3 if female_earn_pct >.7000
+replace hh_earnings_3070=4 if (WAGES_HEAD_==0 & WAGES_WIFE_==0) | female_earn_pct==.
+
+label define hh_earnings_3070 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values hh_earnings_3070 hh_earnings_3070
+
+sort id survey_yr
+gen hh_earnings_3070_lag=.
+replace hh_earnings_3070_lag=hh_earnings_3070[_n-1] if id==id[_n-1]
+label values hh_earnings_3070_lag hh_earnings_3070
+
+browse id survey_yr WAGES_HEAD_ WAGES_WIFE_ hh_earnings_3070 hh_earnings_3070_lag
+
+gen female_earn_pct_lag=.
+replace female_earn_pct_lag=female_earn_pct[_n-1] if id==id[_n-1]
+
+// hours instead of earnings	
+gen female_hours_pct = WEEKLY_HRS_WIFE_/(WEEKLY_HRS_WIFE_ + WEEKLY_HRS_HEAD_)
+
+gen hh_hours_3070=.
+replace hh_hours_3070=1 if female_hours_pct >=.3000 & female_hours_pct <=.7000
+replace hh_hours_3070=2 if female_hours_pct <.3000
+replace hh_hours_3070=3 if female_hours_pct >.7000
+replace hh_hours_3070=4 if (WEEKLY_HRS_HEAD_==0 & WEEKLY_HRS_WIFE_==0) | female_hours_pct==.
+
+label define hh_hours_3070 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values hh_hours_3070 hh_hours_3070
+
+sort id survey_yr
+gen hh_hours_3070_lag=.
+replace hh_hours_3070_lag=hh_hours_3070[_n-1] if id==id[_n-1]
+label values hh_hours_3070_lag hh_hours_3070
+
+gen female_hours_pct_lag=.
+replace female_hours_pct_lag=female_hours_pct[_n-1] if id==id[_n-1]
+
+browse id survey_yr WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ female_hours_pct female_hours_pct_lag hh_hours_3070 hh_hours_3070_lag
+	
 	
 // restrict to working age (18-55) - at time of marriage or all? check what others do - Killewald said ages 18-55
 browse id survey_yr AGE_ AGE_REF_ AGE_SPOUSE_ RELATION_

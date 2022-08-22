@@ -337,6 +337,73 @@ gen female_earn_pct_lag=.
 replace female_earn_pct_lag=female_earn_pct[_n-1] if id==id[_n-1]
 
 browse id survey_yr earnings_head earnings_wife hh_earn_type_bkd hh_earn_type_lag
+
+// alternate specification to try
+gen hh_earnings_3070=.
+replace hh_earnings_3070=1 if female_earn_pct >=.3000 & female_earn_pct <=.7000
+replace hh_earnings_3070=2 if female_earn_pct <.3000
+replace hh_earnings_3070=3 if female_earn_pct >.7000
+replace hh_earnings_3070=4 if (WAGES_HEAD_==0 & WAGES_WIFE_==0) | female_earn_pct==.
+
+label define hh_earnings_3070 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values hh_earnings_3070 hh_earnings_3070
+
+sort id survey_yr
+gen hh_earnings_3070_lag=.
+replace hh_earnings_3070_lag=hh_earnings_3070[_n-1] if id==id[_n-1]
+label values hh_earnings_3070_lag hh_earnings_3070
+
+browse id survey_yr WAGES_HEAD_ WAGES_WIFE_ hh_earnings_3070 hh_earnings_3070_lag
+
+// hours instead of earnings	
+browse id survey_yr WEEKLY_HRS1_WIFE_ WEEKLY_HRS_WIFE_ WEEKLY_HRS1_HEAD_ WEEKLY_HRS_HEAD_
+
+gen weekly_hrs_wife = .
+replace weekly_hrs_wife = WEEKLY_HRS1_WIFE_ if survey_yr > 1969 & survey_yr <1994
+replace weekly_hrs_wife = WEEKLY_HRS_WIFE_ if survey_yr >=1994
+replace weekly_hrs_wife = 0 if inrange(survey_yr,1968,1969) & inlist(WEEKLY_HRS1_WIFE_,9,0)
+replace weekly_hrs_wife = 10 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_WIFE_ ==1
+replace weekly_hrs_wife = 27 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_WIFE_ ==2
+replace weekly_hrs_wife = 35 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_WIFE_ ==3
+replace weekly_hrs_wife = 40 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_WIFE_ ==4
+replace weekly_hrs_wife = 45 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_WIFE_ ==5
+replace weekly_hrs_wife = 48 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_WIFE_ ==6
+replace weekly_hrs_wife = 55 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_WIFE_ ==7
+replace weekly_hrs_wife = 60 if inrange(survey_yr,1968,1969)  & WEEKLY_HRS1_WIFE_ ==8
+
+gen weekly_hrs_head = .
+replace weekly_hrs_head = WEEKLY_HRS1_HEAD_ if survey_yr > 1969 & survey_yr <1994
+replace weekly_hrs_head = WEEKLY_HRS_HEAD_ if survey_yr >=1994
+replace weekly_hrs_head = 0 if inrange(survey_yr,1968,1969) & inlist(WEEKLY_HRS1_HEAD_,9,0)
+replace weekly_hrs_head = 10 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_HEAD_ ==1
+replace weekly_hrs_head = 27 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_HEAD_ ==2
+replace weekly_hrs_head = 35 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_HEAD_ ==3
+replace weekly_hrs_head = 40 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_HEAD_ ==4
+replace weekly_hrs_head = 45 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_HEAD_ ==5
+replace weekly_hrs_head = 48 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_HEAD_ ==6
+replace weekly_hrs_head = 55 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_HEAD_ ==7
+replace weekly_hrs_head = 60 if inrange(survey_yr,1968,1969)  & WEEKLY_HRS1_HEAD_ ==8
+
+gen female_hours_pct = weekly_hrs_wife/(weekly_hrs_wife + weekly_hrs_head)
+
+gen hh_hours_3070=.
+replace hh_hours_3070=1 if female_hours_pct >=.3000 & female_hours_pct <=.7000
+replace hh_hours_3070=2 if female_hours_pct <.3000
+replace hh_hours_3070=3 if female_hours_pct >.7000
+replace hh_hours_3070=4 if (WEEKLY_HRS_HEAD_==0 & WEEKLY_HRS_WIFE_==0) | female_hours_pct==.
+
+label define hh_hours_3070 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values hh_hours_3070 hh_hours_3070
+
+sort id survey_yr
+gen hh_hours_3070_lag=.
+replace hh_hours_3070_lag=hh_hours_3070[_n-1] if id==id[_n-1]
+label values hh_hours_3070_lag hh_hours_3070
+
+gen female_hours_pct_lag=.
+replace female_hours_pct_lag=female_hours_pct[_n-1] if id==id[_n-1]
+
+browse id survey_yr WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ female_hours_pct female_hours_pct_lag hh_hours_3070 hh_hours_3070_lag
 	
 // restrict to working age (18-55) - at time of marriage or all? check what others do - Killewald said ages 18-55 - others have different restrictions, table this part for now
 /*
@@ -527,13 +594,12 @@ browse id survey_yr housework_head housework_wife TOTAL_HOUSEWORK_HW_ MOST_HOUSE
 gen wife_housework_pct = housework_wife / (housework_wife + housework_head)
 
 gen housework_bkt=.
-replace housework_bkt=1 if wife_housework_pct >=.4000 & wife_housework_pct <=.6000
-replace housework_bkt=2 if wife_housework_pct > .6000 & wife_housework_pct <1
-replace housework_bkt=3 if wife_housework_pct ==1
-replace housework_bkt=4 if wife_housework_pct < .4000 & wife_housework_pct >=0
-replace housework_bkt=5 if (housework_wife==0 | housework_wife==.) & (housework_head==0 | housework_head==.)
+replace housework_bkt=1 if wife_housework_pct >=.3000 & wife_housework_pct <=.7000
+replace housework_bkt=2 if wife_housework_pct >.7000
+replace housework_bkt=3 if wife_housework_pct <.3000
+replace housework_bkt=4 if (housework_wife==0 | housework_wife==.) & (housework_head==0 | housework_head==.)
 
-label define housework_bkt 1 "Dual HW" 2 "Female Primary" 3 "Female All" 4 "Male Primary" 5 "NA"
+label define housework_bkt 1 "Dual HW" 2 "Female Primary" 3 "Male Primary" 4 "NA"
 label values housework_bkt housework_bkt
 
 sort id survey_yr
@@ -543,6 +609,28 @@ label values housework_bkt_lag housework_bkt
 
 gen wife_hw_pct_lag=.
 replace wife_hw_pct_lag=wife_housework_pct[_n-1] if id==id[_n-1]
+
+// combined indicator of paid + unpaid hours
+gen division_labor=.
+replace division_labor=1 if hh_hours_3070==1 & housework_bkt==1 // both 30-70%
+replace division_labor=2 if hh_hours_3070==1 & housework_bkt==2 // dual employment; female homemaker
+replace division_labor=3 if hh_hours_3070==2 & wife_housework_pct <.7000 // Male BW earner; female housework < 70
+replace division_labor=4 if hh_hours_3070==2 & housework_bkt==2 // Male 70%+ hours; female 70%+ housework
+replace division_labor=5 if hh_hours_3070==3 & housework_bkt==2 // female 70%+ hours + housework
+replace division_labor=6 if (hh_hours_3070==3 & wife_housework_pct <.7000) | (hh_hours_3070==1 & housework_bkt==3) // (Female 70%+ hours & 0-70% HW) OR (Women economic 30-70%; HW 0-30%)
+replace division_labor=7 if hh_hours_3070==4
+
+label define division 1 "Dual" 2 "Dual - Female HW" 3 "Gender-specialized" 4 "Male BW" 5 "Female All" 6 "Counter-traditional" 7 "No Earners"
+label values division_labor division
+
+sort id survey_yr
+gen division_labor_lag=.
+replace division_labor_lag=division_labor[_n-1] if id==id[_n-1]
+label values division_labor_lag division
+
+
+// browse id survey_yr hh_hours_3070 housework_bkt wife_housework_pct division_labor if division_labor==.
+// most of the missing are the years they didn't ask housework so need to figure that out. leave for now? 1968, 1975, 1982 have nothing
 
 /* religion is new, but think I need to add given historical research. coding changes between 1984 and 1985, then again between 1994 and 1995 Need to recode, so tabling for now, not important for these purposes anyway
 label define update_religion  ///
