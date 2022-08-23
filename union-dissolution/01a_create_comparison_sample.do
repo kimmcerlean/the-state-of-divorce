@@ -628,6 +628,19 @@ gen division_labor_lag=.
 replace division_labor_lag=division_labor[_n-1] if id==id[_n-1]
 label values division_labor_lag division
 
+// turning the bucket interactions into variables to interact over time
+gen hours_housework=.
+replace hours_housework=1 if hh_hours_3070==1 & housework_bkt==1 // dual both (egal)
+replace hours_housework=2 if hh_hours_3070==1 & housework_bkt==2 // dual earner, female HM (neotraditional)
+replace hours_housework=3 if hh_hours_3070==2 & housework_bkt==1 // male BW, dual HW (mm not sure)
+replace hours_housework=4 if hh_hours_3070==2 & housework_bkt==2 // male BW, female HM (conventional)
+replace hours_housework=5 if hh_hours_3070==3 & housework_bkt==1 // female BW, dual HW (gender-atypical)
+replace hours_housework=6 if hh_hours_3070==3 & housework_bkt==2 // female BW, female HM (undoing gender)
+replace hours_housework=7 if housework_bkt==3  // all where male does more housework (gender-atypical)
+replace hours_housework=8 if hh_hours_3070==4  // no earners
+
+label define hours_housework 1 "Egal" 2 "Neotraditional" 3 "Male BW, dual HW" 4 "Conventional" 5 "Gender-atypical" 6 "Undoing gender" 7 "Male HW dominant" 8 "No Earners"
+label values hours_housework hours_housework 
 
 // browse id survey_yr hh_hours_3070 housework_bkt wife_housework_pct division_labor if division_labor==.
 // most of the missing are the years they didn't ask housework so need to figure that out. leave for now? 1968, 1975, 1982 have nothing
