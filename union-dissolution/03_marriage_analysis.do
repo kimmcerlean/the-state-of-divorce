@@ -864,3 +864,39 @@ logit dissolve_lag dur i.config TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & coho
 logit dissolve_lag dur i.config TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==1 & couple_educ_gp==1, or
 logit dissolve_lag dur i.config TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==2 & couple_educ_gp==1, or
 logit dissolve_lag dur i.config TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+
+********************************************************************************
+*Updated descriptives for proposal revision
+********************************************************************************
+ // 1970-1979
+tab couple_educ_gp if cohort==1
+unique id if cohort==1, by(couple_educ_gp) // unique couples
+unique id if cohort==1 & dissolve_lag==1, by(couple_educ_gp) // dissolutions
+
+tabstat female_hours_pct  if cohort==1, by(couple_educ_gp)
+tab couple_educ_gp hh_hours_3070 if cohort==1, row
+tabstat wife_housework_pct if cohort==1, by(couple_educ_gp)
+tab couple_educ_gp housework_bkt if cohort==1, row
+tabstat TAXABLE_HEAD_WIFE_ if cohort==1, by(couple_educ_gp) stat(mean p50)
+
+ // 1980-1989
+tab couple_educ_gp if cohort==2
+unique id if cohort==2, by(couple_educ_gp) // unique couples
+unique id if cohort==2 & dissolve_lag==1, by(couple_educ_gp) // dissolutions
+
+tabstat female_hours_pct  if cohort==2, by(couple_educ_gp)
+tab couple_educ_gp hh_hours_3070 if cohort==2, row
+tabstat wife_housework_pct if cohort==2, by(couple_educ_gp)
+tab couple_educ_gp housework_bkt if cohort==2, row
+tabstat TAXABLE_HEAD_WIFE_ if cohort==2, by(couple_educ_gp) stat(mean p50)
+
+ // 1990-2010
+tab couple_educ_gp if cohort==3
+unique id if cohort==3, by(couple_educ_gp) // unique couples
+unique id if cohort==3 & dissolve_lag==1, by(couple_educ_gp) // dissolutions
+
+tabstat female_hours_pct  if cohort==3, by(couple_educ_gp)
+tab couple_educ_gp hh_hours_3070 if cohort==3, row
+tabstat wife_housework_pct if cohort==3, by(couple_educ_gp)
+tab couple_educ_gp housework_bkt if cohort==3, row
+tabstat TAXABLE_HEAD_WIFE_ if cohort==3, by(couple_educ_gp) stat(mean p50)
