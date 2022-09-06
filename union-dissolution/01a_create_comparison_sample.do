@@ -63,6 +63,9 @@ bysort id (rel4_start): replace rel4_start=rel4_start[1]
 sort id survey_yr
 browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start rel1_start FIRST_MARRIAGE_YR_START rel2_start marrno
 
+browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start rel1_start FIRST_MARRIAGE_YR_START rel2_start marrno id_spouse1 per_no_spouse1 yr_married1 id_spouse2 per_no_spouse2 yr_married2
+
+
 gen relationship_end = survey_yr if exit_rel==1
 bysort id: egen exitno=rank(relationship_end)
 browse id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start exitno
@@ -117,9 +120,21 @@ replace status_all = status2 if survey_yr>=rel2_start & survey_yr <=rel2_end
 replace status_all = status3 if survey_yr>=rel3_start & survey_yr <=rel3_end
 replace status_all = status4 if survey_yr>=rel4_end & survey_yr <=rel4_end
 
+gen spouse_id_all=.
+replace spouse_id_all = id_spouse1 if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace spouse_id_all = id_spouse2 if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace spouse_id_all = id_spouse3 if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace spouse_id_all = id_spouse4 if survey_yr>=rel4_end & survey_yr <=rel4_end
+
+gen spouse_per_num_all=.
+replace spouse_per_num_all = per_no_spouse1 if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace spouse_per_num_all = per_no_spouse2 if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace spouse_per_num_all = per_no_spouse3 if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace spouse_per_num_all = per_no_spouse4 if survey_yr>=rel4_end & survey_yr <=rel4_end
+
 label values status_all status
 
-browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
+browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end spouse_id_all spouse_per_num_all id_spouse1 id_spouse2 per_no_spouse1 per_no_spouse2
 
 gen relationship_order=.
 
