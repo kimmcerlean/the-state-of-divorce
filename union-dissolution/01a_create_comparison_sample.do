@@ -613,7 +613,24 @@ bysort unique_id: egen first_birth_check = min(when_first_birth)
 replace when_first_birth = first_birth_check if when_first_birth==9999 & first_birth_check!=9999 & first_birth_check!=.
 
 sort unique_id survey_yr
-browse unique_id survey_yr when_first_birth FIRST_BIRTH_YR NUM_BIRTHS NUM_CHILDREN_
+// browse unique_id survey_yr when_first_birth FIRST_BIRTH_YR NUM_BIRTHS NUM_CHILDREN_ AGE_OLDEST_CHILD_ first_birth_calc if when_first_birth==9999
+
+gen first_birth_calc = survey_yr - AGE_OLDEST_CHILD_ if survey_yr==1969  & when_first_birth==9999 & AGE_OLDEST_CHILD_!=.
+bysort unique_id (first_birth_calc): replace first_birth_calc = first_birth_calc[1]
+replace when_first_birth = first_birth_calc if when_first_birth==9999 & first_birth_calc!=.
+gen first_birth_calc2 = survey_yr - AGE_YOUNG_CHILD_ if when_first_birth==9999 & AGE_YOUNG_CHILD_!=. // use youngest if do not have oldest, use minimum
+drop first_birth_check
+bysort unique_id: egen first_birth_check = min(first_birth_calc2)
+replace when_first_birth = first_birth_check if when_first_birth==9999 & first_birth_check!=9999 & first_birth_check!=.
+
+sort unique_id survey_yr
+browse unique_id survey_yr when_first_birth rel_start_all
+
+gen pre_marital_birth=0
+replace pre_marital_birth=1 if when_first_birth < rel_start_all & when_first_birth!=.
+
+gen post_marital_birth=0
+replace post_marital_birth=1 if when_first_birth >= rel_start_all & when_first_birth<=rel_end_all & when_first_birth!=. // needs to be IN marriage years, okay barely changed it
 
 // urbanicity
 gen metro=(METRO_==1) // a lot of missing, don't use for now, control for STATE_ for now
