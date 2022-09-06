@@ -258,10 +258,10 @@ save "$data_tmp\PSID_all_unions.dta", replace
 * Recodes
 ********************************************************************************
 // first need to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent.
-bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(id)
-browse survey_yr FAMILY_INTERVIEW_NUM_  id per_id
+bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(unique_id)
+browse survey_yr FAMILY_INTERVIEW_NUM_  unique_id per_id
 
-browse survey_yr FAMILY_INTERVIEW_NUM_ per_id id if inlist(id,12,13)
+browse survey_yr FAMILY_INTERVIEW_NUM_ per_id unique_id if inlist(unique_id,12,13)
 
 keep if per_id==1
 
@@ -347,11 +347,11 @@ label values hh_earn_type_bkd earn_type_bkd
 
 sort id survey_yr
 gen hh_earn_type_lag=.
-replace hh_earn_type_lag=hh_earn_type_bkd[_n-1] if id==id[_n-1]
+replace hh_earn_type_lag=hh_earn_type_bkd[_n-1] if unique_id==unique_id[_n-1]
 label values hh_earn_type_lag earn_type_bkd
 
 gen female_earn_pct_lag=.
-replace female_earn_pct_lag=female_earn_pct[_n-1] if id==id[_n-1]
+replace female_earn_pct_lag=female_earn_pct[_n-1] if unique_id==unique_id[_n-1]
 
 browse id survey_yr earnings_head earnings_wife hh_earn_type_bkd hh_earn_type_lag
 
@@ -367,7 +367,7 @@ label values hh_earnings_3070 hh_earnings_3070
 
 sort id survey_yr
 gen hh_earnings_3070_lag=.
-replace hh_earnings_3070_lag=hh_earnings_3070[_n-1] if id==id[_n-1]
+replace hh_earnings_3070_lag=hh_earnings_3070[_n-1] if unique_id==unique_id[_n-1]
 label values hh_earnings_3070_lag hh_earnings_3070
 
 browse id survey_yr WAGES_HEAD_ WAGES_WIFE_ hh_earnings_3070 hh_earnings_3070_lag
@@ -412,13 +412,13 @@ replace hh_hours_3070=4 if (WEEKLY_HRS_HEAD_==0 & WEEKLY_HRS_WIFE_==0) | female_
 label define hh_hours_3070 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
 label values hh_hours_3070 hh_hours_3070
 
-sort id survey_yr
+sort unique_id survey_yr
 gen hh_hours_3070_lag=.
-replace hh_hours_3070_lag=hh_hours_3070[_n-1] if id==id[_n-1]
+replace hh_hours_3070_lag=hh_hours_3070[_n-1] if unique_id==unique_id[_n-1]
 label values hh_hours_3070_lag hh_hours_3070
 
 gen female_hours_pct_lag=.
-replace female_hours_pct_lag=female_hours_pct[_n-1] if id==id[_n-1]
+replace female_hours_pct_lag=female_hours_pct[_n-1] if unique_id==unique_id[_n-1]
 
 browse id survey_yr WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ female_hours_pct female_hours_pct_lag hh_hours_3070 hh_hours_3070_lag
 	
@@ -621,11 +621,11 @@ label values housework_bkt housework_bkt
 
 sort id survey_yr
 gen housework_bkt_lag=.
-replace housework_bkt_lag=housework_bkt[_n-1] if id==id[_n-1]
+replace housework_bkt_lag=housework_bkt[_n-1] if unique_id==unique_id[_n-1]
 label values housework_bkt_lag housework_bkt
 
 gen wife_hw_pct_lag=.
-replace wife_hw_pct_lag=wife_housework_pct[_n-1] if id==id[_n-1]
+replace wife_hw_pct_lag=wife_housework_pct[_n-1] if unique_id==unique_id[_n-1]
 
 // combined indicator of paid + unpaid hours
 gen division_labor=.
@@ -642,7 +642,7 @@ label values division_labor division
 
 sort id survey_yr
 gen division_labor_lag=.
-replace division_labor_lag=division_labor[_n-1] if id==id[_n-1]
+replace division_labor_lag=division_labor[_n-1] if unique_id==unique_id[_n-1]
 label values division_labor_lag division
 
 // turning the bucket interactions into variables to interact over time
@@ -684,7 +684,7 @@ label values religion_head religion_wife update_religion
 browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
 sort id survey_yr
 gen age_spouse=AGE_SPOUSE_
-replace age_spouse=AGE_SPOUSE_[_n-1]+1 if MARITAL_PAIRS_==0 & id==id[_n-1]
+replace age_spouse=AGE_SPOUSE_[_n-1]+1 if MARITAL_PAIRS_==0 & unique_id==unique_id[_n-1]
 
 //browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_ age_spouse if MARITAL_PAIRS_==0 // some not updating- do they not have prior records? - are they all relationships that started PRIOR to 1968?
 tab rel_start_all if age_spouse==0
@@ -712,15 +712,36 @@ tab in_marital_history if dissolve==1 & MARITAL_PAIRS_==0,m // is in marital his
  // do I have to lag alll info though? or like JUST update year of dissolution? replace year of dissolution with all prior values of wife variables?
  
 // merge cohabitation history for head
-merge m:1 id main_per_id using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*)
+// merge 1:1 survey_yr main_per_id INTERVIEW_NUM_ using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // lol now only 724 matched
+// lol okay match rate SUPER low here when WIDE- 1000
+merge m:1 unique_id using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // still only 48000 which seems low (when wide). okay try LONG -- okay this was my best bet... I AM DUMB - it shouldn;t all match because it is only people who ever had A COHABITING partner, not others.
+
+drop if _merge==2 // people not in my sample
+gen ever_cohab_head = 1 if _merge==3
+replace ever_cohab_head=0 if ever_cohab_head==.
+drop _merge
 
 foreach var in MX8* partner_1968_id* partner_per_num*{
 	rename `var' `var'_head
 }
 
+// k now trying to match on PARTNER id to get HER history
+merge m:1 spouse_per_num_all spouse_id_all using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // less matches but I am not surprised about this (i don't think??
+
+drop if _merge==2 // people not in my sample
+gen ever_cohab_wife = 1 if _merge==3
+replace ever_cohab_wife=0 if ever_cohab_wife==.
+drop _merge
+
+foreach var in MX8* partner_1968_id* partner_per_num*{
+	rename `var' `var'_wife
+}
+
 save "$data_keep\PSID_union_validation_sample.dta", replace
 
 keep if relationship_type==2
+
+// okay create cohabitation variables
 save "$data_keep\PSID_marriage_validation_sample.dta", replace
 
 tab MARITAL_PAIRS_ if dissolve==1 // 35% have no spouse in year of dissolution - so all of my partner variables are moot.

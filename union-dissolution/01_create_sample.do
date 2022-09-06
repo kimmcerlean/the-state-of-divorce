@@ -20,6 +20,11 @@ gen in_marital_history=0
 replace in_marital_history=1 if _merge==3
 drop _merge
 
+/* this isn't helping
+// trying to merge cohab history sooner?
+merge 1:1 main_per_id INTERVIEW_NUM_1968 using "$data_tmp\PSID_partner_history.dta" // when I merge this on here, 16000 linked
+*/
+
 // i have no clue what this is but it is wrong
 egen family_intvw_num=rowmin(FAMILY_INTERVIEW_NUM*) // not working because inconsistent years
 browse family_intvw_num FAMILY_INTERVIEW_NUM*
