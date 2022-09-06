@@ -737,11 +737,65 @@ foreach var in MX8* partner_1968_id* partner_per_num*{
 	rename `var' `var'_wife
 }
 
+rename partner_1968_id*_head_wife partner_1968_id*_head
+rename partner_per_num*_head_wife partner_per_num*_head
+
 save "$data_keep\PSID_union_validation_sample.dta", replace
 
 keep if relationship_type==2
 
 // okay create cohabitation variables
+sort unique_id survey_yr
+browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all partner_1968_id*_head partner_per_num*_head
+
+forvalues y=1968/1997{
+	gen cohab_`y'_with_wife=0
+	replace cohab_`y'_with_wife=1 if `y' <= rel_start_all & partner_1968_id`y'_head==spouse_id_all & partner_per_num`y'_head==spouse_per_num_all
+}
+
+forvalues y=1999(2)2019{
+	gen cohab_`y'_with_wife=0
+	replace cohab_`y'_with_wife=1 if `y' <= rel_start_all & partner_1968_id`y'_head==spouse_id_all & partner_per_num`y'_head==spouse_per_num_all
+}
+
+forvalues y=1968/1997{
+	gen cohab_`y'_other=0
+	replace cohab_`y'_other=1 if `y' <= rel_start_all & ((partner_1968_id`y'_head!=spouse_id_all & spouse_id_all!=. & partner_1968_id`y'_head!=.) | (partner_per_num`y'_head!=spouse_per_num_all & spouse_per_num_all!=. & partner_per_num`y'_head!=.))
+	}
+
+forvalues y=1999(2)2019{
+	gen cohab_`y'_other=0
+	replace cohab_`y'_other=1 if `y' <= rel_start_all & ((partner_1968_id`y'_head!=spouse_id_all & spouse_id_all!=. & partner_1968_id`y'_head!=.) | (partner_per_num`y'_head!=spouse_per_num_all & spouse_per_num_all!=. & partner_per_num`y'_head!=.))
+}
+
+
+forvalues y=1968/1997{
+	gen cohab_`y'_after=0
+	replace cohab_`y'_after=1 if `y' >= rel_end_all & partner_1968_id`y'_head!=. & partner_per_num`y'_head!=.
+	}
+
+forvalues y=1999(2)2019{
+	gen cohab_`y'_after=0
+	replace cohab_`y'_after=1 if `y' >= rel_end_all & partner_1968_id`y'_head!=. & partner_per_num`y'_head!=.
+}
+
+browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all cohab_*_with_wife cohab_*_other partner_1968_id*_head partner_per_num*_head
+
+egen cohab_with_wife = rowtotal(cohab_*_with_wife)
+replace cohab_with_wife = 1 if cohab_with_wife > 1 & cohab_with_wife!=.
+
+egen cohab_with_other = rowtotal(cohab_*_other)
+replace cohab_with_other = 1 if cohab_with_other > 1 & cohab_with_other!=.
+
+egen cohab_after = rowtotal(cohab_*_after)
+replace cohab_after = 1 if cohab_after > 1 & cohab_after!=.
+
+browse unique_id ever_cohab_head cohab_with_other cohab_with_wife // about 14000 of ever cohab not accounted for - only 44 other, so put as other? OR are they missing marital history and I need to figure out?
+
+browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all partner_1968_id*_head partner_per_num*_head if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife==0 & cohab_after==0
+
+tab rel_start_all if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife==0 & cohab_after==0 // okay 90%+ are relationships started in 1968, which I exclude anyway because I don't think all of these are accurate
+
 save "$data_keep\PSID_marriage_validation_sample.dta", replace
 
 tab MARITAL_PAIRS_ if dissolve==1 // 35% have no spouse in year of dissolution - so all of my partner variables are moot.
