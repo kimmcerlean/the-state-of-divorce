@@ -2,8 +2,8 @@ use "T:\data\PSID\mh_85_19.dta", clear
 
 /* first rename for ease*/
 rename MH1 releaseno
-rename MH2 fam_id
-rename MH3 main_per_id
+rename MH2 main_per_id
+rename MH3 fam_id
 rename MH4 sex
 rename MH5 mo_born
 rename MH6 yr_born
