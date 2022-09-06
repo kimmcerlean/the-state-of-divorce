@@ -594,9 +594,28 @@ label values race_wife race_head race
 gen same_race=0
 replace same_race=1 if race_head==race_wife & race_head!=.
 
+// any children - need to get more specific
 gen children=0
 replace children=1 if NUM_CHILDREN_>=1
 
+bysort unique_id: egen children_ever = max(NUM_CHILDREN_)
+
+sort unique_id survey_yr
+browse unique_id survey_yr NUM_CHILDREN_ children_ever
+
+browse survey_yr unique_id NUM_CHILDREN_ NUM_BIRTHS FIRST_BIRTH_YR BIRTHS_REF_ BIRTH_SPOUSE_ BIRTHS_BOTH_
+gen when_first_birth = FIRST_BIRTH_YR
+replace when_first_birth =. if FIRST_BIRTH_YR==9999 & (NUM_BIRTHS==0 | NUM_BIRTHS==98)
+replace when_first_birth =. if FIRST_BIRTH_YR==9999 & NUM_BIRTHS==99 & children_ever==0
+replace when_first_birth = survey_yr if NUM_BIRTHS==99 & NUM_CHILDREN_ > 0 & NUM_CHILDREN_[_n-1]==0 & unique_id==unique_id[_n-1]
+bysort unique_id: egen first_birth_check = min(when_first_birth)
+// browse unique_id when_first_birth first_birth_check
+replace when_first_birth = first_birth_check if when_first_birth==9999 & first_birth_check!=9999 & first_birth_check!=.
+
+sort unique_id survey_yr
+browse unique_id survey_yr when_first_birth FIRST_BIRTH_YR NUM_BIRTHS NUM_CHILDREN_
+
+// urbanicity
 gen metro=(METRO_==1) // a lot of missing, don't use for now, control for STATE_ for now
 
 // housework hours - not totally sure if accurate prior to 1976
