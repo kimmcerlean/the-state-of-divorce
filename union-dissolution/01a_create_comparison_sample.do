@@ -708,6 +708,13 @@ browse id survey_yr rel_end_all dissolve in_marital_history dur MARITAL_PAIRS_ i
 tab in_marital_history , m
 tab in_marital_history if dissolve==1 & MARITAL_PAIRS_==0,m // is in marital history over or under reprsented - like is that more or less contribuitng to this problem? okay yes, so ALL in marital history. does it depend like month of survey v. month of dissolve? because marital history updated retrospetively so like maybe when answered 2005 survey, they were together and living together in month 8, but then then divorce month 10 - marital history will update, but there will still be interview data for wife because she was there at time of survey. so it's probably people who divorced later v. earler in year - so I want last full year of data I can get, whenever that is? technically I do have months in marital history... but it really doesn't matter like I don't get that info either way...
  // do I have to lag alll info though? or like JUST update year of dissolution? replace year of dissolution with all prior values of wife variables?
+ 
+// merge cohabitation history for head
+merge m:1 id main_per_id using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*)
+
+foreach var in MX8* partner_1968_id* partner_per_num*{
+	rename `var' `var'_head
+}
 
 save "$data_keep\PSID_union_validation_sample.dta", replace
 

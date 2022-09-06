@@ -17,9 +17,13 @@ keep if MX8==22
 
 keep MX2 ego_1968_id ego_per_num ego_unique partner_1968_id partner_per_num partner_unique MX8
 
-reshape wide partner_1968_id partner_per_num partner_unique MX8, i(ego_1968_id ego_per_num ego_unique) j(MX2)
+// reshape not going to work because the id needs to vary by year
+// reshape wide partner_1968_id partner_per_num partner_unique MX8, i(ego_1968_id ego_per_num ego_unique) j(MX2)
 
 rename ego_1968_id main_per_id
-rename ego_per_num 
+rename ego_per_num id
+
+gen spouse_per_num_all = id
+gen spouse_id_all = main_per_id
 
 save "$data_tmp\PSID_partner_history.dta", replace
