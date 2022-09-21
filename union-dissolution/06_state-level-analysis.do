@@ -117,7 +117,7 @@ melogit dissolve_lag i.dur c.center_cost_living##i.ft_wife if couple_educ_gp==1 
 margins ft_wife, at(center_cost_living=(-10000 -5000 0 5000 10000)) 
 marginsplot
 
-melogit dissolve_lag i.dur c.center_leave_policy_score##i.hh_hours_3070 if couple_educ_gp==1 || statefip:, or
+melogit dissolve_lag i.dur c.center_leave_policy_score##i.hh_hours_3070 if couple_educ_gp==1 & hh_hours_3070<4 || statefip:, or
 margins hh_hours_3070, at(center_leave_policy_score=(-20 -10 0 10 20 50)) 
 marginsplot
 
