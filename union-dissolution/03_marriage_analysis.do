@@ -49,9 +49,83 @@ recode RELIGION_WIFE_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_wife)
 	   
 label values religion_head religion_wife update_religion
 
+// more discrete measures of work contributions
+input group
+.10
+.20
+.30
+.40
+.50
+.60
+.70
+.80
+1
+end
+
+xtile female_hours_bucket = female_hours_pct, cut(group)
+browse female_hours_bucket female_hours_pct weekly_hrs_wife ft_pt_wife weekly_hrs_head ft_pt_head
+
+// something went wrong here
+drop ft_pt_head
+drop ft_pt_wife
+
+gen ft_pt_head=0
+replace ft_pt_head=1 if weekly_hrs_head>0 & weekly_hrs_head <=35
+replace ft_pt_head=2 if weekly_hrs_head >35 & weekly_hrs_head<=200
+
+gen ft_pt_wife=0
+replace ft_pt_wife=1 if weekly_hrs_wife>0 & weekly_hrs_wife <=35
+replace ft_pt_wife=2 if weekly_hrs_wife >35 & weekly_hrs_wife<=200
+
+gen bw_type=.
+replace bw_type=1 if inlist(ft_pt_head,1,2) & ft_pt_wife==0
+replace bw_type=2 if ft_pt_head==2 & ft_pt_wife==1
+replace bw_type=3 if (ft_pt_head==2 & ft_pt_wife==2) | (ft_pt_wife==1 & ft_pt_head==1)
+replace bw_type=4 if ft_pt_head==1 & ft_pt_wife==2
+replace bw_type=5 if ft_pt_head==0 & inlist(ft_pt_wife,1,2)
+
+label define bw_type 1 "Male BW" 2 "Male and a half" 3 "Dual" 4 "Female and a half" 5 "Female BW"
+label values bw_type bw_type
+
+gen hours_type_hw=.
+replace hours_type_hw=1 if bw_type==3 & housework_bkt==1
+replace hours_type_hw=2 if bw_type==3 & housework_bkt==2
+replace hours_type_hw=3 if bw_type==3 & housework_bkt==3
+replace hours_type_hw=4 if inlist(bw_type,1,2) & housework_bkt==1
+replace hours_type_hw=5 if inlist(bw_type,1,2) & housework_bkt==2
+replace hours_type_hw=6 if inlist(bw_type,1,2) & housework_bkt==3
+replace hours_type_hw=7 if inlist(bw_type,4,5) & housework_bkt==1
+replace hours_type_hw=8 if inlist(bw_type,4,5) & housework_bkt==2
+replace hours_type_hw=9 if inlist(bw_type,4,5) & housework_bkt==3
+
+label define hours_type_hw 1 "Dual: Equal" 2 "Dual: Woman" 3 "Dual: Man" 4 "Male BW: Equal" 5 "Male BW: Woman" 6 "Male BW: Man" 7 "Female BW: Equal" 8 "Female BW: Woman" 9 "Female BW: Man"
+label values hours_type_hw hours_type_hw
+
+
+gen earn_type_hw=.
+replace earn_type_hw=1 if hh_earn_type==1 & housework_bkt==1
+replace earn_type_hw=2 if hh_earn_type==1 & housework_bkt==2
+replace earn_type_hw=3 if hh_earn_type==1 & housework_bkt==3
+replace earn_type_hw=4 if hh_earn_type==2 & housework_bkt==1
+replace earn_type_hw=5 if hh_earn_type==2 & housework_bkt==2
+replace earn_type_hw=6 if hh_earn_type==2 & housework_bkt==3
+replace earn_type_hw=7 if hh_earn_type==3 & housework_bkt==1
+replace earn_type_hw=8 if hh_earn_type==3 & housework_bkt==2
+replace earn_type_hw=9 if hh_earn_type==3 & housework_bkt==3
+
+label define earn_type_hw 1 "Dual: Equal" 2 "Dual: Woman" 3 "Dual: Man" 4 "Male BW: Equal" 5 "Male BW: Woman" 6 "Male BW: Man" 7 "Female BW: Equal" 8 "Female BW: Woman" 9 "Female BW: Man"
+label values earn_type_hw earn_type_hw
+
+// this doesn't capture OVERWORK
+sum weekly_hrs_head if ft_pt_head==2, detail
+sum weekly_hrs_wife if ft_pt_wife==2, detail
+
 // test spline at 0.5
-mkspline ratio1 0.5 ratio2 = female_earn_pct
-browse female_earn_pct ratio1 ratio2 
+mkspline earn_ratio1 0.5 earn_ratio2 = female_earn_pct
+browse female_earn_pct earn_ratio1 earn_ratio2 
+
+mkspline hrs_ratio1 0.5 hrs_ratio2 = female_hours_pct
+browse female_hours_pct hrs_ratio1 hrs_ratio2
 
 // want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?)
 browse id survey_yr rel_start_all dur hh_earn_type_bkd
@@ -82,6 +156,19 @@ local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrol
 ********************************************************************************
 ********************************************************************************
 
+logit dissolve_lag i.dur i.hours_type_hw if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4), or // dual as ref
+logit dissolve_lag i.dur ib5.hours_type_hw if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4), or // male BW / female HM as ref
+
+logit dissolve_lag i.dur i.hours_type_hw if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==0, or // dual as ref
+logit dissolve_lag i.dur i.hours_type_hw if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==1, or // dual as ref
+
+logit dissolve_lag i.dur i.earn_type_hw if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==0, or // dual as ref
+margins earn_type_hw
+marginsplot
+logit dissolve_lag i.dur i.earn_type_hw if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==1, or // dual as ref
+margins earn_type_hw
+marginsplot
+
 ********************************************************************************
 * No College
 ********************************************************************************
@@ -95,7 +182,7 @@ outreg2 using "$results/psid_marriage_dissolution_nocoll_A.xls", sideway stats(c
 
 logit dissolve_lag i.dur i.hh_hours_type if inlist(IN_UNIT,1,2) & cohort_alt==3 & couple_educ_gp==0, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_nocoll_A.xls", sideway stats(coef pval) label ctitle(2 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-logit dissolve_lag i.dur i.hh_hours_3070 TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_alt==3 & couple_educ_gp==0, or // paid hours - bucketed
+logit dissolve_lag i.dur i.hh_hours_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_alt==3 & couple_educ_gp==0, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_nocoll_A.xls", sideway stats(coef pval) label ctitle(2 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur wife_housework_pct if inlist(IN_UNIT,1,2) & cohort_alt==3 & couple_educ_gp==0, or //  continuous housework
@@ -133,7 +220,7 @@ outreg2 using "$results/psid_marriage_dissolution_nocoll_B.xls", sideway stats(c
 
 logit dissolve_lag i.dur i.hh_hours_type if inlist(IN_UNIT,1,2) & cohort_alt==4 & couple_educ_gp==0, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_nocoll_B.xls", sideway stats(coef pval) label ctitle(2 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-logit dissolve_lag i.dur i.hh_hours_3070 TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_alt==4 & couple_educ_gp==0, or // paid hours - bucketed
+logit dissolve_lag i.dur i.hh_hours_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_alt==4 & couple_educ_gp==0, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_nocoll_B.xls", sideway stats(coef pval) label ctitle(2 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur wife_housework_pct if inlist(IN_UNIT,1,2) & cohort_alt==4 & couple_educ_gp==0, or //  continuous housework
@@ -171,7 +258,7 @@ outreg2 using "$results/psid_marriage_dissolution_nocoll_C.xls", sideway stats(c
 
 logit dissolve_lag i.dur i.hh_hours_type if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==0, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_nocoll_C.xls", sideway stats(coef pval) label ctitle(2 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-logit dissolve_lag i.dur i.hh_hours_3070 TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==0, or // paid hours - bucketed
+logit dissolve_lag i.dur i.hh_hours_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==0, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_nocoll_C.xls", sideway stats(coef pval) label ctitle(2 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur wife_housework_pct if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==0, or //  continuous housework
@@ -212,7 +299,7 @@ outreg2 using "$results/psid_marriage_dissolution_college_A.xls", sideway stats(
 
 logit dissolve_lag i.dur i.hh_hours_type if inlist(IN_UNIT,1,2) & cohort_alt==3 & couple_educ_gp==1, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_college_A.xls", sideway stats(coef pval) label ctitle(2 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-logit dissolve_lag i.dur i.hh_hours_3070 TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_alt==3 & couple_educ_gp==1, or // paid hours - bucketed
+logit dissolve_lag i.dur i.hh_hours_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_alt==3 & couple_educ_gp==1, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_college_A.xls", sideway stats(coef pval) label ctitle(2 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur wife_housework_pct if inlist(IN_UNIT,1,2) & cohort_alt==3 & couple_educ_gp==1, or //  continuous housework
@@ -250,7 +337,7 @@ outreg2 using "$results/psid_marriage_dissolution_college_B.xls", sideway stats(
 
 logit dissolve_lag i.dur i.hh_hours_type if inlist(IN_UNIT,1,2) & cohort_alt==4 & couple_educ_gp==1, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_college_B.xls", sideway stats(coef pval) label ctitle(2 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-logit dissolve_lag i.dur i.hh_hours_3070 TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_alt==4 & couple_educ_gp==1, or // paid hours - bucketed
+logit dissolve_lag i.dur i.hh_hours_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_alt==4 & couple_educ_gp==1, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_college_B.xls", sideway stats(coef pval) label ctitle(2 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur wife_housework_pct if inlist(IN_UNIT,1,2) & cohort_alt==4 & couple_educ_gp==1, or //  continuous housework
@@ -288,7 +375,7 @@ outreg2 using "$results/psid_marriage_dissolution_college_C.xls", sideway stats(
 
 logit dissolve_lag i.dur i.hh_hours_type if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==1, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_college_C.xls", sideway stats(coef pval) label ctitle(2 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-logit dissolve_lag i.dur i.hh_hours_3070 TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==1, or // paid hours - bucketed
+logit dissolve_lag i.dur i.hh_hours_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==1, or // paid hours - bucketed
 outreg2 using "$results/psid_marriage_dissolution_college_C.xls", sideway stats(coef pval) label ctitle(2 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur wife_housework_pct if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==1, or //  continuous housework
@@ -315,6 +402,12 @@ logit dissolve_lag i.dur i.ft_head i.ft_wife if inlist(IN_UNIT,1,2) & inlist(coh
 outreg2 using "$results/psid_marriage_dissolution_college_C.xls", sideway stats(coef pval) label ctitle(7 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 logit dissolve_lag i.dur i.ft_head i.ft_wife TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==1, or // employment
 outreg2 using "$results/psid_marriage_dissolution_college_C.xls", sideway stats(coef pval) label ctitle(7 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+
+
+logit dissolve_lag i.dur ib3.bw_type if inlist(IN_UNIT,1,2) & inlist(cohort_alt,3,4) & couple_educ_gp==1, or
+logit dissolve_lag i.dur ib3.bw_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.dual_hw if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 
 
 ********************************************************************************
