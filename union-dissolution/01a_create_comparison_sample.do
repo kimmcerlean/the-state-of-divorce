@@ -335,6 +335,15 @@ browse id survey_yr earnings_wife earnings_head couple_earnings
 	
 gen female_earn_pct = earnings_wife/(couple_earnings)
 
+gen hh_earn_type=.
+replace hh_earn_type=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
+replace hh_earn_type=2 if female_earn_pct < .4000 & female_earn_pct >=0
+replace hh_earn_type=3 if female_earn_pct > .6000 & female_earn_pct <=1
+replace hh_earn_type=4 if earnings_head==0 & earnings_wife==0
+
+label define hh_earn_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values hh_earn_type hh_earn_type
+
 gen hh_earn_type_bkd=.
 replace hh_earn_type_bkd=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
 replace hh_earn_type_bkd=2 if female_earn_pct < .4000 & female_earn_pct > 0
@@ -346,9 +355,13 @@ label define earn_type_bkd 1 "Dual Earner" 2 "Male Primary" 3 "Male Sole" 4 "Fem
 label values hh_earn_type_bkd earn_type_bkd
 
 sort id survey_yr
+gen hh_earn_type_bkd_lag=.
+replace hh_earn_type_bkd_lag=hh_earn_type_bkd[_n-1] if unique_id==unique_id[_n-1]
+label values hh_earn_type_bkd_lag earn_type_bkd
+
 gen hh_earn_type_lag=.
-replace hh_earn_type_lag=hh_earn_type_bkd[_n-1] if unique_id==unique_id[_n-1]
-label values hh_earn_type_lag earn_type_bkd
+replace hh_earn_type_lag=hh_earn_type[_n-1] if unique_id==unique_id[_n-1]
+label values hh_earn_type_lag hh_earn_type
 
 gen female_earn_pct_lag=.
 replace female_earn_pct_lag=female_earn_pct[_n-1] if unique_id==unique_id[_n-1]
@@ -403,6 +416,15 @@ replace weekly_hrs_head = 60 if inrange(survey_yr,1968,1969)  & WEEKLY_HRS1_HEAD
 
 gen female_hours_pct = weekly_hrs_wife/(weekly_hrs_wife + weekly_hrs_head)
 
+gen hh_hours_type=.
+replace hh_hours_type=1 if female_hours_pct >=.4000 & female_hours_pct <=.6000
+replace hh_hours_type=2 if female_hours_pct <.4000
+replace hh_hours_type=3 if female_hours_pct >.6000 & female_hours_pct!=.
+replace hh_hours_type=4 if (WEEKLY_HRS_HEAD_==0 & WEEKLY_HRS_WIFE_==0) | female_hours_pct==.
+
+label define hh_hours_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values hh_hours_type hh_hours_type
+
 gen hh_hours_3070=.
 replace hh_hours_3070=1 if female_hours_pct >=.3000 & female_hours_pct <=.7000
 replace hh_hours_3070=2 if female_hours_pct <.3000
@@ -416,6 +438,10 @@ sort unique_id survey_yr
 gen hh_hours_3070_lag=.
 replace hh_hours_3070_lag=hh_hours_3070[_n-1] if unique_id==unique_id[_n-1]
 label values hh_hours_3070_lag hh_hours_3070
+
+gen hh_hours_type_lag=.
+replace hh_hours_type_lag=hh_hours_type[_n-1] if unique_id==unique_id[_n-1]
+label values hh_hours_type_lag hh_hours_type
 
 gen female_hours_pct_lag=.
 replace female_hours_pct_lag=female_hours_pct[_n-1] if unique_id==unique_id[_n-1]
@@ -647,9 +673,9 @@ browse id survey_yr housework_head housework_wife TOTAL_HOUSEWORK_HW_ MOST_HOUSE
 gen wife_housework_pct = housework_wife / (housework_wife + housework_head)
 
 gen housework_bkt=.
-replace housework_bkt=1 if wife_housework_pct >=.3000 & wife_housework_pct <=.7000
-replace housework_bkt=2 if wife_housework_pct >.7000
-replace housework_bkt=3 if wife_housework_pct <.3000
+replace housework_bkt=1 if wife_housework_pct >=.4000 & wife_housework_pct <=.6000
+replace housework_bkt=2 if wife_housework_pct >.6000 & wife_housework_pct!=.
+replace housework_bkt=3 if wife_housework_pct <.4000
 replace housework_bkt=4 if (housework_wife==0 | housework_wife==.) & (housework_head==0 | housework_head==.)
 
 label define housework_bkt 1 "Dual HW" 2 "Female Primary" 3 "Male Primary" 4 "NA"
