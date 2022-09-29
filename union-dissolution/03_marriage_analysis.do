@@ -320,6 +320,12 @@ outreg2 using "$results/psid_marriage_dissolution_total_paa.xls", sideway stats(
 logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3, or // earnings - bucketed
 outreg2 using "$results/psid_marriage_dissolution_total_paa.xls", sideway stats(coef pval) label ctitle(6 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+logit dissolve_lag i.dur i.ft_head i.ft_wife if inlist(IN_UNIT,1,2) & cohort==3, or // employment
+outreg2 using "$results/psid_marriage_dissolution_total_paa.xls", sideway stats(coef pval) label ctitle(7 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+logit dissolve_lag i.dur i.ft_head i.ft_wife TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3, or // employment
+outreg2 using "$results/psid_marriage_dissolution_total_paa.xls", sideway stats(coef pval) label ctitle(7 Controls) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+
 ********************************************************************************
 * Exploration
 ********************************************************************************
@@ -959,6 +965,36 @@ tabstat TAXABLE_HEAD_WIFE_ if dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
 tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==1, row nofreq
 tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==0, row nofreq // intact for ref
  
+********************************************************************************
+*PAA
+********************************************************************************
+ // all
+tab couple_educ_gp if cohort==3
+unique id if cohort==3, by(couple_educ_gp) // unique couples
+unique id if cohort==3 & dissolve_lag==1, by(couple_educ_gp) // dissolutions
+
+tabstat female_hours_pct  if cohort==3, by(couple_educ_gp)
+tab couple_educ_gp hh_hours_type if cohort==3, row
+tabstat female_earn_pct  if cohort==3, by(couple_educ_gp)
+tab couple_educ_gp hh_earn_type if cohort==3, row
+tabstat wife_housework_pct if cohort==3, by(couple_educ_gp)
+tab couple_educ_gp housework_bkt if cohort==3, row
+tab couple_educ_gp ft_head if cohort==3, row
+tab couple_educ_gp ft_wife if cohort==3, row
+tabstat TAXABLE_HEAD_WIFE_ if cohort==3, by(couple_educ_gp) stat(mean p50)
+
+// dissolved
+tabstat female_hours_pct  if cohort==3 & dissolve_lag==1, by(couple_educ_gp)
+tab couple_educ_gp hh_hours_type if cohort==3 & dissolve_lag==1, row
+tabstat female_earn_pct  if cohort==3 & dissolve_lag==1, by(couple_educ_gp)
+tab couple_educ_gp hh_earn_type if cohort==3 & dissolve_lag==1, row
+tabstat wife_housework_pct if cohort==3 & dissolve_lag==1, by(couple_educ_gp)
+tab couple_educ_gp housework_bkt if cohort==3 & dissolve_lag==1, row
+tab couple_educ_gp ft_head if cohort==3 & dissolve_lag==1, row
+tab couple_educ_gp ft_wife if cohort==3 & dissolve_lag==1, row
+tabstat TAXABLE_HEAD_WIFE_ if cohort==3 & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+
+
 ********************************************************************************
 *Updated descriptives for proposal revision
 ********************************************************************************
