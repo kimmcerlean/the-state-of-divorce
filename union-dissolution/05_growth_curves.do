@@ -6,19 +6,22 @@
 
 use "$data_keep\PSID_marriage_recoded_sample.dta", clear // created in 1a - no longer using my original order
 
-rename STATE_ statefip
-gen year = survey_yr
-merge m:1 year statefip using "T:/Research Projects/State data/data_keep/2010_2018_state_policies.dta", keepusing(cc_percent_served leave_policy leave_policy_score eitc_credit tanf_rate tanf_basic tanf_cc tanf_max cost_of_living20 tanf_max_cost abortion dems_legis women_legis) // adding in policy info
-drop if _merge==2
-
 gen cohort=.
 replace cohort=1 if inrange(rel_start_all,1969,1989)
 replace cohort=2 if inrange(rel_start_all,1990,2010)
 replace cohort=3 if inrange(rel_start_all,2011,2019)
 
-keep if cohort==2 | cohort==3 // start with contemporary marriages
+keep if cohort==2 // | cohort==3 // start with contemporary marriages - match divorce time frame
 keep if marriage_order_real==1 // for now, just FIRST marriage
 keep if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55) // working age
+
+rename STATE_ statefip
+gen year = survey_yr
+// merge m:1 year statefip using "T:/Research Projects/State data/data_keep/2010_2018_state_policies.dta", keepusing(cc_percent_served leave_policy leave_policy_score eitc_credit tanf_rate tanf_basic tanf_cc tanf_max cost_of_living20 tanf_max_cost abortion dems_legis women_legis) // adding in policy info
+merge m:1 statefip using "$data_tmp\PSID_state_data.dta", keepusing(cost_living	living_wage	leave_policy_score sexism paid_leave) // trying new measures of policy, this is not yet updated for over time
+drop if _merge==2
+drop _merge
+
 
 // also need to restrict to people who we observe from start. Some I have their start date, but not sure if in PSID whole time? so min dur = 0/1? Would I have done anything in file 1 that would remove early years of people? definitely removed if no partner, but that is still relevant here - need female earnings to get this...
 bysort id: egen first_dur=min(dur)
@@ -49,6 +52,19 @@ replace leave_policy_group2=0 if leave_policy_score==0
 replace leave_policy_group2=1 if leave_policy_score>0 & leave_policy_score<=25
 replace leave_policy_group2=2 if leave_policy_score>25 & leave_policy_score!=.
 
+gen sexism_gp=.
+replace sexism_gp=1 if sexism <=-2
+replace sexism_gp=2 if sexism > -2 & sexism < 2
+replace sexism_gp=3 if sexism >=2 & sexism!=.
+
+label define sexism 1 "Low" 2 "Moderate" 3 "High"
+label values sexism_gp sexism
+
+preserve
+collapse (median) female_earn_pct, by(dur)
+twoway line female_earn_pct dur if dur <=20
+restore
+
 preserve
 collapse (median) female_earn_pct, by(dur couple_educ_gp ever_dissolve ever_children)
 restore
@@ -57,6 +73,11 @@ preserve
 collapse (median) female_earn_pct, by(dur couple_educ_gp)
 twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "No College" 2 "College"))
 graph export "$results\earn_pct_education.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+preserve
+collapse (median) female_hours_pct, by(dur couple_educ_gp)
+twoway (line female_hours_pct dur if dur <=20 & couple_educ_gp==0) (line female_hours_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "No College" 2 "College"))
 restore
 
 preserve
@@ -83,6 +104,44 @@ twoway (line female_earn_pct dur if dur <=15 & leave_policy_group2==0) (line fem
 graph export "$results\earn_pct_policy_all.jpg", as(jpg) name("Graph") quality(90) replace
 restore
 
+preserve
+collapse (median) female_earn_pct, by(dur paid_leave couple_educ_gp)
+twoway (line female_earn_pct dur if dur <=15 & paid_leave==0 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & paid_leave==1 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & paid_leave==0 & couple_educ_gp==1) (line female_earn_pct dur if dur <=15 & paid_leave==1 & couple_educ_gp==1) , legend(on order(1 "NC - No leave" 2 "NC - leave" 3 "Coll - no leave" 4 "Coll - leave"))
+restore
+
+preserve
+collapse (median) female_earn_pct if couple_educ_gp==1 & ever_children==1, by(dur paid_leave)
+twoway (line female_earn_pct dur if dur <=15 & paid_leave==0) (line female_earn_pct dur if dur <=15 & paid_leave==1), legend(on order(1 "No leave" 2 "Leave"))
+restore
+
+preserve
+collapse (median) female_earn_pct if couple_educ_gp==1, by(dur paid_leave ever_children)
+twoway (line female_earn_pct dur if dur <=15 & paid_leave==0 & ever_children==0) (line female_earn_pct dur if dur <=15 & paid_leave==1 & ever_children==0) (line female_earn_pct dur if dur <=15 & paid_leave==0 & ever_children==1) (line female_earn_pct dur if dur <=15 & paid_leave==1 & ever_children==1), legend(on order(1 "No leave - no kids" 2 "Leave - no kids" 3 "No leave" 4 "Leave"))
+restore
+
+
+preserve
+collapse (median) female_earn_pct, by(dur sexism_gp)
+twoway (line female_earn_pct dur if dur <=15 & sexism_gp==1) (line female_earn_pct dur if dur <=15 & sexism_gp==2) (line female_earn_pct dur if dur <=15 & sexism_gp==3), legend(on order(1 "Low" 2 "Medium" 3 "High"))
+restore
+
+preserve
+collapse (median) female_earn_pct if couple_educ_gp==1 & ever_children==1, by(dur sexism_gp)
+twoway (line female_earn_pct dur if dur <=15 & sexism_gp==1) (line female_earn_pct dur if dur <=15 & sexism_gp==2) (line female_earn_pct dur if dur <=15 & sexism_gp==3), legend(on order(1 "Low" 2 "Medium" 3 "High"))
+restore
+
+
+preserve
+collapse (median) female_earn_pct if couple_educ_gp==1, by(dur sexism_gp)
+twoway (line female_earn_pct dur if dur <=15 & sexism_gp==1) (line female_earn_pct dur if dur <=15 & sexism_gp==2) (line female_earn_pct dur if dur <=15 & sexism_gp==3), legend(on order(1 "Low" 2 "Medium" 3 "High"))
+restore
+
+
+
+preserve
+collapse (median) female_earn_pct, by(dur sexism_gp couple_educ_gp)
+twoway (line female_earn_pct dur if dur <=15 & sexism_gp==1 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & sexism_gp==2 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & sexism_gp==3 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & sexism_gp==1 & couple_educ_gp==1) (line female_earn_pct dur if dur <=15 & sexism_gp==2 & couple_educ_gp==1) (line female_earn_pct dur if dur <=15 & sexism_gp==3 & couple_educ_gp==1) , legend(on order(1 "NC Low" 2 "NC Mod" 3 "NC High" 4 "Cll Low" 5 "Coll Mod" 6 "coll high"))
+restore
 
 preserve
 collapse (median) female_earn_pct if ever_dissolve==0, by(dur couple_educ_gp)
@@ -120,6 +179,11 @@ preserve
 collapse (median) female_earn_pct, by(dur couple_educ_gp ever_children)
 twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0 & ever_children==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==0 & ever_children==1) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1 & ever_children==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1 & ever_children==1), legend(on order(1 "NC - No Children" 2 "NC - Children" 3 "Coll - No Children" 4 "Coll-Children"))
 graph export "$results\earn_pct_educ_x_children.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+preserve
+collapse (median) female_earn_pct if couple_educ_gp==1, by(dur ever_children)
+twoway (line female_earn_pct dur if dur <=20 & ever_children==0) (line female_earn_pct dur if dur <=20 & ever_children==1), legend(on order(1 "No Children" 2 "Children"))
 restore
 
 preserve

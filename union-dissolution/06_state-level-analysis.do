@@ -65,7 +65,7 @@ keep if cohort==3
 keep if inlist(IN_UNIT,1,2)
 
 rename STATE_ statefip // okay wait a lot of missing - old survey_years
-merge m:1 statefip using "$data_tmp\PSID_state_data.dta", keepusing(cost_living	living_wage	leave_policy_score)
+merge m:1 statefip using "$data_tmp\PSID_state_data.dta", keepusing(cost_living	living_wage	leave_policy_score sexism paid_leave)
 
 drop _merge
 
@@ -80,28 +80,50 @@ gen center_living_wage = living_wage - `r(mean)'
 sum cost_living
 gen center_cost_living = cost_living - `r(mean)'
 
+sum sexism
+gen center_sexism = sexism - `r(mean)'
+
+gen sexism_gp=.
+replace sexism_gp=1 if sexism <=-2
+replace sexism_gp=2 if sexism > -2 & sexism < 2
+replace sexism_gp=3 if sexism >=2 & sexism!=.
+
+label define sexism 1 "Low" 2 "Moderate" 3 "High"
+label values sexism_gp sexism
+
 ********************************************************************************
 * Models
 ********************************************************************************
-melogit dissolve_lag i.dur i.hh_hours_3070 || statefip:, or
-melogit dissolve_lag i.dur i.hh_hours_3070 if couple_educ_gp==0 || statefip:, or
-melogit dissolve_lag i.dur i.hh_hours_3070 if couple_educ_gp==1 || statefip:, or
+melogit dissolve_lag i.dur i.hh_hours_type || statefip:, or
+melogit dissolve_lag i.dur i.hh_hours_type if couple_educ_gp==0 || statefip:, or
+melogit dissolve_lag i.dur i.hh_hours_type if couple_educ_gp==1 || statefip:, or
+
+melogit dissolve_lag i.dur female_hours_pct if couple_educ_gp==0 || statefip:, or
+melogit dissolve_lag i.dur female_hours_pct if couple_educ_gp==1 || statefip:, or
 
 melogit dissolve_lag i.dur i.ft_wife || statefip:, or
 melogit dissolve_lag i.dur i.ft_wife if couple_educ_gp==0 || statefip:, or
 melogit dissolve_lag i.dur i.ft_wife if couple_educ_gp==1 || statefip:, or
 
 // no college
-melogit dissolve_lag i.dur c.center_cost_living##i.hh_hours_3070 if couple_educ_gp==0 || statefip:, or
-margins hh_hours_3070, at(center_cost_living=(-10000 -5000 0 5000 10000)) 
+melogit dissolve_lag i.dur c.center_cost_living##i.hh_hours_type if couple_educ_gp==0 || statefip:, or
+margins hh_hours_type, at(center_cost_living=(-10000 -5000 0 5000 10000)) 
 marginsplot
 
 melogit dissolve_lag i.dur c.center_cost_living##i.ft_wife if couple_educ_gp==0 || statefip:, or
 margins ft_wife, at(center_cost_living=(-10000 -5000 0 5000 10000)) 
 marginsplot
 
-melogit dissolve_lag i.dur c.center_leave_policy_score##i.hh_hours_3070 if couple_educ_gp==0 || statefip:, or
-margins hh_hours_3070, at(center_leave_policy_score=(-20 -10 0 10 20 50)) 
+melogit dissolve_lag i.dur c.center_leave_policy_score##i.hh_hours_type if couple_educ_gp==0 || statefip:, or
+margins hh_hours_type, at(center_leave_policy_score=(-20 -10 0 10 20 50)) 
+marginsplot
+
+melogit dissolve_lag i.dur c.center_sexism##i.hh_hours_type if couple_educ_gp==0 || statefip:, or
+margins hh_hours_type, at(center_sexism=(-8 -4 0 4 8)) 
+marginsplot
+
+melogit dissolve_lag i.dur i.paid_leave##c.female_hours_pct if couple_educ_gp==0 || statefip:, or
+margins paid_leave, at(female_hours_pct=(0(.2)1)) 
 marginsplot
 
 melogit dissolve_lag i.dur c.center_leave_policy_score##i.ft_wife if couple_educ_gp==0 || statefip:, or
@@ -109,16 +131,41 @@ margins ft_wife, at(center_leave_policy_score=(-20 -10 0 10 20 50))
 marginsplot
 
 // college
-melogit dissolve_lag i.dur c.center_cost_living##i.hh_hours_3070 if couple_educ_gp==1 || statefip:, or
-margins hh_hours_3070, at(center_cost_living=(-10000 -5000 0 5000 10000)) 
+melogit dissolve_lag i.dur c.center_cost_living##i.hh_hours_type if couple_educ_gp==1 || statefip:, or
+margins hh_hours_type, at(center_cost_living=(-10000 -5000 0 5000 10000)) 
 marginsplot
 
 melogit dissolve_lag i.dur c.center_cost_living##i.ft_wife if couple_educ_gp==1 || statefip:, or
 margins ft_wife, at(center_cost_living=(-10000 -5000 0 5000 10000)) 
 marginsplot
 
-melogit dissolve_lag i.dur c.center_leave_policy_score##i.hh_hours_3070 if couple_educ_gp==1 & hh_hours_3070<4 || statefip:, or
-margins hh_hours_3070, at(center_leave_policy_score=(-20 -10 0 10 20 50)) 
+melogit dissolve_lag i.dur c.center_leave_policy_score##i.hh_hours_type if couple_educ_gp==1 & hh_hours_type<4 || statefip:, or
+margins hh_hours_type, at(center_leave_policy_score=(-20 -10 0 10 20 50)) 
+marginsplot
+
+melogit dissolve_lag i.dur c.center_leave_policy_score##c.female_hours_pct if couple_educ_gp==1 & hh_hours_type<4 || statefip:, or
+margins, at(female_hours_pct=(0(.2)1) center_leave_policy_score=(-20 -10 0 10 20 50)) 
+marginsplot
+
+
+melogit dissolve_lag i.dur c.center_sexism##i.hh_hours_type if couple_educ_gp==1 & hh_hours_type<4  || statefip:, or
+margins hh_hours_type, at(center_sexism=(-8 -4 0 4 8)) 
+marginsplot
+
+melogit dissolve_lag i.dur c.center_sexism##c.female_hours_pct if couple_educ_gp==1 || statefip:, or
+margins, at(center_sexism=(-8 -4 0 4 8) female_hours_pct=(0(.2)1)) 
+marginsplot
+
+melogit dissolve_lag i.dur i.paid_leave##c.female_hours_pct if couple_educ_gp==1 || statefip:, or
+margins paid_leave, at(female_hours_pct=(0(.2)1)) 
+marginsplot
+
+melogit dissolve_lag i.dur i.sexism_gp##c.female_hours_pct if couple_educ_gp==1 || statefip:, or
+margins sexism_gp, at(female_hours_pct=(0(.2)1)) 
+marginsplot
+
+melogit dissolve_lag i.dur i.sexism_gp##i.ft_wife if couple_educ_gp==1 || statefip:, or
+margins sexism_gp#ft_wife
 marginsplot
 
 melogit dissolve_lag i.dur c.center_leave_policy_score##i.ft_wife if couple_educ_gp==1 || statefip:, or
