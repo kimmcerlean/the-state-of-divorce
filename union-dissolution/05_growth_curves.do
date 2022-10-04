@@ -60,6 +60,11 @@ replace sexism_gp=3 if sexism >=2 & sexism!=.
 label define sexism 1 "Low" 2 "Moderate" 3 "High"
 label values sexism_gp sexism
 
+
+********************************************************************************
+* Exploratory plots
+********************************************************************************
+
 preserve
 collapse (median) female_earn_pct, by(dur)
 twoway line female_earn_pct dur if dur <=20
@@ -192,6 +197,74 @@ twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0 & ever_children
 graph export "$results\earn_pct_educ_x_children_intact.jpg", as(jpg) name("Graph") quality(90) replace
 restore
 
+********************************************************************************
+* Growth curve attempts
+********************************************************************************
+
+// lol are these growth curves? (see assignment 3 and lecture 7 from Dan's class)
+// also: https://stats.oarc.ucla.edu/stata/faq/linear-growth-models-xtmixed-vs-sem/
+// and: https://data.princeton.edu/pop510/egm
+
+mixed female_earn_pct dur|| id: dur // would I need to do durations in individuals in states??? (to add contextual?)
+// baseline is 36.7% (constant), with each year of duration, goes down .135% (-.00135 is the coefficient)
+margins, at(dur=(1(2)15)) // so is this how I graph the curve? am I allowed to make non-linear??
+marginsplot
+
+mixed female_earn_pct dur c.dur#c.dur || id: dur, covariance(unstructured) // this is curvilinear, so also probably add squared term
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed female_earn_pct dur|| id: dur, cov(un) 
+/* from assignment: There is also significant covariance, suggesting that, the higher the initial level of anxiety, the faster it
+declines over time. This makes sense given the plot of women from question 1 – they start with higher
+anxiety and see a steeper decline over time.
+This is true in this as well - so college start higher and decline faster
+*/
+
+
+gen no_college=(couple_educ_gp==0)
+gen college=(couple_educ_gp==1)
+gen no_dur= no_college*dur
+gen coll_dur=college*dur
+
+mixed female_earn_pct c.dur##i.couple_educ_gp|| id: dur, cov(un) 
+margins couple_educ_gp, at(dur=(1(2)19)) // so is this how I graph the curve? am I allowed to make non-linear??
+marginsplot
+
+gen dur_sq = dur * dur
+mixed female_earn_pct dur_sq c.dur##i.couple_educ_gp|| id: dur, cov(un) 
+margins couple_educ_gp, at(dur=(1(2)19)) // I am not 100% sure this totally worked as curvilinear? 
+marginsplot
+
+mixed female_earn_pct no_college college no_dur coll_dur, nocons || id: no_college college no_dur coll_dur, cov(ind) // okay does this work? is interaction needed, because of time scale?
+mixed female_earn_pct no_college college no_dur coll_dur, nocons ||id: no_college no_dur, nocons cov(ind) ||id: college coll_dur, nocons cov(ind) var // from handout 4, p 10...if I change cov to indepdent, can't LR test
+
+// so college start higher and decrease faster than no college. no college actually do not see sig decline over time?
+// how do I graph this?? okay margins
+
+mixed female_earn_pct dur ///
+|| statefip: dur, covariance(unstructured) ///
+|| id:  dur, covariance(unstructured) mle
+
+// do i put all predictors in first level, regardless of what level measured at? I think if I put in first level, it is the difference between (have to do math) - if in all levels, it is the actual value? i don't know how it works if one predictor is one level and the other is another....
+gen unpaid=(paid_leave==0)
+gen paid_dur= paid_leave*dur
+gen unpaid_dur=unpaid*dur
+
+mixed female_earn_pct paid_leave unpaid paid_dur unpaid_dur, nocons ||statefip: paid_leave unpaid paid_dur unpaid_dur, cov(ind) || id: dur, cov(ind) 
+mixed female_earn_pct paid_leave unpaid paid_dur unpaid_dur, nocons ||statefip: dur, cov(ind) || id: dur, cov(ind) 
+
+mixed female_earn_pct c.dur##i.sexism_gp if couple_educ_gp==1 || statefip: c.dur##i.sexism_gp|| id: dur, cov(un) 
+margins sexism_gp, at(dur=(1(2)19)) //
+marginsplot
+
+mixed female_earn_pct c.dur##i.ever_children if couple_educ_gp==1 ||statefip: dur || id: dur, cov(un) 
+margins ever_children, at(dur=(1(2)19)) //
+marginsplot
+
+*********************************************************************
+* Misc things
+*********************************************************************
 
 // to standardize on TIME TO DIVORCE
 by id: egen rel_end_temp= max(survey_yr) if rel_end_all==9998
