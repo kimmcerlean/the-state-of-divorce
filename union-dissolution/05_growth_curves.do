@@ -60,6 +60,14 @@ replace sexism_gp=3 if sexism >=2 & sexism!=.
 label define sexism 1 "Low" 2 "Moderate" 3 "High"
 label values sexism_gp sexism
 
+// new variables to split at time of first birth (probably need to update to ANY birth but that's a later problem)
+// The main variables in model: post (dummy for post period), time (time from start of study) and their interaction; these variables relate to treatment effect. - is post 1 or 0? or is it time post? if 1 or zero, then is interaction helpful?
+
+gen post_first_birth=0
+replace post_first_birth=1 if survey_yr>=when_first_birth
+
+* interact
+gen post_dur = post_first_birth * dur
 
 ********************************************************************************
 * Exploratory plots
@@ -221,6 +229,8 @@ anxiety and see a steeper decline over time.
 This is true in this as well - so college start higher and decline faster
 */
 
+mixed female_earn_pct post_dur dur i.post_first_birth || id: dur
+margins post_first_birth, at(dur=(1(2)19) post_dur=(1(2)10))
 
 gen no_college=(couple_educ_gp==0)
 gen college=(couple_educ_gp==1)
@@ -254,13 +264,38 @@ gen unpaid_dur=unpaid*dur
 mixed female_earn_pct paid_leave unpaid paid_dur unpaid_dur, nocons ||statefip: paid_leave unpaid paid_dur unpaid_dur, cov(ind) || id: dur, cov(ind) 
 mixed female_earn_pct paid_leave unpaid paid_dur unpaid_dur, nocons ||statefip: dur, cov(ind) || id: dur, cov(ind) 
 
-mixed female_earn_pct c.dur##i.sexism_gp if couple_educ_gp==1 || statefip: c.dur##i.sexism_gp|| id: dur, cov(un) 
-margins sexism_gp, at(dur=(1(2)19)) //
+mixed female_earn_pct dur c.dur##c.dur##i.paid_leave if couple_educ_gp==1 || statefip: dur || id: dur, cov(un) 
+margins paid_leave, at(dur=(1(2)19)) //
 marginsplot
+
+/*
+The coefficients on schgend levels 2 and 3 indicate that girls-only
+schools have a significantly higher intercept than the other school
+types. However, the slopes for all three school types are statistically
+indistinguishable.
+true here - paid leave = higher intercept but no different slope
+*/
+mixed female_earn_pct c.dur##i.paid_leave if couple_educ_gp==0 || statefip: dur || id: dur, cov(un) 
 
 mixed female_earn_pct c.dur##i.ever_children if couple_educ_gp==1 ||statefip: dur || id: dur, cov(un) 
 margins ever_children, at(dur=(1(2)19)) //
 marginsplot
+
+// is discontinuous growth this easy? https://www.statalist.org/forums/forum/general-stata-discussion/general/1494743-interpretation-of-terms-in-discontinuous-growth-model-%E2%80%93-mixed-command
+
+// if I want to do sem (see slide 57, week 7) - I am pretty sure it needs to be WIDE.
+/*
+infile id y1-y5 x using marqual_wide.dat
+// setup sem Model 1a (unconditional growth common residual variance)
+sem (y1 <- Intercept@1 Slope@0 _cons@0) ///
+ (y2 <- Intercept@1 Slope@1 _cons@0) ///
+ (y3 <- Intercept@1 Slope@2 _cons@0) ///
+ (y4 <- Intercept@1 Slope@3 _cons@0) ///
+ (y5 <- Intercept@1 Slope@4 _cons@0) ///
+ (Intercept <- _cons) ///
+ (Slope <- _cons ), ///
+var(e.y1@var e.y2@var e.y
+*/
 
 *********************************************************************
 * Misc things
