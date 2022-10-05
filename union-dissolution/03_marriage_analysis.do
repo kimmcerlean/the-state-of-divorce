@@ -401,6 +401,13 @@ logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `c
 margins time_leave, at(female_hours_pct=(0(.25)1))
 marginsplot
 
+logit dissolve_lag i.dur i.paid_leave_state i.ft_head i.ft_wife i.ft_head#i.paid_leave_state i.ft_wife#i.paid_leave_state TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==1 & cohort==3, or // okay ft_head here is ALSO interesting
+margins paid_leave_state#ft_wife
+marginsplot
+
+margins paid_leave_state#ft_head
+marginsplot
+
 logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' i.STATE_ if couple_educ_gp==0, or // okay this interesting also
 margins time_leave, at(female_hours_pct=(0(.25)1))
 marginsplot
