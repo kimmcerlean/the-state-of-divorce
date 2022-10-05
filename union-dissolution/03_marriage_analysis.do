@@ -195,6 +195,20 @@ inspect cohab_with_wife // 0
 inspect cohab_with_other // 0 
 inspect pre_marital_birth // 0
 
+// indicators of paid leave
+gen paid_leave_state=0
+replace paid_leave_state=1 if inlist(STATE_,6,34,36,44)
+
+gen time_leave=.
+replace time_leave=0 if STATE_==6 & survey_yr < 2004
+replace time_leave=0 if STATE_==34 & survey_yr < 2009
+replace time_leave=0 if STATE_==36 & survey_yr < 2014
+replace time_leave=0 if STATE_==44 & survey_yr < 2018
+replace time_leave=1 if STATE_==6 & survey_yr >= 2004
+replace time_leave=1 if STATE_==34 & survey_yr >= 2009
+replace time_leave=1 if STATE_==36 & survey_yr >= 2014
+replace time_leave=1 if STATE_==44 & survey_yr >= 2018
+
 // control variables: age of marriage (both), race (head + same race), religion (head), region? (head), cohab_with_wife, cohab_with_other, pre_marital_birth, post_marital_birth
 // both pre and post marital birth should NOT be in model because they are essentially inverse. do I want to add if they have a child together as new flag?
 // taking out religion for now because not asked in 1968 / 1968
@@ -371,6 +385,30 @@ marginsplot
 logit dissolve_lag i.dur i.hh_hours_type##i.housework_bkt TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & housework_bkt <4 & hh_hours_type <4, or // interaction
 margins hh_hours_type#housework_bkt
 marginsplot
+
+* Paid leave
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & time_leave==0, or
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & time_leave==1, or
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & paid_leave_state==0, or
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & paid_leave_state==1, or
+logit dissolve_lag i.dur c.female_hours_pct##i.paid_leave_state TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1, or
+margins paid_leave_state, at(female_hours_pct=(0(.25)1)) // this is kind of interesting
+logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1, or
+margins time_leave, at(female_hours_pct=(0(.25)1))
+
+logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' i.STATE_ i.cohort if couple_educ_gp==1, or // okay this interesting also
+margins time_leave, at(female_hours_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' i.STATE_ if couple_educ_gp==0, or // okay this interesting also
+margins time_leave, at(female_hours_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##i.paid_leave_state TAXABLE_HEAD_WIFE_  `controls' if cohort==3, or
+margins paid_leave_state, at(female_hours_pct=(0(.25)1)) // this is kind of interesting
+logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' if cohort==3, or
+margins time_leave, at(female_hours_pct=(0(.25)1))
 
 * Splitting into who has degree
 logit dissolve_lag i.dur i.college_bkd if cohort==3 & inlist(IN_UNIT,1,2), or
