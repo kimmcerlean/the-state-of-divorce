@@ -66,8 +66,13 @@ label values sexism_gp sexism
 gen post_first_birth=0
 replace post_first_birth=1 if survey_yr>=when_first_birth
 
-* interact
-gen post_dur = post_first_birth * dur
+* interact - Okay per Singer and Willett p 192, think I do need both
+gen post_dur = 0 if post_first_birth==0
+replace post_dur=(survey_yr - when_first_birth) if post_first_birth==1
+
+gen post_dur_interact = post_first_birth * dur
+
+browse survey_yr dur post_dur when_first_birth post_first_birth post_dur_interact
 
 ********************************************************************************
 * Exploratory plots
@@ -205,6 +210,19 @@ twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0 & ever_children
 graph export "$results\earn_pct_educ_x_children_intact.jpg", as(jpg) name("Graph") quality(90) replace
 restore
 
+generate u1 = runiform()
+twoway (line female_earn_pct dur if couple_educ_gp==1 & dur <=15 & u1>=.25000 & u1<=.29999) // what is general shape
+twoway (line female_earn_pct dur, sort) if couple_educ_gp==1  & dur <=15 & u1>=.25000 & u1<=.29999
+twoway (line female_earn_pct post_dur, sort) if couple_educ_gp==1 & post_dur <=15 & u1>=.25000 & u1<=.29999 // what is general shape
+
+twoway (scatter female_earn_pct dur) if couple_educ_gp==1
+twoway (scatter female_earn_pct dur) if couple_educ_gp==1  & dur <=15 & u1>=.29000 & u1<=.29999
+
+separate female_earn_pct, by(couple_educ_gp)
+twoway (scatter female_earn_pct0 post_dur) (scatter female_earn_pct1 post_dur) (qfit female_earn_pct0 post_dur) (qfit female_earn_pct1 post_dur) if post_dur  <=15 & u1>=.79500 & u1<=.79999, legend(order(1 "No COllege" 2 "College" 3 "Fit-No" 4 "Fit -Coll"))
+
+twoway (line female_earn_pct dur if id==93, sort) (line female_earn_pct dur if id==123, sort) (line female_earn_pct dur if id==37092, sort)  (line female_earn_pct dur if id==16743, sort)  (line female_earn_pct dur if id==54769, sort) 
+
 ********************************************************************************
 * Growth curve attempts
 ********************************************************************************
@@ -229,8 +247,30 @@ anxiety and see a steeper decline over time.
 This is true in this as well - so college start higher and decline faster
 */
 
-mixed female_earn_pct post_dur dur i.post_first_birth || id: dur
+mixed female_earn_pct dur post_dur i.post_first_birth || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==0 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+
+mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & paid_leave==0 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & paid_leave==1 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+
+mixed female_earn_pct dur post_dur i.post_first_birth i.paid_leave i.paid_leave#c.post_dur i.paid_leave#i.post_first_birth if couple_educ_gp==1 || id: dur 
+
+
+/*
+okay do I need to add coefficients to do this, not rely on margins since happening all at once?
+margins post_first_birth, at(post_dur=(1(2)10))
+margins, at(dur=(1(2)19) post_dur=(1(2)10))
 margins post_first_birth, at(dur=(1(2)19) post_dur=(1(2)10))
+*/
+
+mixed female_earn_pct dur i.post_first_birth c.dur#i.post_first_birth || id: dur // alt, 6.5 - I don't like this because I am not 100% sure i get it
+gen first_birth=0
+replace first_birth=1 if when_first_birth==survey_yr
+replace first_birth=1 if (when_first_birth==(survey_yr-1)) & survey_yr >=1997
+
+mean dur if first_birth==1 // how long into marriage, on average, is first birth (to calculate curve) - 3.3
+tabstat dur if first_birth==1, by(couple_educ_gp) // 2.8 for neither college, 3.8 for college
 
 gen no_college=(couple_educ_gp==0)
 gen college=(couple_educ_gp==1)
