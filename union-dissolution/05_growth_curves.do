@@ -94,8 +94,34 @@ graph export "$results\earn_pct_education.jpg", as(jpg) name("Graph") quality(90
 restore
 
 preserve
+collapse (median) female_earn_pct wife_housework_pct, by(dur couple_educ_gp)
+twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0) (line wife_housework_pct dur if dur <=20 & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1) (line wife_housework_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "NC Earnings" 2 "NC HW" 3 "Coll Earnings" 4 "Coll HW"))
+restore
+
+// whose earnings are changing?
+preserve
+collapse (median) earnings_head earnings_wife, by(dur couple_educ_gp)
+twoway (line earnings_head dur if dur <=20 & couple_educ_gp==1) (line earnings_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "Coll Head" 2 "Coll Wife")) // WAIT this is so interesting - it is ALL THE HUSBAND not the wife? is this why hours shows less of an association? bc she maybe is not pulling back, her husband just earns more??
+
+twoway (line earnings_head dur if dur <=20 & couple_educ_gp==0) (line earnings_wife dur if dur <=20 & couple_educ_gp==0), legend(on order(1 "NC Head" 2 "NC Wife")) 
+
+twoway (line earnings_head dur if dur <=20 & couple_educ_gp==0) (line earnings_wife dur if dur <=20 & couple_educ_gp==0) (line earnings_head dur if dur <=20 & couple_educ_gp==1) (line earnings_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "NC Head" 2 "NC Wife" 3 "Coll Head" 4 "Coll Wife"))
+restore
+
+
+preserve
 collapse (median) female_hours_pct, by(dur couple_educ_gp)
 twoway (line female_hours_pct dur if dur <=20 & couple_educ_gp==0) (line female_hours_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "No College" 2 "College"))
+restore
+
+// whose hours are changing?
+preserve
+collapse (median) weekly_hrs_head weekly_hrs_wife, by(dur couple_educ_gp)
+twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "Coll Head" 2 "Coll Wife")) // okay so his hours don't really increase, hers DO after about year 10 - babies?? is this penalty v. premium?
+
+twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==0), legend(on order(1 "NC Head" 2 "NC Wife")) 
+
+twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "NC Head" 2 "NC Wife" 3 "Coll Head" 4 "Coll Wife"))
 restore
 
 preserve
@@ -226,6 +252,7 @@ twoway (line female_earn_pct dur if id==93, sort) (line female_earn_pct dur if i
 ********************************************************************************
 * Growth curve attempts
 ********************************************************************************
+// should I predict or do margins? (are those different idk) I think predict is easier when I add lots of variables, but margins sufficient otherwise? (see that book i downloaded p 218 (40 / 50))
 
 // lol are these growth curves? (see assignment 3 and lecture 7 from Dan's class)
 // also: https://stats.oarc.ucla.edu/stata/faq/linear-growth-models-xtmixed-vs-sem/
@@ -250,6 +277,8 @@ This is true in this as well - so college start higher and decline faster
 mixed female_earn_pct dur post_dur i.post_first_birth || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
 mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==0 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
 mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+
+mixed female_earn_pct dur post_dur i.post_first_birth i.couple_educ_gp c.dur#i.couple_educ_gp c.post_dur#i.couple_educ_gp i.post_first_birth#i.couple_educ_gp || id: dur // is this how I do an interaction? have to interact EVERTYTHING? or just what I think college will change?
 
 mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & paid_leave==0 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
 mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & paid_leave==1 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
@@ -323,6 +352,42 @@ marginsplot
 
 // is discontinuous growth this easy? https://www.statalist.org/forums/forum/general-stata-discussion/general/1494743-interpretation-of-terms-in-discontinuous-growth-model-%E2%80%93-mixed-command
 
+//hours
+mixed female_hours_pct dur|| id: dur
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed female_hours_pct dur c.dur#c.dur || id: dur, covariance(unstructured)
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed female_hours_pct c.dur##i.couple_educ_gp|| id: dur, cov(un) 
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+//housework
+mixed wife_housework_pct dur|| id: dur
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed wife_housework_pct dur c.dur#c.dur || id: dur, covariance(unstructured)
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed wife_housework_pct c.dur##i.couple_educ_gp|| id: dur, cov(un) 
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+mixed wife_housework_pct dur post_dur i.post_first_birth || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+mixed wife_housework_pct dur post_dur i.post_first_birth if couple_educ_gp==0 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+mixed wife_housework_pct dur post_dur i.post_first_birth if couple_educ_gp==1 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+
+
+mixed wife_housework_pct dur post_dur i.post_first_birth i.couple_educ_gp c.dur#i.couple_educ_gp c.post_dur#i.couple_educ_gp i.post_first_birth#i.couple_educ_gp || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+
+// okay does housework just LOOK like it is going up because it goes up when people have babies and people havve babies at different durations and then it compounds as people have babies bc housework is permanently elevated? so when I split from marriage to birth, it is actually consistent? revisit the just change elevation not slope part. I think I remove post_dur? so housework is permanently elevated when you have a kid? but specialization is not, except for college-educated? necessity v. choice? wait this is interesting.
+
+
 // if I want to do sem (see slide 57, week 7) - I am pretty sure it needs to be WIDE.
 /*
 infile id y1-y5 x using marqual_wide.dat
@@ -336,6 +401,10 @@ sem (y1 <- Intercept@1 Slope@0 _cons@0) ///
  (Slope <- _cons ), ///
 var(e.y1@var e.y2@var e.y
 */
+
+// parallel growth curves
+* https://www.stata.com/statalist/archive/2012-07/msg00932.html
+* Umberson et al used SEM
 
 *********************************************************************
 * Misc things
