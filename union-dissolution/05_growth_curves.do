@@ -136,12 +136,16 @@ twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_h
 restore
 
 preserve
-collapse (mean) weekly_hrs_head weekly_hrs_wife housework_head housework_wife, by(dur couple_educ_gp)
+collapse (mean) weekly_hrs_head weekly_hrs_wife housework_head housework_wife earnings_wife earnings_head, by(dur couple_educ_gp)
 twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1) (line housework_head dur if dur <=20 & couple_educ_gp==1) (line housework_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "Work Head" 2 "Work Wife" 3 "HW Head" 4 "HW Wife")) // okay i am obsessed with this. DOES almost look like housework precedes employment
 
 twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==0) (line housework_head dur if dur <=20 & couple_educ_gp==0) (line housework_wife dur if dur <=20 & couple_educ_gp==0), legend(on order(1 "Work Head" 2 "Work Wife" 3 "HW Head" 4 "HW Wife"))
 
 twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "NC Head" 2 "NC Wife" 3 "Coll Head" 4 "Coll Wife"))
+restore
+
+preserve
+collapse (mean) female_earn_pct female_hours_pct wife_housework_pct, by(dur couple_educ_gp)	
 restore
 
 preserve
