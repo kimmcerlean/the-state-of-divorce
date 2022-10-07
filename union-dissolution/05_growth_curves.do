@@ -74,6 +74,12 @@ gen post_dur_interact = post_first_birth * dur
 
 browse survey_yr dur post_dur when_first_birth post_first_birth post_dur_interact
 
+// need to recode weekly hours (do I need to do this BEFORE making buckets??)
+recode weekly_hrs_head (998/999=.)
+recode weekly_hrs_wife (998/999=.)
+recode housework_head (998/999=.)
+recode housework_wife (998/999=.)
+
 ********************************************************************************
 * Exploratory plots
 ********************************************************************************
@@ -118,8 +124,22 @@ restore
 preserve
 collapse (median) weekly_hrs_head weekly_hrs_wife, by(dur couple_educ_gp)
 twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "Coll Head" 2 "Coll Wife")) // okay so his hours don't really increase, hers DO after about year 10 - babies?? is this penalty v. premium?
+restore
+
+preserve
+collapse (mean) weekly_hrs_head weekly_hrs_wife, by(dur couple_educ_gp)
+twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "Coll Head" 2 "Coll Wife")) // okay mean is good once I got rid of those 999s duh kim
 
 twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==0), legend(on order(1 "NC Head" 2 "NC Wife")) 
+
+twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "NC Head" 2 "NC Wife" 3 "Coll Head" 4 "Coll Wife"))
+restore
+
+preserve
+collapse (mean) weekly_hrs_head weekly_hrs_wife housework_head housework_wife, by(dur couple_educ_gp)
+twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1) (line housework_head dur if dur <=20 & couple_educ_gp==1) (line housework_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "Work Head" 2 "Work Wife" 3 "HW Head" 4 "HW Wife")) // okay i am obsessed with this. DOES almost look like housework precedes employment
+
+twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==0) (line housework_head dur if dur <=20 & couple_educ_gp==0) (line housework_wife dur if dur <=20 & couple_educ_gp==0), legend(on order(1 "Work Head" 2 "Work Wife" 3 "HW Head" 4 "HW Wife"))
 
 twoway (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==0) (line weekly_hrs_head dur if dur <=20 & couple_educ_gp==1) (line weekly_hrs_wife dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "NC Head" 2 "NC Wife" 3 "Coll Head" 4 "Coll Wife"))
 restore
