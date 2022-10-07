@@ -304,6 +304,8 @@ mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 || id
 
 mixed female_earn_pct dur post_dur i.post_first_birth i.couple_educ_gp c.dur#i.couple_educ_gp c.post_dur#i.couple_educ_gp i.post_first_birth#i.couple_educ_gp || id: dur // is this how I do an interaction? have to interact EVERTYTHING? or just what I think college will change?
 
+mixed female_hours_pct dur post_dur i.post_first_birth i.couple_educ_gp c.dur#i.couple_educ_gp c.post_dur#i.couple_educ_gp i.post_first_birth#i.couple_educ_gp || id: dur
+
 mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & paid_leave==0 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
 mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & paid_leave==1 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
 
@@ -385,7 +387,7 @@ mixed female_hours_pct dur c.dur#c.dur || id: dur, covariance(unstructured)
 margins, at(dur=(1(2)15))
 marginsplot
 
-mixed female_hours_pct c.dur##i.couple_educ_gp|| id: dur, cov(un) 
+mixed female_hours_pct c.dur##i.couple_educ_gp|| id: dur, cov(un)  // so in growth curves, the effects are MUCH more dramatic for earnings percentage, interestingly. WHICH TO USE? (or both?)
 margins couple_educ_gp, at(dur=(1(2)19))
 marginsplot
 
