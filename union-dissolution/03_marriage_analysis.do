@@ -209,6 +209,10 @@ replace time_leave=1 if STATE_==34 & survey_yr >= 2009
 replace time_leave=1 if STATE_==36 & survey_yr >= 2014
 replace time_leave=1 if STATE_==44 & survey_yr >= 2018
 
+// minimum wage
+gen min_wage=0
+replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29,30,31,34,35,36,39,41,44,46,50,53,54)
+
 // control variables: age of marriage (both), race (head + same race), religion (head), region? (head), cohab_with_wife, cohab_with_other, pre_marital_birth, post_marital_birth
 // both pre and post marital birth should NOT be in model because they are essentially inverse. do I want to add if they have a child together as new flag?
 // taking out religion for now because not asked in 1968 / 1968
@@ -394,6 +398,12 @@ logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if coho
 logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & paid_leave_state==1, or
 logit dissolve_lag i.dur c.female_hours_pct##i.paid_leave_state TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1, or
 margins paid_leave_state, at(female_hours_pct=(0(.25)1)) // this is kind of interesting
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##i.paid_leave_state TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==0, or
+margins paid_leave_state, at(female_hours_pct=(0(.25)1)) // okay so WAY less dramatic than college-educated.
+marginsplot
+
 logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1, or
 margins time_leave, at(female_hours_pct=(0(.25)1))
 
@@ -416,6 +426,22 @@ logit dissolve_lag i.dur c.female_hours_pct##i.paid_leave_state TAXABLE_HEAD_WIF
 margins paid_leave_state, at(female_hours_pct=(0(.25)1)) // this is kind of interesting
 logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' if cohort==3, or
 margins time_leave, at(female_hours_pct=(0(.25)1))
+
+*Min wage
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & min_wage==0, or
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & min_wage==1, or
+
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==0 & min_wage==0, or // wait okay this is wild - when minimum wage is not above federal, her earnings are not associated - but when they ARE (below) - they have a negative association!
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==0 & min_wage==1, or
+
+logit dissolve_lag i.dur c.female_hours_pct##i.min_wage TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==0 & cohort==3, or
+margins min_wage, at(female_hours_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##i.min_wage TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==1 & cohort==3, or // AND min wage does not matter for college-educated.
+margins min_wage, at(female_hours_pct=(0(.25)1))
+marginsplot
+
 
 * Splitting into who has degree
 logit dissolve_lag i.dur i.college_bkd if cohort==3 & inlist(IN_UNIT,1,2), or
