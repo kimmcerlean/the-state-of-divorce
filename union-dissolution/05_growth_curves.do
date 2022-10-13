@@ -455,7 +455,7 @@ mixed female_hours_pct dur c.dur#c.dur || id: dur, covariance(unstructured)
 margins, at(dur=(1(2)15))
 marginsplot
 
-mixed female_hours_pct c.dur##i.couple_educ_gp|| id: dur, cov(un)  // so in growth curves, the effects are MUCH more dramatic for earnings percentage, interestingly. WHICH TO USE? (or both?)
+mixed female_hours_pct c.dur##i.couple_educ_gp || id: dur, cov(un)  // so in growth curves, the effects are MUCH more dramatic for earnings percentage, interestingly. WHICH TO USE? (or both?)
 margins couple_educ_gp, at(dur=(1(2)19))
 marginsplot
 
@@ -484,6 +484,47 @@ mixed wife_housework_pct dur post_dur i.post_first_birth i.couple_educ_gp c.dur#
 
 // okay does housework just LOOK like it is going up because it goes up when people have babies and people havve babies at different durations and then it compounds as people have babies bc housework is permanently elevated? so when I split from marriage to birth, it is actually consistent? revisit the just change elevation not slope part. I think I remove post_dur? so housework is permanently elevated when you have a kid? but specialization is not, except for college-educated? necessity v. choice? wait this is interesting.
 
+// partners's hours specifically
+gen logged_wife = ln(earnings_wife)
+mixed logged_wife c.dur##i.couple_educ_gp|| id: dur, cov(un)  // both go up, no college slightly faster
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+mixed weekly_hrs_wife c.dur##i.couple_educ_gp|| id: dur, cov(un)  // both down, college faster
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+mixed housework_wife c.dur##i.couple_educ_gp|| id: dur, cov(un) // college HW goes up, no college does not
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+gen logged_head = ln(earnings_head)
+mixed logged_head c.dur##i.couple_educ_gp|| id: dur, cov(un) // his earnings go up, faster for college
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+mixed weekly_hrs_head c.dur##i.couple_educ_gp|| id: dur, cov(un) // both go up, same speed
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+mixed housework_head c.dur##i.couple_educ_gp|| id: dur, cov(un)  // college housework actually goes up, no college goes down
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+gen logged_gap=logged_head-logged_wife
+mixed logged_gap c.dur##i.couple_educ_gp|| id: dur, cov(un)  // 
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+gen hours_gap = weekly_hrs_head - weekly_hrs_wife
+mixed hours_gap c.dur##i.couple_educ_gp|| id: dur, cov(un)  // 
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+gen hw_gap = housework_wife - housework_head
+mixed hw_gap c.dur##i.couple_educ_gp|| id: dur, cov(un) // 
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
 
 // if I want to do sem (see slide 57, week 7) - I am pretty sure it needs to be WIDE.
 /*
