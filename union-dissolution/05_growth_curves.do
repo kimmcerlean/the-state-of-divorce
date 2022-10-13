@@ -80,6 +80,15 @@ recode weekly_hrs_wife (998/999=.)
 recode housework_head (998/999=.)
 recode housework_wife (998/999=.)
 
+// want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in off year gah. use DUR? or rank years and use first rank? (actually is that a better duration?)
+browse id survey_yr rel_start_all dur hh_earn_type
+bysort id (survey_yr): egen yr_rank=rank(survey_yr)
+gen hh_earn_type_mar = hh_earn_type if yr_rank==1
+bysort id (hh_earn_type_mar): replace hh_earn_type_mar=hh_earn_type_mar[1]
+label values hh_earn_type_mar hh_earn_type
+
+drop if hh_earn_type_mar==4 // no earners
+
 ********************************************************************************
 * Exploratory plots
 ********************************************************************************
@@ -97,6 +106,23 @@ preserve
 collapse (median) female_earn_pct, by(dur couple_educ_gp)
 twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "No College" 2 "College"))
 graph export "$results\earn_pct_education.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+preserve
+collapse (median) female_earn_pct if pre_marital_birth==0, by(dur couple_educ_gp)
+twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "No College" 2 "College"))
+restore
+
+preserve
+collapse (median) female_earn_pct, by(dur pre_marital_birth)
+twoway (line female_earn_pct dur if dur <=20 & pre_marital_birth==0) (line female_earn_pct dur if dur <=20 & pre_marital_birth==1), legend(on order(1 "Childless" 2 "Parents"))
+restore
+
+preserve
+collapse (median) female_earn_pct if pre_marital_birth==0, by(dur couple_educ_gp hh_earn_type_mar)
+twoway (line female_earn_pct dur if dur <=20 & hh_earn_type_mar==1 & couple_educ_gp==1) (line female_earn_pct dur if dur <=20 & hh_earn_type_mar==2  & couple_educ_gp==1) (line female_earn_pct dur if dur <=20 & hh_earn_type_mar==3  & couple_educ_gp==1), legend(on order(1 "Dual" 2 "Male BW" 3 "Female BW"))
+twoway (line female_earn_pct dur if dur <=20 & hh_earn_type_mar==1 & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & hh_earn_type_mar==2  & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & hh_earn_type_mar==3  & couple_educ_gp==0), legend(on order(1 "Dual" 2 "Male BW" 3 "Female BW"))
+
 restore
 
 preserve
@@ -211,6 +237,13 @@ collapse (median) female_earn_pct, by(dur sexism_gp couple_educ_gp)
 twoway (line female_earn_pct dur if dur <=15 & sexism_gp==1 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & sexism_gp==2 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & sexism_gp==3 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & sexism_gp==1 & couple_educ_gp==1) (line female_earn_pct dur if dur <=15 & sexism_gp==2 & couple_educ_gp==1) (line female_earn_pct dur if dur <=15 & sexism_gp==3 & couple_educ_gp==1) , legend(on order(1 "NC Low" 2 "NC Mod" 3 "NC High" 4 "Cll Low" 5 "Coll Mod" 6 "coll high"))
 restore
 
+
+preserve
+collapse (median) female_earn_pct, by(dur pre_marital_birth couple_educ_gp)
+twoway (line female_earn_pct dur if dur <=15 & pre_marital_birth==0 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & pre_marital_birth==1 & couple_educ_gp==0) (line female_earn_pct dur if dur <=15 & pre_marital_birth==0 & couple_educ_gp==1) (line female_earn_pct dur if dur <=15 & pre_marital_birth==1 & couple_educ_gp==1) , legend(on order(1 "NC Childless" 2 "NC Parent" 3 "Coll - Childless" 4 "Coll - Parent"))
+restore
+
+
 preserve
 collapse (median) female_earn_pct if ever_dissolve==0, by(dur couple_educ_gp)
 twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "No College" 2 "College"))
@@ -287,6 +320,30 @@ mixed female_earn_pct dur|| id: dur // would I need to do durations in individua
 margins, at(dur=(1(2)15)) // so is this how I graph the curve? am I allowed to make non-linear??
 marginsplot
 
+mixed female_earn_pct dur if couple_educ_gp==1 & post_marital_birth==0 & pre_marital_birth==0 || id: dur // this would be true test of always childless - so not sig.
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed female_earn_pct dur if couple_educ_gp==1 & pre_marital_birth==0 || id: dur // this is childlesS + those who had first birth in marriage - okay so sig, but can't isolate marriage v parenthood I guess?
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed female_earn_pct dur if couple_educ_gp==0 & post_marital_birth==0 & pre_marital_birth==0 || id: dur // this would be true test of always childless - still is for them
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed female_earn_pct dur if couple_educ_gp==0 & pre_marital_birth==0 || id: dur 
+margins, at(dur=(1(2)15))
+marginsplot
+
+mixed female_earn_pct c.dur##i.hh_earn_type_mar if couple_educ_gp==0 & pre_marital_birth==0 || id: dur 
+margins i.hh_earn_type_mar, at(dur=(1(2)15))
+marginsplot
+
+mixed female_earn_pct c.dur##i.hh_earn_type_mar if couple_educ_gp==1 & pre_marital_birth==0 || id: dur 
+margins i.hh_earn_type_mar, at(dur=(1(2)15))
+marginsplot
+
 mixed female_earn_pct dur c.dur#c.dur || id: dur, covariance(unstructured) // this is curvilinear, so also probably add squared term
 margins, at(dur=(1(2)15))
 marginsplot
@@ -301,6 +358,8 @@ This is true in this as well - so college start higher and decline faster
 mixed female_earn_pct dur post_dur i.post_first_birth || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
 mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==0 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
 mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 || id: dur // 6.4 on p 198 of Singer and Willet, the binary = change in elevation, the post_dur = change in slope
+mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & pre_marital_birth==0 || id: dur // I *think* I need to restrict to those who has their first birth in marriage, so duration is calculating the childless people until they transition to parenthood? is this right? okay so this is opposite conclusion? becomes LESS specialized over time? and actually my results are for people who transition to parenthood? well this ruins everything lol...
+mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==0 & pre_marital_birth==0 || id: dur 
 
 mixed female_earn_pct dur post_dur i.post_first_birth i.couple_educ_gp c.dur#i.couple_educ_gp c.post_dur#i.couple_educ_gp i.post_first_birth#i.couple_educ_gp || id: dur // is this how I do an interaction? have to interact EVERTYTHING? or just what I think college will change?
 
@@ -311,6 +370,15 @@ mixed female_earn_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & pai
 
 mixed female_earn_pct dur post_dur i.post_first_birth i.paid_leave i.paid_leave#c.post_dur i.paid_leave#i.post_first_birth if couple_educ_gp==1 || id: dur 
 
+mixed female_hours_pct dur post_dur i.post_first_birth i.hh_earn_type_mar c.dur#i.hh_earn_type_mar c.post_dur#i.hh_earn_type_mar i.post_first_birth#i.hh_earn_type_mar if couple_educ_gp==0 & pre_marital_birth==0 || id: dur // wait these are hours, is that fine? or should I do earnings GAH
+
+mixed female_hours_pct dur post_dur i.post_first_birth i.hh_earn_type_mar c.dur#i.hh_earn_type_mar c.post_dur#i.hh_earn_type_mar i.post_first_birth#i.hh_earn_type_mar if couple_educ_gp==1 & pre_marital_birth==0 || id: dur
+
+mixed female_earn_pct dur post_dur i.post_first_birth i.hh_earn_type_mar c.dur#i.hh_earn_type_mar c.post_dur#i.hh_earn_type_mar i.post_first_birth#i.hh_earn_type_mar if couple_educ_gp==0 & pre_marital_birth==0 || id: dur //
+mixed female_earn_pct dur post_dur i.post_first_birth i.hh_earn_type_mar c.dur#i.hh_earn_type_mar c.post_dur#i.hh_earn_type_mar i.post_first_birth#i.hh_earn_type_mar if couple_educ_gp==1 & pre_marital_birth==0 || id: dur
+
+mixed wife_housework_pct dur post_dur i.post_first_birth i.hh_earn_type_mar c.dur#i.hh_earn_type_mar c.post_dur#i.hh_earn_type_mar i.post_first_birth#i.hh_earn_type_mar if couple_educ_gp==0 & pre_marital_birth==0 || id: dur //
+mixed wife_housework_pct dur post_dur i.post_first_birth i.hh_earn_type_mar c.dur#i.hh_earn_type_mar c.post_dur#i.hh_earn_type_mar i.post_first_birth#i.hh_earn_type_mar if couple_educ_gp==1 & pre_marital_birth==0 || id: dur
 
 /*
 okay do I need to add coefficients to do this, not rely on margins since happening all at once?
@@ -390,6 +458,9 @@ marginsplot
 mixed female_hours_pct c.dur##i.couple_educ_gp|| id: dur, cov(un)  // so in growth curves, the effects are MUCH more dramatic for earnings percentage, interestingly. WHICH TO USE? (or both?)
 margins couple_educ_gp, at(dur=(1(2)19))
 marginsplot
+
+mixed female_hours_pct dur post_dur i.post_first_birth if couple_educ_gp==1 & pre_marital_birth==0 || id: dur // so decline, but not sig
+mixed female_hours_pct dur post_dur i.post_first_birth if couple_educ_gp==0 & pre_marital_birth==0 || id: dur // pre kid - goes up, post kid - goes down
 
 //housework
 mixed wife_housework_pct dur|| id: dur
