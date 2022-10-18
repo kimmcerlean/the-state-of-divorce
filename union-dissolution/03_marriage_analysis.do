@@ -390,6 +390,18 @@ logit dissolve_lag i.dur i.hh_hours_type##i.housework_bkt TAXABLE_HEAD_WIFE_  `c
 margins hh_hours_type#housework_bkt
 marginsplot
 
+********************************************************************************
+* Structural factors (do these need to BE MULTI-LEVEL??)
+********************************************************************************
+merge m:1 STATE_ using "$temp\state_division.dta"
+drop _merge
+merge m:1 survey_yr division using "$temp\gss_region_year.dta", keepusing(no_gender_egal no_working_mom_egal coll_gender_egal coll_working_mom_egal all_gender_egal all_working_mom_egal)
+drop if _merge==2
+drop _merge
+merge m:1 survey_yr STATE_ using "$temp\state_min_wage.dta", keepusing(min_wage above_fed combined_fed federal)
+drop if _merge==2
+drop _merge
+
 * Paid leave
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & time_leave==0, or
@@ -404,10 +416,11 @@ logit dissolve_lag i.dur c.female_hours_pct##i.paid_leave_state TAXABLE_HEAD_WIF
 margins paid_leave_state, at(female_hours_pct=(0(.25)1)) // okay so WAY less dramatic than college-educated.
 marginsplot
 
-logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' i.STATE_ if cohort==3 & couple_educ_gp==1, or
 margins time_leave, at(female_hours_pct=(0(.25)1))
+marginsplot
 
-logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' i.STATE_ i.cohort if couple_educ_gp==1, or // okay this interesting also
+logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' i.STATE_ i.cohort if couple_educ_gp==1, or // okay this interesting also - more dramatic in non-paid-leave states
 margins time_leave, at(female_hours_pct=(0(.25)1))
 marginsplot
 
@@ -418,7 +431,7 @@ marginsplot
 margins paid_leave_state#ft_head
 marginsplot
 
-logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' i.STATE_ if couple_educ_gp==0, or // okay this interesting also
+logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `controls' i.STATE_ if couple_educ_gp==0, or // though is also true for less-educated
 margins time_leave, at(female_hours_pct=(0(.25)1))
 marginsplot
 
@@ -428,21 +441,78 @@ logit dissolve_lag i.dur c.female_hours_pct##i.time_leave TAXABLE_HEAD_WIFE_  `c
 margins time_leave, at(female_hours_pct=(0(.25)1))
 
 *Min wage
-logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & min_wage==0, or
-logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & min_wage==1, or
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & above_fed==0, or
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==1 & above_fed==1, or
 
-logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==0 & min_wage==0, or // wait okay this is wild - when minimum wage is not above federal, her earnings are not associated - but when they ARE (below) - they have a negative association!
-logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==0 & min_wage==1, or
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==0 & above_fed==0, or // wait okay this is wild - when minimum wage is not above federal, her earnings are not associated - but when they ARE (below) - they have a negative association!
+logit dissolve_lag i.dur female_hours_pct TAXABLE_HEAD_WIFE_  `controls' if cohort==3 & couple_educ_gp==0 & above_fed==1, or
 
-logit dissolve_lag i.dur c.female_hours_pct##i.min_wage TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==0 & cohort==3, or
-margins min_wage, at(female_hours_pct=(0(.25)1))
+logit dissolve_lag i.dur c.female_hours_pct##i.above_fed TAXABLE_HEAD_WIFE_ all_gender_egal `controls' STATE_ if couple_educ_gp==0 & cohort==3, or // more dramatic when I control for attitudes
+margins above_fed, at(female_hours_pct=(0(.25)1))
 marginsplot
 
-logit dissolve_lag i.dur c.female_hours_pct##i.min_wage TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==1 & cohort==3, or // AND min wage does not matter for college-educated.
-margins min_wage, at(female_hours_pct=(0(.25)1))
+melogit dissolve_lag i.dur c.female_hours_pct##i.above_fed TAXABLE_HEAD_WIFE_ all_gender_egal if couple_educ_gp==0 & cohort==3 || STATE_:, or // do I need multilevel models?? seems very similar
+margins above_fed, at(female_hours_pct=(0(.25)1))
 marginsplot
 
+logit dissolve_lag i.dur c.female_hours_pct##i.above_fed TAXABLE_HEAD_WIFE_ all_gender_egal `controls' STATE_ if couple_educ_gp==1 & cohort==3, or // AND min wage does not matter for college-educated.
+margins above_fed, at(female_hours_pct=(0(.25)1))
+marginsplot
 
+logit dissolve_lag i.dur c.female_earn_pct##i.above_fed TAXABLE_HEAD_WIFE_  `controls' all_gender_egal STATE_ if couple_educ_gp==0 & cohort==3, or // true for earnings, but hours seems slightly more dramatic
+margins above_fed, at(female_earn_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##i.above_fed TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==1 & cohort==3, or // AND min wage does not matter for college-educated.
+margins above_fed, at(female_earn_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.wife_housework_pct##i.above_fed TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==0 & cohort==3, or // housework is opposite trend but not sig
+margins above_fed, at(wife_housework_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.wife_housework_pct##i.above_fed TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==1 & cohort==3, or // not sig, but almost implies opposite - like when min wage high, she should not do all of the housework
+margins above_fed, at(wife_housework_pct=(0(.25)1))
+marginsplot
+
+** attitudes
+// tabstat all_gender_egal, by(above_fed) -- yeah so attitudes correlated with min wage states, ofc
+sum all_gender_egal
+gen gender_egal_mean=.
+replace gender_egal_mean=0 if all_gender_egal <= `r(mean)'
+replace gender_egal_mean=1 if all_gender_egal > `r(mean)' & all_gender_egal!=.
+
+logit dissolve_lag i.dur c.female_hours_pct##c.all_gender_egal TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==0 & cohort==3, or
+margins, at(female_hours_pct=(0(.25)1) all_gender_egal=(.30(.1).80)) // think this indicates attitudes not as important?
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##c.no_gender_egal TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==0 & cohort==3, or // just less-educated attitudes - same trends
+margins, at(female_hours_pct=(0(.25)1) no_gender_egal=(.30(.1).80)) // think this indicates attitudes not as important?
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##i.gender_egal_mean TAXABLE_HEAD_WIFE_ `controls' STATE_ if couple_educ_gp==0 & cohort==3, or // still not sig, though do have diff slopes
+margins gender_egal_mean, at(female_hours_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##c.all_gender_egal TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==1 & cohort==3, or // not sig, but slightly worse in lower egal
+margins, at(female_hours_pct=(0(.25)1) all_gender_egal=(.30(.1).80))
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##c.coll_gender_egal TAXABLE_HEAD_WIFE_  `controls' STATE_ if couple_educ_gp==1 & cohort==3, or // def no interaction here
+margins, at(female_hours_pct=(0(.25)1) coll_gender_egal=(.30(.1).80))
+marginsplot
+
+logit dissolve_lag i.dur c.female_hours_pct##i.gender_egal_mean TAXABLE_HEAD_WIFE_ `controls' STATE_ if couple_educ_gp==1 & cohort==3, or // def no interaction
+margins gender_egal_mean, at(female_hours_pct=(0(.25)1))
+marginsplot
+
+// region lookup for gss: "$temp\state_division.dta"
+// gss data: "$temp\gss_region_year.dta"
+// min wage data: "$temp\state_min_wage.dta"
+ 
+********************************************************************************
+* Other models
+********************************************************************************
 * Splitting into who has degree
 logit dissolve_lag i.dur i.college_bkd if cohort==3 & inlist(IN_UNIT,1,2), or
 logit dissolve_lag i.dur ib1.college_bkd if cohort==3 & inlist(IN_UNIT,1,2), or
