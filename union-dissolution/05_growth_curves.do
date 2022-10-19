@@ -400,11 +400,32 @@ gen college=(couple_educ_gp==1)
 gen no_dur= no_college*dur
 gen coll_dur=college*dur
 
+gen dur_sq = dur * dur
+
 mixed female_earn_pct c.dur##i.couple_educ_gp|| id: dur, cov(un) 
 margins couple_educ_gp, at(dur=(1(2)19)) // so is this how I graph the curve? am I allowed to make non-linear??
 marginsplot
 
-gen dur_sq = dur * dur
+mixed female_earn_pct c.dur##i.couple_educ_gp if post_first_birth==0 || id: dur, cov(un) //so PRE birth to sort of answer - is it marriage or parenthood?? - wait so both get MORE egal??
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+mixed female_earn_pct dur_sq c.dur##i.couple_educ_gp if ever_dissolve==0 || id: dur, cov(un)  // intact - get more specialized
+margins couple_educ_gp, at(dur=(1(2)19)) 
+marginsplot
+
+mixed female_earn_pct dur_sq c.dur##i.couple_educ_gp if ever_dissolve==0 & post_first_birth==0 || id: dur, cov(un)  // intact prior to birth - less dramatic, college sort of declines
+margins couple_educ_gp, at(dur=(1(2)19)) 
+marginsplot
+
+mixed female_earn_pct dur_sq c.dur##i.couple_educ_gp if ever_dissolve==1 || id: dur, cov(un) // dissolved
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
+mixed female_earn_pct dur_sq c.dur##i.couple_educ_gp if ever_dissolve==1 & post_first_birth==0 || id: dur, cov(un) // dissolved - almost become like female BW? so is it that normative? OR the anticipation?
+margins couple_educ_gp, at(dur=(1(2)19))
+marginsplot
+
 mixed female_earn_pct dur_sq c.dur##i.couple_educ_gp|| id: dur, cov(un) 
 margins couple_educ_gp, at(dur=(1(2)19)) // I am not 100% sure this totally worked as curvilinear? 
 marginsplot
