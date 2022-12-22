@@ -525,7 +525,7 @@ replace how_end_cohab=2 if end_rel < last_survey_yr & ever_transition==0 // wait
 label define how_end_cohab 0 "Intact" 1 "Married" 2 "Dissolve"
 label values how_end_cohab how_end_cohab
 
-browse id id_rel survey_yr FAMILY_INTERVIEW_NUM_ COUPLE_STATUS_REF_ last_survey_yr start_rel end_rel marr_trans how_end_cohab
+browse id id_rel survey_yr FAMILY_INTERVIEW_NUM_ relno COUPLE_STATUS_REF_ last_survey_yr start_rel_all end_rel marr_trans how_end_cohab
 
 save "$data_keep\PSID_allcohab_coupled.dta", replace
 
@@ -537,8 +537,13 @@ save "$data_keep\PSID_allcohab_coupled.dta", replace
 // Then to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent. BUT is it confusing if the head is not male (since most are?) 
 drop per_id
 bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(id)
-browse survey_yr FAMILY_INTERVIEW_NUM_  id per_id
-keep if per_id==1 // okay have 2123 couples, 4720 years. SIPP had 1500 couples, since couple months, a lot more, this is not a huge value add GAH
+browse survey_yr FAMILY_INTERVIEW_NUM_  id id_rel per_id
+keep if per_id==1 // okay have 5465 unique IDs, 6479 unique couples (if I did not mess this up), 15840 py
+
+browse id id_rel survey_yr FAMILY_INTERVIEW_NUM_ relno COUPLE_STATUS_REF_ last_survey_yr start_rel_all end_rel marr_trans how_end_cohab if inlist(id,51099, 51112, 51118) // so 51099 is person 1 for both relationships and records are there
+
+browse id id_rel survey_yr FAMILY_INTERVIEW_NUM_ relno COUPLE_STATUS_REF_ hh_earn_type // i guess I was trying to see if there was continuity - oh duh pick something like educ
+browse id id_rel survey_yr FAMILY_INTERVIEW_NUM_ relno COUPLE_STATUS_REF_ educ_head educ_wife_all 
 
 * 2005+ (when labor income is asked)
 // drop if start_rel < 2005
@@ -546,8 +551,6 @@ gen full_data=0
 replace full_data = 1 if start_rel>=2005
 
 drop if start_rel<1990
-sort id survey_yr
-
-
+sort id survey_yr // okay I think I have the same number of records again here but much more couples because I figured it out? but also need to restrict to first marriage GAH
 
 save "$data_keep\PSID_cohab_sample.dta", replace
