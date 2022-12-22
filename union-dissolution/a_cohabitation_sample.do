@@ -439,24 +439,115 @@ browse id FAMILY_INTERVIEW_NUM_ main_per_id survey_yr
 sort id survey_yr
 
 // do I need to do a lookup --- somewhere? main file? to get first and last year of each individual? (i did that in SIPP i think?)
-egen first_couple_yr
-egen last_couple_yr
+bysort id (survey_yr): egen first_couple_yr = min(survey_yr)
+bysort id (survey_yr): egen last_couple_yr = max(survey_yr)
+
+sort id survey_yr
+browse id survey_yr first_couple_yr last_couple_yr // i artificially started at 1985, I wonder if I need to adjust for this somehow? but I think that I actually want cohabs that started LATER than that, so this will be okay for those purposes, that was rationale. 
+
+merge m:1 id using "$data_tmp\PSID_year_lookup.dta"
+drop if _merge==2 // not in sample, all master matched
+drop _merge
+
+browse id survey_yr FAMILY_INTERVIEW_NUM_ main_per_id first_couple_yr last_couple_yr  first_survey_yr last_survey_yr
+browse id survey_yr FAMILY_INTERVIEW_NUM_ main_per_id first_couple_yr last_couple_yr  first_survey_yr last_survey_yr if inlist(id,31164,31159)
+sort survey_yr FAMILY_INTERVIEW_NUM_
+
+bysort survey_yr FAMILY_INTERVIEW_NUM_: egen max_last_ind_yr = max(last_survey_yr)
+bysort survey_yr FAMILY_INTERVIEW_NUM_: egen min_last_couple_yr = min(last_couple_yr)
+
+gen start_rel=first_couple_yr
+gen end_rel=min_last_couple_yr
+
+/* okay this is wrong
+gen how_end_rel = .
+replace how_end_rel=1 if max_last_ind_yr == min_last_couple_yr
+replace how_end_rel=2 if max_last_ind_yr > min_last_couple_yr
+
+label define how_end 1 "Intact" 2 "Dissolve"
+label values how_end_rel how_end
+*/
 
 save "$data_keep\PSID_allunions_coupled.dta", replace
 
-/*
+// so this is ALL relationships, marriage / cohab
+// okay things seem wrong - people like enter relationships, end relationships, start new ones and all counting as same
+*-- eg see ID 671. did I deal with this in marriage / see file 1a
+sort survey_yr FAMILY_INTERVIEW_NUM_
+browse id survey_yr FAMILY_INTERVIEW_NUM_ main_per_id first_couple_yr last_couple_yr  first_survey_yr last_survey_yr start_rel end_rel
+
+/* look at these people: 
+id	survey_yr	FAMILY_INTERVIEW_NUM_	main_per_id
+51112	1985	62	5634
+51099	1985	62	5634
+browse id survey_yr FAMILY_INTERVIEW_NUM_ main_per_id first_couple_yr last_couple_yr  first_survey_yr last_survey_yr start_rel end_rel if inlist(id,51112,51099,51118)
+*/
+
+bysort id: egen relno=rank(-end_rel), field
+gen second_start = survey_yr if relno>1
+replace second_start = start_rel if relno==1
+
+bysort id relno: egen start_rel_all = min(second_start)
+
+// OH and add duration DUH kim
+gen dur=survey_yr - start_rel_all
+sort id survey_yr
+browse id survey_yr start_rel end_rel relno second_start start_rel_all dur // id 19 also a good check case
+
+// drop if always married
+egen id_rel = concat(id relno), punct("_")
+browse id id_rel survey_yr start_rel_all end_rel relno dur COUPLE_STATUS_REF_
+
+bysort id_rel: egen always_married = max(COUPLE_STATUS_REF_) // because you would have 2 or 4 if not
+drop if always_married==1
+
+*browse id survey_yr FAMILY_INTERVIEW_NUM_ COUPLE_STATUS_REF_ start_rel end_rel how_end_rel
+*browse id survey_yr FAMILY_INTERVIEW_NUM_ COUPLE_STATUS_REF_ start_rel end_rel how_end_rel if inlist(id,25394,25381) // okay yes, example of transitions
+	// side note: these people went from ST to LT to spouse - I wonder if I can backfill info that way?
+
+* need to mark those who CHANGE. can I use couple_status_ref? and id by then need to be same rel
+gen marr_trans=0
+replace marr_trans=1 if COUPLE_STATUS_REF_==1 & (COUPLE_STATUS_REF_[_n-1]==2 | COUPLE_STATUS_REF_[_n-1]==4) & id_rel==id_rel[_n-1]
+
+// so now need to drop if you transition, all the months after the transition
+drop if COUPLE_STATUS_REF_==1 & marr_trans==0 // year of transition will be spouse and 1, so after that, will be 0
+
+bysort id_rel: egen ever_transition = max(marr_trans)
+browse id id_rel survey_yr start_rel_all end_rel last_survey_yr relno dur COUPLE_STATUS_REF_ marr_trans ever_transition
+
+// tab marr_trans
+gen how_end_cohab=. // well, if they have more than 1, that means the previous ones had to dissolve? but then last cohab. but eligible in all cohabs UNLESS they married in previous one. or should I use MOST RECENT cohab - oh that might be an option? since all the prior ones dissolved? but that is like filtering on my outcome 
+replace how_end_cohab=0 if end_rel == last_survey_yr & ever_transition==0
+replace how_end_cohab=1 if ever_transition==1
+replace how_end_cohab=2 if end_rel < last_survey_yr & ever_transition==0 // wait this doesn't work because some of the last dates are MARRIAGe not cohab im an idiot omg.
+* note, this is total, but eventually need to figure out how to flag specifically the year dissolved in case I want to do mlogit
+
+label define how_end_cohab 0 "Intact" 1 "Married" 2 "Dissolve"
+label values how_end_cohab how_end_cohab
+
+browse id id_rel survey_yr FAMILY_INTERVIEW_NUM_ COUPLE_STATUS_REF_ last_survey_yr start_rel end_rel marr_trans how_end_cohab
+
+save "$data_keep\PSID_allcohab_coupled.dta", replace
+
+
 *********************************************
 * More restrictions
 *********************************************
-* just cohabitors (or the year they marry)
-
 * one record per household
+// Then to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent. BUT is it confusing if the head is not male (since most are?) 
+drop per_id
+bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(id)
+browse survey_yr FAMILY_INTERVIEW_NUM_  id per_id
+keep if per_id==1 // okay have 2123 couples, 4720 years. SIPP had 1500 couples, since couple months, a lot more, this is not a huge value add GAH
 
 * 2005+ (when labor income is asked)
+// drop if start_rel < 2005
+gen full_data=0
+replace full_data = 1 if start_rel>=2005
 
-// Then to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent. BUT is it confusing if the head is not male (since most are?) okay why are there so many missing for WIFE VARIABLES?! did I do something wrong? is it to do with short-term cohabitors? also some to do with variable name changes?
+drop if start_rel<1990
+sort id survey_yr
 
-bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(unique_id)
-browse survey_yr FAMILY_INTERVIEW_NUM_  unique_id per_id
-keep if per_id==1
-*/
+
+
+save "$data_keep\PSID_cohab_sample.dta", replace

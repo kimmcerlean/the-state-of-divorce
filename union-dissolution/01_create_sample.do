@@ -62,7 +62,7 @@ browse id survey_yr yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 FIRS
 ********************************************************************************
 * First clean up to get a sense of WHO is even eligible
 ********************************************************************************
-use "$data_tmp\PSID_data_long.dta", clear
+use "$data_tmp\PSID_data_long.dta", clear // KM note - I switched some things around, I think it is fine because 1968 was the problem and I drop that below, but might need to rerun all of this at some point?
 
 browse survey_yr id main_per_id SEQ_NUMBER_ RELATION_ FIRST_MARRIAGE_YR_START MARITAL_PAIRS_
 
