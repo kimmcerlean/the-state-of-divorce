@@ -548,9 +548,9 @@ browse id id_rel survey_yr FAMILY_INTERVIEW_NUM_ relno COUPLE_STATUS_REF_ educ_h
 * 2005+ (when labor income is asked)
 // drop if start_rel < 2005
 gen full_data=0
-replace full_data = 1 if start_rel>=2005
+replace full_data = 1 if start_rel_all>=2005
 
-drop if start_rel<1990
+drop if start_rel_all<1990
 sort id survey_yr // okay I think I have the same number of records again here but much more couples because I figured it out? but also need to restrict to first marriage GAH
 
 save "$data_keep\PSID_cohab_sample.dta", replace

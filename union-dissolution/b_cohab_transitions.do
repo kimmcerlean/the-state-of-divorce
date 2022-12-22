@@ -16,32 +16,42 @@ drop if inlist(IN_UNIT,2,3) // immigrant samples, not consistently tracked
 
 
 // also forgot I wanted to restrict to first marriage GAH, so num_marriages only gets me part way because I need to know FIRST - so use first_marriage yr? (FIRST_MARRIAGE_YR_START)
-drop if FIRST_MARRIAGE_YR_START < start_rel // will this work? 
+browse id id_rel survey_yr relno COUPLE_STATUS_REF_ start_rel_all FIRST_MARRIAGE_YR_START num_marriages end_rel marr_trans how_end_cohab 
 
+drop if FIRST_MARRIAGE_YR_START < start_rel_all // will this work? 
 
 ** Should I do competing risk or just logit? Also revisit SIPP and see if it matters?!
 gen outcome=0
 replace outcome = 1 if marr_trans==1
 replace outcome = 2 if how_end_cohab == 2 & survey_yr == end_rel
 
+label define outcome 0 "Intact" 1 "Married" 2 "Dissolved"
+label values outcome outcome
+
+// also restrict to those longer than 1 year i feel like some people ONLY have dissolved?
+bysort id_rel: egen max_dur = max(dur) // WAIT also use this to make the case that 4 years for the SIPP is ENOUGH?!
 
 ********************************************************************************
 * All
 ********************************************************************************
 // have to restrict to full_data==1
-logit marr_trans i.college_wife_all if full_data==1, or
-logit marr_trans i.college_complete_head, or
-logit marr_trans i.college_complete_head if full_data==1, or
+logit marr_trans i.dur i.college_wife_all if full_data==1, or
+logit marr_trans i.dur i.college_complete_head, or
+logit marr_trans i.dur i.college_complete_head if full_data==1, or
 
-logit marr_trans i.hh_earn_type if full_data==1, or
-logit marr_trans i.hh_earn_type if full_data==1 & couple_educ_gp==0, or
-logit marr_trans i.hh_earn_type if full_data==1 & couple_educ_gp==1, or
+logit marr_trans i.hh_earn_type i.dur if full_data==1, or
+logit marr_trans i.hh_earn_type i.dur if full_data==1 & couple_educ_gp==0, or // not diff between dual and male BW
+logit marr_trans i.hh_earn_type i.dur if full_data==1 & couple_educ_gp==1, or // no diffs anywhere
 
-logit marr_trans i.hh_earn_type_bkd if full_data==1, or // no diff dual and male primary, but male sole = less
-logit marr_trans i.hh_earn_type_bkd if full_data==1 & couple_educ_gp==0, or // same - okay so no diffs?
-logit marr_trans i.hh_earn_type_bkd if full_data==1 & couple_educ_gp==1, or // same
+logit marr_trans i.hh_earn_type_bkd i.dur i.relno if full_data==1, or // no diff dual and male primary, but male sole = less
+logit marr_trans i.hh_earn_type_bkd i.dur i.relno if full_data==1 & couple_educ_gp==0, or // same - okay so no diffs?
+logit marr_trans i.hh_earn_type_bkd i.dur i.relno if full_data==1 & couple_educ_gp==1, or // nothing really sig
 
 // is it a diff of short v. LT cohab?
+mlogit outcome i.hh_earn_type i.dur if full_data==1, rrr
+mlogit outcome i.hh_earn_type i.dur if full_data==1 & couple_educ_gp==0, rrr // female BW sig less
+mlogit outcome i.hh_earn_type i.dur if full_data==1 & couple_educ_gp==1, rrr // no diffs
+
 
 ********************************************************************************
 * Just long-term cohabitors
@@ -61,15 +71,32 @@ tab educ_wife educ_wife_all
 tab educ_wife educ_wife_all if couple_status_cohab==2
 */
 
-logit marr_trans i.college_wife_all if couple_status_cohab==2, or
-logit marr_trans i.college_complete_head if couple_status_cohab==2, or
+logit marr_trans i.college_wife_all i.dur if couple_status_cohab==2, or
+logit marr_trans i.college_complete_head i.dur if couple_status_cohab==2, or
 
-logit marr_trans i.hh_earn_type if couple_status_cohab==2, or // male BW not sig here (well, is marginally - but this is a larger sample)
-logit marr_trans i.hh_earn_type if couple_status_cohab==2 & couple_educ_gp==0, or // okay so here male BW not sig like very much so
-logit marr_trans i.hh_earn_type if couple_status_cohab==2 & couple_educ_gp==1, or // okay nothing sig here...
+logit marr_trans i.hh_earn_type i.dur if couple_status_cohab==2, or // male BW not sig once I control for dur
+logit marr_trans i.hh_earn_type i.dur if couple_status_cohab==2 & couple_educ_gp==0, or // okay so here male BW not sig like very much so
+logit marr_trans i.hh_earn_type i.dur if couple_status_cohab==2 & couple_educ_gp==1, or // okay nothing sig here...
 
-logit marr_trans i.hh_earn_type_bkd if couple_status_cohab==2, or // no diff dual and male primary, but male sole = less
-logit marr_trans i.hh_earn_type_bkd if couple_status_cohab==2 & couple_educ_gp==0, or // same
-logit marr_trans i.hh_earn_type_bkd if couple_status_cohab==2 & couple_educ_gp==1, or // nothing sig here, but this might be sample?
+logit marr_trans i.hh_earn_type i.dur i.relno if couple_status_cohab==2, or // male BW not sig
+logit marr_trans i.hh_earn_type i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==0, or // same
+logit marr_trans i.hh_earn_type i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==1, or // okay nothing sig here...
+
+logit marr_trans i.hh_earn_type_bkd i.dur if couple_status_cohab==2, or // no diff dual and male primary, but male sole = less
+logit marr_trans i.hh_earn_type_bkd i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==0, or // hmm here male primary = more likely (marginally) than dual. but male sole not
+logit marr_trans i.hh_earn_type_bkd i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==1, or // nothing sig here
+
+logit marr_trans i.hh_earn_type_bkd##i.couple_educ_gp i.dur i.relno if couple_status_cohab==2, or
+logit marr_trans i.hh_earn_type_bkd##i.couple_educ_gp i.dur i.relno i.race_head c.couple_earnings_all if couple_status_cohab==2, or
+
+logit marr_trans i.hh_earn_type_bkd i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==0 & start_rel_all>2000 & start_rel_all<=2015, or // k nothing sig except female BW = less
+logit marr_trans i.hh_earn_type_bkd i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==1 & start_rel_all>2000 & start_rel_all<=2015, or // nothing sig
+logit marr_trans i.hh_earn_type_bkd##i.couple_educ_gp i.dur i.relno i.race_head c.couple_earnings_all if couple_status_cohab==2 & start_rel_all>2000 & start_rel_all<=2015, or
 
 browse id survey_yr female_earn_pct earnings_female earnings_male hh_earn_type
+
+mlogit outcome i.hh_earn_type_bkd i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==0 & max_dur > 0, rrr // male primary more likely (but not sole)
+mlogit outcome i.hh_earn_type_bkd i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==1 & max_dur > 0, rrr // nothing sig here
+
+mlogit outcome i.hh_earn_type i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==0 & max_dur > 0, rrr // female BW less likely
+mlogit outcome i.hh_earn_type i.dur i.relno if couple_status_cohab==2 & couple_educ_gp==1 & max_dur > 0, rrr // nothing sig here
