@@ -118,28 +118,6 @@ replace earnings_head = WAGES_HEAD_ if inrange(survey_yr,1994,2019)
 egen couple_earnings = rowtotal(earnings_wife earnings_head)
 
 browse id survey_yr earnings_wife earnings_head couple_earnings
-	
-gen female_earn_pct = earnings_wife/(couple_earnings)
-
-gen hh_earn_type=.
-replace hh_earn_type=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
-replace hh_earn_type=2 if female_earn_pct < .4000 & female_earn_pct >=0
-replace hh_earn_type=3 if female_earn_pct > .6000 & female_earn_pct <=1
-replace hh_earn_type=4 if earnings_head==0 & earnings_wife==0
-
-label define hh_earn_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
-label values hh_earn_type hh_earn_type
-
-gen hh_earn_type_bkd=.
-replace hh_earn_type_bkd=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
-replace hh_earn_type_bkd=2 if female_earn_pct < .4000 & female_earn_pct > 0
-replace hh_earn_type_bkd=3 if female_earn_pct ==0
-replace hh_earn_type_bkd=4 if female_earn_pct > .6000 & female_earn_pct <=1
-replace hh_earn_type_bkd=5 if earnings_head==0 & earnings_wife==0
-
-label define earn_type_bkd 1 "Dual Earner" 2 "Male Primary" 3 "Male Sole" 4 "Female BW" 5 "No Earners"
-label values hh_earn_type_bkd earn_type_bkd
-
 
 // employment
 browse id survey_yr EMPLOY_STATUS_HEAD_ EMPLOY_STATUS1_HEAD_ EMPLOY_STATUS2_HEAD_ EMPLOY_STATUS3_HEAD_ EMPLOY_STATUS_WIFE_ EMPLOY_STATUS1_WIFE_ EMPLOY_STATUS2_WIFE_ EMPLOY_STATUS3_WIFE_
@@ -155,6 +133,7 @@ replace employ2_head=1 if EMPLOY_STATUS2_HEAD_==1
 gen employ3_head=0
 replace employ3_head=1 if EMPLOY_STATUS3_HEAD_==1
 egen employed_head=rowtotal(employ_head employ1_head employ2_head employ3_head)
+replace employed_head = 1 if employed_head==2
 
 gen employ_wife=0
 replace employ_wife=1 if EMPLOY_STATUS_WIFE_==1
@@ -165,6 +144,7 @@ replace employ2_wife=1 if EMPLOY_STATUS2_WIFE_==1
 gen employ3_wife=0
 replace employ3_wife=1 if EMPLOY_STATUS3_WIFE_==1
 egen employed_wife=rowtotal(employ_wife employ1_wife employ2_wife employ3_wife)
+replace employed_wife = 1 if employed_wife==2
 
 browse id survey_yr employed_head employed_wife employ_head employ1_head employ_wife employ1_wife
 
@@ -257,7 +237,7 @@ gen race_4_head_rec=.
 replace race_4_head_rec=1 if RACE_4_HEAD_==1
 replace race_4_head_rec=2 if RACE_4_HEAD_==2
 replace race_4_head_rec=3 if (inrange(survey_yr,1985,2019) & RACE_4_HEAD_==3)
-replace race_4_head_rec=4 if (inrange(survey_yr,1985,2019) & RACE_4_HEAD_==4)
+replace race_4_head_rec=4 if (inrange(survey_yr,1985,2019) & RACE_4_HEAD_==4)	
 replace race_4_head_rec=5 if (inrange(survey_yr,1968,1984) & RACE_4_HEAD_==3) | (inrange(survey_yr,1990,2003) & RACE_4_HEAD_==5)
 replace race_4_head_rec=6 if RACE_4_HEAD_==7 | (inrange(survey_yr,1990,2003) & RACE_4_HEAD_==6) | (inrange(survey_yr,2005,2019) & RACE_4_HEAD_==5) | (inrange(survey_yr,1985,1989) & RACE_4_HEAD_==8)
 
@@ -333,16 +313,150 @@ replace housework_bkt=4 if (housework_wife==0 | housework_wife==.) & (housework_
 label define housework_bkt 1 "Dual HW" 2 "Female Primary" 3 "Male Primary" 4 "NA"
 label values housework_bkt housework_bkt
 
+
+gen labor_income = 0
+replace labor_income = 1 if OFUM_LABOR_INCOME_!=.
+
+//inspect OFUM_LABOR_INCOME_ if RELATION_==10
+
+*********************************************
+* New / updated variables to fill in for those in ST cohabitations who don't have data as "wives"
+*********************************************
+recode YRS_EDUCATION_ (1/11=1) (12=2) (13/15=3) (16/17=4) (98/99=.) (0=.), gen(education)
+label define education 1 "LTHS" 2 "HS" 3 "Some College" 4 "College"
+label values education education // okay there is still a LOT of missing specifically for the 88s GAH - I am feeling like more and more this is a bad idea, but do two views - 1 all (2005+), then 2 just LT cohabitors (maybe same time, maybe 1990 / 2000+)
+
+gen college=0
+replace college=1 if education==4
+replace college=. if education==.
+
+recode EMPLOYMENT_ (0=.) (1=1) (2/9=0), gen (employed)
+
+gen num_marriages_wife_all_tmp = NUM_MARRIED_WIFE_
+replace num_marriages_wife_all_tmp = NUM_MARRIED if RELATION_==88
+
+gen first_marriage_wife_all_tmp = FIRST_MARRIAGE_YR_WIFE_
+replace first_marriage_wife_all_tmp = FIRST_MARRIAGE_YR_START if RELATION_==88
+
+gen last_marriage_wife_all_tmp = LAST_MARRIAGE_YR_WIFE_
+replace last_marriage_wife_all_tmp = RECENT_MARRIAGE_YR_START if RELATION_==88
+
+gen num_births_wife_all_tmp = BIRTH_SPOUSE_
+replace num_births_wife_all_tmp = NUM_BIRTHS if RELATION_==88
+
+gen age_wife_all_tmp = AGE_SPOUSE_
+replace age_wife_all_tmp = AGE_ if RELATION_==88
+
+gen sex_wife_all_tmp = SEX_WIFE_ // for some reason, this variable has a lot missing, so will use for all
+replace sex_wife_all_tmp = SEX if inlist(RELATION_,20,22,88)
+
+gen educ_wife_all_tmp = educ_wife
+replace educ_wife_all_tmp = education if RELATION_==88
+label values educ_wife_all_tmp education
+
+gen employed_wife_all_tmp = employed_wife
+replace employed_wife_all_tmp = employed if RELATION_==88
+
+gen earnings_wife_all_tmp = earnings_wife
+replace earnings_wife_all_tmp = OFUM_LABOR_INCOME_ if RELATION_==88
+
+gen college_wife_all_tmp = college_complete_wife
+replace college_wife_all_tmp = college if RELATION_==88
+
+// how do I get this info on the row of head?? match ids with a couple_status_ref of 4, use id where relation is 88, but then match on family id? or main per id?
+sort survey_yr FAMILY_INTERVIEW_NUM_
+browse id unique_id survey_yr main_per_id FAMILY_INTERVIEW_NUM_ FAMILY_ID_SO_ RELATION_ educ_wife education educ_wife_all educ_head if COUPLE_STATUS_REF_==4
+browse id unique_id survey_yr main_per_id FAMILY_INTERVIEW_NUM_ FAMILY_ID_SO_ RELATION_ AGE_SPOUSE_ age_wife_all AGE_ if COUPLE_STATUS_REF_==4
+
+bysort survey_yr FAMILY_INTERVIEW_NUM_: egen educ_wife_all = max(educ_wife_all_tmp)
+browse id unique_id survey_yr main_per_id FAMILY_INTERVIEW_NUM_ FAMILY_ID_SO_ RELATION_ educ_wife education educ_wife_all educ_wife_all_tmp educ_head if COUPLE_STATUS_REF_==4
+label values educ_wife_all education
+
+foreach var in num_marriages_wife_all first_marriage_wife_all last_marriage_wife_all num_births_wife_all age_wife_all sex_wife_all employed_wife_all earnings_wife_all college_wife_all {
+	bysort survey_yr FAMILY_INTERVIEW_NUM_: egen `var' = max(`var'_tmp)
+	drop `var'_tmp
+}
+
+egen couple_earnings_all = rowtotal(earnings_head earnings_wife_all) if COUPLE_STATUS_REF_==4
+replace couple_earnings_all = couple_earnings if inlist(COUPLE_STATUS_REF_,1,2)
+
+browse earnings_head earnings_wife earnings_wife_all couple_earnings couple_earnings_all COUPLE_STATUS_REF_
+
+*do a bysort then max? (since all at 0, everything will be higher? AND want missing if it is?)
+
+// key independent variable
+** need to make sure i make this ACTUALLY female
+drop if SEX_HEAD == sex_wife_all // want to be different sex for this purpose
+
+gen earnings_male=.
+replace earnings_male=earnings_head if SEX_HEAD_==1
+replace earnings_male=earnings_wife if sex_wife_all==1
+
+gen earnings_female=.
+replace earnings_female=earnings_head if SEX_HEAD_==2
+replace earnings_female=earnings_wife if sex_wife_all==2
+
+// browse earnings_male earnings_female earnings_head earnings_wife couple_earnings_all SEX_HEAD_ sex_wife_all
+
+gen female_earn_pct = earnings_female/(couple_earnings_all)
+
+gen hh_earn_type=.
+replace hh_earn_type=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
+replace hh_earn_type=2 if female_earn_pct < .4000 & female_earn_pct >=0
+replace hh_earn_type=3 if female_earn_pct > .6000 & female_earn_pct <=1
+replace hh_earn_type=4 if earnings_head==0 & earnings_wife_all==0
+
+label define hh_earn_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values hh_earn_type hh_earn_type
+
+gen hh_earn_type_bkd=.
+replace hh_earn_type_bkd=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
+replace hh_earn_type_bkd=2 if female_earn_pct < .4000 & female_earn_pct > 0
+replace hh_earn_type_bkd=3 if female_earn_pct ==0
+replace hh_earn_type_bkd=4 if female_earn_pct > .6000 & female_earn_pct <=1
+replace hh_earn_type_bkd=5 if earnings_head==0 & earnings_wife_all==0
+
+label define earn_type_bkd 1 "Dual Earner" 2 "Male Primary" 3 "Male Sole" 4 "Female BW" 5 "No Earners"
+label values hh_earn_type_bkd earn_type_bkd
+
+/*
+NUM_MARRIED_WIFE_	NUM_MARRIED
+FIRST_MARRIAGE_YR_WIFE_	FIRST_MARRIAGE_YR_START
+LAST_MARRIAGE_YR_WIFE_	RECENT_MARRIAGE_YR_START
+BIRTH_SPOUSE_	NUM_BIRTHS
+AGE_SPOUSE_	AGE_
+SEX_WIFE_	SEX
+educ_wife	education
+employed_wife	employed
+earnings_wife	OFUM_LABOR_INCOME_
+college_complete_wife	college
+*/
+
+*********************************************
+* Start / end dates
+*********************************************
+browse id FAMILY_INTERVIEW_NUM_ main_per_id survey_yr
+sort id survey_yr
+
+// do I need to do a lookup --- somewhere? main file? to get first and last year of each individual? (i did that in SIPP i think?)
+egen first_couple_yr
+egen last_couple_yr
+
 save "$data_keep\PSID_allunions_coupled.dta", replace
 
 /*
 *********************************************
 * More restrictions
 *********************************************
+* just cohabitors (or the year they marry)
+
+* one record per household
+
+* 2005+ (when labor income is asked)
 
 // Then to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent. BUT is it confusing if the head is not male (since most are?) okay why are there so many missing for WIFE VARIABLES?! did I do something wrong? is it to do with short-term cohabitors? also some to do with variable name changes?
 
 bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(unique_id)
 browse survey_yr FAMILY_INTERVIEW_NUM_  unique_id per_id
 keep if per_id==1
-
+*/

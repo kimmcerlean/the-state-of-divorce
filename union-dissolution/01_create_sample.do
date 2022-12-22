@@ -39,12 +39,30 @@ local reshape_vars "RELEASE_ INTERVIEW_NUM_ X1968_PERSON_NUM_ RELATION_ AGE_ MAR
 reshape long `reshape_vars', i(id unique_id) j(survey_yr)
 
 save "$data_tmp\PSID_full_long.dta", replace
+replace SEQ_NUMBER_=0 if SEQ_NUMBER==.
+bysort id (SEQ_NUMBER_): egen in_sample=max(SEQ_NUMBER_)
+
+drop if in_sample==0 // people with NO DATA in any year
+sort id survey_yr
+browse survey_yr SEQ_NUMBER_ id
+drop if SEQ_NUMBER_==0 // won't have data becausenot in that year -- like SIPP, how do I know if last year is because divorced or last year in sample? right now individual level file, so fine - this is JUST last year in sample at the moment. okay, but think the problem is, if you enter LATER, this is 0 in years prior? so maybe do min and max when seq number is not 0?? ah and missing for 1968 i am dumb
+
+save "$data_tmp\PSID_data_long.dta", replace
+
+bysort id (survey_yr): egen first_survey_yr = min(survey_yr)
+bysort id (survey_yr): egen last_survey_yr = max(survey_yr)
+
+browse id survey_yr first_survey_yr last_survey_yr
+
+collapse (min) first_survey_yr (max) last_survey_yr, by(id)
+save "$data_tmp\PSID_year_lookup.dta", replace
 
 browse id survey_yr yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 FIRST_MARRIAGE_YR_START in_marital_history // ensuring marital history makes sense
 
 ********************************************************************************
 * First clean up to get a sense of WHO is even eligible
 ********************************************************************************
+use "$data_tmp\PSID_data_long.dta", clear
 
 browse survey_yr id main_per_id SEQ_NUMBER_ RELATION_ FIRST_MARRIAGE_YR_START MARITAL_PAIRS_
 
@@ -54,11 +72,6 @@ gen relationship=0
 replace relationship=1 if inrange(MARITAL_PAIRS_,1,4)
 
 browse survey_yr id main_per_id SEQ_NUMBER_ relationship RELATION_ FIRST_MARRIAGE_YR_START 
-
-bysort id (SEQ_NUMBER_): egen in_sample=max(SEQ_NUMBER_)
-
-drop if in_sample==0 // people with NO DATA in any year
-drop if SEQ_NUMBER_==0 // won't have data because not in that year -- like SIPP, how do I know if last year is because divorced or last year in sample? right now individual level file, so fine - this is JUST last year in sample at the moment
 
 browse survey_yr id main_per_id SEQ_NUMBER_ relationship RELATION_ FIRST_MARRIAGE_YR_START 
 
