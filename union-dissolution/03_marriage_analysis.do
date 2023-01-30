@@ -1456,9 +1456,33 @@ tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==1, row nofreq
 tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==0, row nofreq // intact for ref
  
 ********************************************************************************
-*PAA
+*PAA Final
 ********************************************************************************
- // all
+// all
+// restrictions on models: inlist(IN_UNIT,1,2) & cohort==3
+ 
+tab couple_educ_gp if cohort==3 & inlist(IN_UNIT,1,2)
+unique id if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) // unique couples
+unique id if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) // dissolutions
+
+tabstat female_earn_pct  if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2), row
+tabstat wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+tab couple_educ_gp housework_bkt if cohort==3 & inlist(IN_UNIT,1,2), row
+tabstat TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) stat(mean p50)
+
+// dissolved
+tabstat female_earn_pct  if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp)
+tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
+tabstat wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp)
+tab couple_educ_gp housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
+tabstat TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+
+********************************************************************************
+*PAA Abstract
+********************************************************************************
+// all
+ 
 tab couple_educ_gp if cohort==3
 unique id if cohort==3, by(couple_educ_gp) // unique couples
 unique id if cohort==3 & dissolve_lag==1, by(couple_educ_gp) // dissolutions
