@@ -407,7 +407,7 @@ logit dissolve_lag i.dur female_earn_pct TAXABLE_HEAD_WIFE_ `controls' if inlist
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", sideway stats(coef pval) label ctitle(Earnings No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
 **Employment
-logit dissolve_lag i.dur i.ft_head i.ft_wife TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.ft_pt_head i.ft_pt_wife TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", sideway stats(coef pval) label ctitle(Employment No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 **Continuous Housework
@@ -426,7 +426,7 @@ logit dissolve_lag i.dur female_earn_pct `controls' if inlist(IN_UNIT,1,2) & coh
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", sideway stats(coef pval) label ctitle(Earnings No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 **Employment  - no total earnings
-logit dissolve_lag i.dur i.ft_head i.ft_wife  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.ft_pt_head i.ft_pt_wife `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", sideway stats(coef pval) label ctitle(Employment No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 **Continuous Housework  - no total earnings
@@ -446,7 +446,7 @@ logit dissolve_lag i.dur female_earn_pct TAXABLE_HEAD_WIFE_ `controls' if inlist
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", sideway stats(coef pval) label ctitle(Earnings Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 **Employment
-logit dissolve_lag i.dur i.ft_head i.ft_wife TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.ft_pt_head i.ft_pt_wife TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", sideway stats(coef pval) label ctitle(Employment Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 **Continuous Housework
