@@ -1154,6 +1154,90 @@ logit dissolve_lag i.dur i.dual_hw if inlist(IN_UNIT,1,2) & cohort==3 & couple_e
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
+
+********************************************************************************
+* These are the same models from the PAA paper
+********************************************************************************
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+
+////////// No College \\\\\\\\\\\/
+** Total earnings
+	logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Earnings No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Earnings No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Paid work
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Paid No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Paid No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+histogram TAXABLE_HEAD_WIFE_ if couple_educ_gp==0 & cohort_v2==0 & inrange(TAXABLE_HEAD_WIFE_,-10000,100000)
+margins hh_earn_type
+margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000))
+
+**Unpaid work
+logit dissolve_lag i.dur i.housework_bkt if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Unpaid No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2)  & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Unpaid No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins housework_bkt
+
+**All in one model
+logit dissolve_lag i.dur i.hh_earn_type i.housework_bkt TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(All - No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Continuous earnings
+logit dissolve_lag i.dur female_earn_pct TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Earnings - No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Continuous housework
+logit dissolve_lag i.dur wife_housework_pct TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(HW - No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+////////// College \\\\\\\\\\\/
+** Total earnings
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Earnings Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Earnings Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Paid work
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Paid Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Paid Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins hh_earn_type
+margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000))
+
+**Unpaid work
+logit dissolve_lag i.dur i.housework_bkt if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Unpaid Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2)  & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Unpaid Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins housework_bkt
+
+** All in one model
+logit dissolve_lag i.dur i.hh_earn_type i.housework_bkt TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(All - Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Continuous earnings
+logit dissolve_lag i.dur female_earn_pct TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Earnings - Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Continuous housework
+logit dissolve_lag i.dur wife_housework_pct TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(HW - Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+
 /*
 ********************************************************************************
 * Overall models
