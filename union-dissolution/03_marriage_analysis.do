@@ -115,6 +115,12 @@ gen ft_pt_wife=0
 replace ft_pt_wife=1 if weekly_hrs_wife>0 & weekly_hrs_wife <=35
 replace ft_pt_wife=2 if weekly_hrs_wife >35 & weekly_hrs_wife<=200
 
+gen overwork_head = 0
+replace overwork_head =1 if weekly_hrs_head >50 & weekly_hrs_head<=200 // used by Cha 2013
+
+gen overwork_wife = 0 
+replace overwork_wife = 1 if weekly_hrs_wife > 50 & weekly_hrs_wife<=200
+
 gen bw_type=.
 replace bw_type=1 if inlist(ft_pt_head,1,2) & ft_pt_wife==0
 replace bw_type=2 if ft_pt_head==2 & ft_pt_wife==1
@@ -153,6 +159,15 @@ replace earn_type_hw=9 if hh_earn_type==3 & housework_bkt==3
 
 label define earn_type_hw 1 "Dual: Equal" 2 "Dual: Woman" 3 "Dual: Man" 4 "Male BW: Equal" 5 "Male BW: Woman" 6 "Male BW: Man" 7 "Female BW: Equal" 8 "Female BW: Woman" 9 "Female BW: Man"
 label values earn_type_hw earn_type_hw
+
+gen division_bucket=5
+replace division_bucket = 1 if hh_earn_type== 1 & housework_bkt== 1 // dual, dual
+replace division_bucket = 2 if hh_earn_type== 2 & housework_bkt== 2 // male bw, female hw
+replace division_bucket = 3 if hh_earn_type== 3 & housework_bkt== 3 // female bw, male hw
+replace division_bucket = 4 if hh_earn_type== 1 & housework_bkt== 2 // dual, female hw
+
+label define division_bucket 1 "Dual" 2 "Male BW" 3 "Female BW" 4 "Necessity" 5 "All Other"
+label values division_bucket division_bucket
 
 // this doesn't capture OVERWORK
 sum weekly_hrs_head if ft_pt_head==2, detail
@@ -317,6 +332,13 @@ outreg2 using "$results/psid_marriage_dissolution_int.xls", sideway stats(coef p
 margins hh_earn_type#housework_bkt
 marginsplot
 
+logit dissolve_lag i.dur i.division_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // counter-normative = most likely to dissolve
+logit dissolve_lag i.dur i.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // though not true with controls
+logit dissolve_lag i.dur i.division_bucket TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // opposite of earlier - once I add earnings, effects go away - so it's probably because least income?
+
+tabstat TAXABLE_HEAD_WIFE_ if cohort==3, by(division_bucket) stats(mean p50)
+tabstat TAXABLE_HEAD_WIFE_ if cohort==3 & couple_educ_gp==0, by(division_bucket) stats(mean p50)
+
 **College
 logit dissolve_lag i.dur i.hh_earn_type i.housework_bkt TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution_int.xls", sideway stats(coef pval) label ctitle(All - Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -327,6 +349,11 @@ outreg2 using "$results/psid_marriage_dissolution_int.xls", sideway stats(coef p
 margins hh_earn_type#housework_bkt
 marginsplot
 
+logit dissolve_lag i.dur i.division_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // "all other" sig more likely...
+logit dissolve_lag i.dur i.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // still true
+logit dissolve_lag i.dur ib4.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // was wondering if "economic necessity" worse - bc of role strain. But seems like not
+
+logit dissolve_lag i.dur ib4.division_bucket##i.overwork_head if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // dual is marginally sig less likely to dissolve when husband does not overwork
 
 /*
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
