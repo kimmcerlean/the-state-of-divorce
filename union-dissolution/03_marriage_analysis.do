@@ -1163,7 +1163,7 @@ local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrol
 
 ////////// No College \\\\\\\\\\\/
 ** Total earnings
-	logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Earnings No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
 logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
