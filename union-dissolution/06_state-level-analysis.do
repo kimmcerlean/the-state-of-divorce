@@ -357,8 +357,9 @@ local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrol
 melogit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##i.above_fed_min `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Earnings 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
-//margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000) above_fed_min =(0 1))
-//marginsplot
+// logit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##i.above_fed_min age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0, or
+margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000) above_fed_min =(0 1))
+marginsplot
 
 melogit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##i.above_fed_cpi `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Earnings 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -369,18 +370,21 @@ outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef p
 melogit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.policysociallib_est `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Earnings 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+//logit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.policysociallib_est age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0, or
 //margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000) policysociallib_est =(-2(1)2))
 //marginsplot
 
 melogit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.policyeconlib_est `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Earnings 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+//logit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.policyeconlib_est age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0, or
 //margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000) policyeconlib_est =(-2(1)2))
 //marginsplot
 
 melogit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.masssociallib_est `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Earnings 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+//logit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.masssociallib_est age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0, or
 //margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000) masssociallib_est =(-1(1)2))
 //marginsplot
 
@@ -394,8 +398,17 @@ outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef p
 melogit dissolve_lag i.dur i.hh_earn_type##c.policysociallib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Paid 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+//logit dissolve_lag i.dur i.hh_earn_type##c.policysociallib_est TAXABLE_HEAD_WIFE_  age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0 & hh_earn_type<4, or
+//margins hh_earn_type, at(policysociallib_est =(-2(1)2))
+//marginsplot
+
 melogit dissolve_lag i.dur i.hh_earn_type##c.policyeconlib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Paid 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+//logit dissolve_lag i.dur i.hh_earn_type##c.policyeconlib_est TAXABLE_HEAD_WIFE_  age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0 & hh_earn_type<4, or
+//margins hh_earn_type, at(policyeconlib_est =(-2(1)2))
+//marginsplot
+
 
 melogit dissolve_lag i.dur i.hh_earn_type##c.masssociallib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Paid 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -407,14 +420,27 @@ outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef p
 melogit dissolve_lag i.dur i.housework_bkt##i.above_fed_min TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Unpaid 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+// logit dissolve_lag i.dur i.housework_bkt##i.above_fed_min TAXABLE_HEAD_WIFE_  age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0 & housework_bkt<4, or
+//margins housework_bkt#above_fed_min
+//marginsplot
+
 melogit dissolve_lag i.dur i.housework_bkt##i.above_fed_cpi TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Unpaid 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 melogit dissolve_lag i.dur i.housework_bkt##c.policysociallib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Unpaid 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+// logit dissolve_lag i.dur i.housework_bkt##c.policysociallib_est TAXABLE_HEAD_WIFE_  age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0 & housework_bkt<4, or
+//margins housework_bkt, at(policysociallib_est =(-2(1)2))
+//marginsplot
+
 melogit dissolve_lag i.dur i.housework_bkt##c.policyeconlib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Unpaid 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// logit dissolve_lag i.dur i.housework_bkt##c.policyeconlib_est TAXABLE_HEAD_WIFE_  age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0 & housework_bkt<4, or
+//margins housework_bkt, at(policyeconlib_est =(-2(1)2))
+//marginsplot
+
 
 melogit dissolve_lag i.dur i.housework_bkt##c.masssociallib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==0 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_nocoll.xls", sideway stats(coef pval) label ctitle(Unpaid 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -439,12 +465,14 @@ outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef 
 melogit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.policysociallib_est `controls' if couple_educ_gp==1 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef pval) label ctitle(Earnings 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+//logit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.policysociallib_est age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1, or
 //margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000) policysociallib_est =(-2(1)2))
 //marginsplot
 
 melogit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.policyeconlib_est `controls' if couple_educ_gp==1 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef pval) label ctitle(Earnings 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+//logit dissolve_lag i.dur c.TAXABLE_HEAD_WIFE_##c.policyeconlib_est age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1, or
 //margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000) policyeconlib_est =(-2(1)2))
 //marginsplot
 
@@ -458,20 +486,34 @@ outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef 
 melogit dissolve_lag i.dur i.hh_earn_type##i.above_fed_min TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==1 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef pval) label ctitle(Paid 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+//logit dissolve_lag i.dur i.hh_earn_type##i.above_fed_min TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1 & hh_earn_type<4, or
+//margins hh_earn_type#above_fed_min
+// marginsplot
+
 melogit dissolve_lag i.dur i.hh_earn_type##i.above_fed_cpi TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==1 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef pval) label ctitle(Paid 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 melogit dissolve_lag i.dur i.hh_earn_type##c.policysociallib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==1 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef pval) label ctitle(Paid 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+//logit dissolve_lag i.dur i.hh_earn_type##c.policysociallib_est TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1 & hh_earn_type<4, or
+//margins hh_earn_type, at(policysociallib_est =(-2(1)2))
+// marginsplot
+
 melogit dissolve_lag i.dur i.hh_earn_type##c.policyeconlib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==1 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef pval) label ctitle(Paid 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+//logit dissolve_lag i.dur i.hh_earn_type##c.policyeconlib_est TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1 & hh_earn_type<4, or
+//margins hh_earn_type, at(policyeconlib_est =(-2(1)2))
+// marginsplot
+
 
 melogit dissolve_lag i.dur i.hh_earn_type##c.masssociallib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==1 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef pval) label ctitle(Paid 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-//margins hh_earn_type#above_fed_min
-//marginsplot
+//logit dissolve_lag i.dur i.hh_earn_type##c.masssociallib_est TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1 & hh_earn_type<4, or
+//margins hh_earn_type, at(masssociallib_est =(-1(1)2))
+// marginsplot
 
 **Unpaid work
 melogit dissolve_lag i.dur i.housework_bkt##i.above_fed_min TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==1 || state_fips:, or
@@ -488,6 +530,24 @@ outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef 
 
 melogit dissolve_lag i.dur i.housework_bkt##c.masssociallib_est TAXABLE_HEAD_WIFE_  `controls' if couple_educ_gp==1 || state_fips:, or
 outreg2 using "$results/psid_dissolution_state_college.xls", sideway stats(coef pval) label ctitle(Unpaid 5) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// paid leave
+logit dissolve_lag i.dur i.hh_earn_type##i.paid_leave_state TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==0 & hh_earn_type<4, or
+margins hh_earn_type#paid_leave_state
+ marginsplot
+ 
+logit dissolve_lag i.dur i.hh_earn_type##i.paid_leave_state TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1 & hh_earn_type<4, or
+margins hh_earn_type#paid_leave_state
+ marginsplot
+ 
+ logit dissolve_lag i.dur i.housework_bkt##i.paid_leave_state TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1 & hh_earn_type<4, or
+margins housework_bkt#paid_leave_state
+ marginsplot
+ 
+logit dissolve_lag i.dur i.hh_earn_type##i.time_leave TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if couple_educ_gp==1 & hh_earn_type<4, or
+margins hh_earn_type#time_leave
+marginsplot
+
 
 /********************************************************************************
 ********************************************************************************
