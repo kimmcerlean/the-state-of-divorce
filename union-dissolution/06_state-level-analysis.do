@@ -548,6 +548,31 @@ logit dissolve_lag i.dur i.hh_earn_type##i.time_leave TAXABLE_HEAD_WIFE_ age_mar
 margins hh_earn_type#time_leave
 marginsplot
 
+********************************************************************************
+* Where do they reside?
+********************************************************************************
+gen college_pop = 1 if couple_educ_gp==1
+gen no_college_pop = 1 if couple_educ_gp==0
+
+tabstat policysociallib_est, by(state_fips)
+tabstat policyeconlib_est, by(state_fips)
+tabstat masssociallib_est, by(state_fips)
+
+preserve
+collapse (mean) policysociallib_est policyeconlib_est masssociallib_est (sum) college_pop no_college_pop, by(state_fips)
+restore
+
+tab social_policy
+tab couple_educ_gp social_policy, row
+
+tabstat policysociallib_est, by(couple_educ_gp)
+// Neither College | -.1055554
+// At Least One Col |   .129121
+
+tabstat policysociallib_est if dissolve_lag==1, by(couple_educ_gp)
+// Neither College | -.1897416
+// At Least One Col | -.0548838
+
 
 /********************************************************************************
 ********************************************************************************
