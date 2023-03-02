@@ -1715,6 +1715,54 @@ tabstat wife_housework_pct if cohort==3, by(couple_educ_gp)
 tab couple_educ_gp housework_bkt if cohort==3, row
 tabstat TAXABLE_HEAD_WIFE_ if cohort==3, by(couple_educ_gp) stat(mean p50)
 
+
+
+********************************************************************************
+* Robustness check on women's earnings
+********************************************************************************
+tabstat dur if inlist(IN_UNIT,1,2) & cohort==3, by(ever_dissolve) stats(mean p50)
+tabstat dur if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, by(ever_dissolve) stats(mean p50)
+tabstat dur if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, by(ever_dissolve) stats(mean p50)
+
+preserve
+collapse (median) female_earn_pct earnings_wife earnings_head if inlist(IN_UNIT,1,2) & cohort==3, by(dur couple_educ_gp)
+twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1), legend(on order(1 "No College" 2 "College"))
+// graph export "$results\earn_pct_education.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+preserve
+collapse (median) female_earn_pct earnings_wife earnings_head if inlist(IN_UNIT,1,2) & cohort==3, by(dur couple_educ_gp ever_dissolve)
+twoway (line female_earn_pct dur if dur <=20 & couple_educ_gp==0 & ever_dissolve==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==0 & ever_dissolve==1) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1 & ever_dissolve==0) (line female_earn_pct dur if dur <=20 & couple_educ_gp==1 & ever_dissolve==1), legend(on order(1 "NC - Intact" 2 "NC - Dissolved" 3 "Coll - Intact" 4 "Coll-Dissolved"))
+
+twoway (line female_earn_pct dur if dur <=10 & couple_educ_gp==0 & ever_dissolve==0) (line female_earn_pct dur if dur <=10 & couple_educ_gp==0 & ever_dissolve==1) (line female_earn_pct dur if dur <=10 & couple_educ_gp==1 & ever_dissolve==0) (line female_earn_pct dur if dur <=10 & couple_educ_gp==1 & ever_dissolve==1), legend(on order(1 "NC - Intact" 2 "NC - Dissolved" 3 "Coll - Intact" 4 "Coll-Dissolved"))
+
+twoway (line earnings_wife dur if dur <=10 & couple_educ_gp==0 & ever_dissolve==0) (line earnings_wife dur if dur <=10 & couple_educ_gp==0 & ever_dissolve==1) (line earnings_wife dur if dur <=10 & couple_educ_gp==1 & ever_dissolve==0) (line earnings_wife dur if dur <=10 & couple_educ_gp==1 & ever_dissolve==1), legend(on order(1 "NC - Intact" 2 "NC - Dissolved" 3 "Coll - Intact" 4 "Coll-Dissolved"))
+// graph export "$results\earn_pct_educ_x_dissolved.jpg", as(jpg) name("Graph") quality(90) replace
+restore
+
+// to standardize on TIME TO DIVORCE
+by id: egen rel_end_temp= max(survey_yr) if rel_end_all==9998
+replace rel_end_all = rel_end_temp if rel_end_all==9998
+
+gen transition_dur=.
+replace transition_dur = survey_yr-rel_end_all
+replace transition_dur = dur if transition_dur==. // should be all those intact
+
+// browse id dur transition_dur survey_yr rel_end_all
+
+preserve
+collapse (median) female_earn_pct earnings_wife earnings_head if inlist(IN_UNIT,1,2) & cohort==3, by(transition_dur ever_dissolve couple_educ_gp)
+
+twoway (line female_earn_pct transition_dur if ever_dissolve==1 & couple_educ_gp==0 & transition_dur<=0 & transition_dur>=-15) (line female_earn_pct transition_dur if ever_dissolve==1 & couple_educ_gp==1 & transition_dur<=0 & transition_dur>=-15), legend(on order(1 "Dissolved, Non" 2 "Dissolved, College"))
+
+twoway (line earnings_wife transition_dur if ever_dissolve==1 & couple_educ_gp==0 & transition_dur<=0 & transition_dur>=-15) (line earnings_wife transition_dur if ever_dissolve==1 & couple_educ_gp==1 & transition_dur<=0 & transition_dur>=-15), legend(on order(1 "Dissolved, Non" 2 "Dissolved, College"))
+
+twoway (line earnings_head transition_dur if ever_dissolve==1 & couple_educ_gp==0 & transition_dur<=0 & transition_dur>=-15) (line earnings_head transition_dur if ever_dissolve==1 & couple_educ_gp==1 & transition_dur<=0 & transition_dur>=-15), legend(on order(1 "Dissolved, Non" 2 "Dissolved, College"))
+
+restore
+
+unique id if ever_dissolve==1 & couple_educ_gp==1 & inlist(IN_UNIT,1,2) & cohort==3, by(dur)
+
 /*
 ********************************************************************************
 * Year interactions

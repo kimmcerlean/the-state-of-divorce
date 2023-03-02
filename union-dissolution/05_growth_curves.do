@@ -87,7 +87,7 @@ gen hh_earn_type_mar = hh_earn_type if yr_rank==1
 bysort id (hh_earn_type_mar): replace hh_earn_type_mar=hh_earn_type_mar[1]
 label values hh_earn_type_mar hh_earn_type
 
-drop if hh_earn_type_mar==4 // no earners
+// drop if hh_earn_type_mar==4 // no earners
 
 ********************************************************************************
 * Exploratory plots
