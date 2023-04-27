@@ -160,6 +160,8 @@ replace earn_type_hw=9 if hh_earn_type==3 & housework_bkt==3
 label define earn_type_hw 1 "Dual: Equal" 2 "Dual: Woman" 3 "Dual: Man" 4 "Male BW: Equal" 5 "Male BW: Woman" 6 "Male BW: Man" 7 "Female BW: Equal" 8 "Female BW: Woman" 9 "Female BW: Man"
 label values earn_type_hw earn_type_hw
 
+tab earn_type_hw couple_educ_gp if inlist(IN_UNIT,1,2) & cohort==3
+
 gen division_bucket=5
 replace division_bucket = 1 if hh_earn_type== 1 & housework_bkt== 1 // dual, dual
 replace division_bucket = 2 if hh_earn_type== 2 & housework_bkt== 2 // male bw, female hw
@@ -206,7 +208,8 @@ browse female_earn_pct earn_ratio1 earn_ratio2
 mkspline hrs_ratio1 0.5 hrs_ratio2 = female_hours_pct
 browse female_hours_pct hrs_ratio1 hrs_ratio2
 
-// logging earnings
+// alternate earnings measures
+*log
 gen earnings_total = TAXABLE_HEAD_WIFE_ 
 replace earnings_total=10 if TAXABLE_HEAD_WIFE_ <=0
 
@@ -215,6 +218,29 @@ gen earnings_ln = ln(earnings_total)
 
 gen earnings_ln2 = ln(TAXABLE_HEAD_WIFE_)
 replace earnings_ln2 = 0 if TAXABLE_HEAD_WIFE_ <=0
+
+*square
+gen earnings_sq = TAXABLE_HEAD_WIFE_ * TAXABLE_HEAD_WIFE_
+
+* groups
+gen earnings_bucket=.
+replace earnings_bucket = 0 if TAXABLE_HEAD_WIFE_ <=0
+replace earnings_bucket = 1 if TAXABLE_HEAD_WIFE_ > 0 		& TAXABLE_HEAD_WIFE_ <=10000
+replace earnings_bucket = 2 if TAXABLE_HEAD_WIFE_ > 10000 	& TAXABLE_HEAD_WIFE_ <=20000
+replace earnings_bucket = 3 if TAXABLE_HEAD_WIFE_ > 20000 	& TAXABLE_HEAD_WIFE_ <=30000
+replace earnings_bucket = 4 if TAXABLE_HEAD_WIFE_ > 30000 	& TAXABLE_HEAD_WIFE_ <=40000
+replace earnings_bucket = 5 if TAXABLE_HEAD_WIFE_ > 40000 	& TAXABLE_HEAD_WIFE_ <=50000
+replace earnings_bucket = 6 if TAXABLE_HEAD_WIFE_ > 50000 	& TAXABLE_HEAD_WIFE_ <=60000
+replace earnings_bucket = 7 if TAXABLE_HEAD_WIFE_ > 60000 	& TAXABLE_HEAD_WIFE_ <=70000
+replace earnings_bucket = 8 if TAXABLE_HEAD_WIFE_ > 70000 	& TAXABLE_HEAD_WIFE_ <=80000
+replace earnings_bucket = 9 if TAXABLE_HEAD_WIFE_ > 80000 	& TAXABLE_HEAD_WIFE_ <=90000
+replace earnings_bucket = 10 if TAXABLE_HEAD_WIFE_ > 90000 	& TAXABLE_HEAD_WIFE_ <=100000
+replace earnings_bucket = 11 if TAXABLE_HEAD_WIFE_ > 100000 & TAXABLE_HEAD_WIFE_ <=150000
+replace earnings_bucket = 12 if TAXABLE_HEAD_WIFE_ > 150000 & TAXABLE_HEAD_WIFE_ !=.
+
+label define earnings_bucket 0 "0" 1 "0-10000" 2 "10000-20000" 3 "20000-30000" 4 "30000-40000" 5 "40000-50000" 6 "50000-60000" 7 "60000-70000" ///
+8 "70000-80000" 9 "80000-90000" 10 "90000-100000" 11 "100000-150000" 12 "150000+"
+label values earnings_bucket earnings_bucket
 
 // want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?)
 browse id survey_yr rel_start_all dur hh_earn_type_bkd
@@ -266,7 +292,10 @@ replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29
 // control variables: age of marriage (both), race (head + same race), religion (head), region? (head), cohab_with_wife, cohab_with_other, pre_marital_birth, post_marital_birth
 // both pre and post marital birth should NOT be in model because they are essentially inverse. do I want to add if they have a child together as new flag?
 // taking out religion for now because not asked in 1968 / 1968
+
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+
+**# Analysis starts
 
 ********************************************************************************
 ********************************************************************************
@@ -284,6 +313,20 @@ logit dissolve_lag i.dur earnings_ln2 if inlist(IN_UNIT,1,2) & cohort==3, or
 logit dissolve_lag i.dur earnings_ln2 i.couple_educ_gp if inlist(IN_UNIT,1,2) & cohort==3, or
 logit dissolve_lag i.dur i.couple_educ_gp##c.earnings_ln2 if inlist(IN_UNIT,1,2) & cohort==3, or
 margins couple_educ_gp, at(earnings_ln2=(0(1)10))
+
+logit dissolve_lag i.dur i.couple_educ_gp##c.couple_earnings if inlist(IN_UNIT,1,2) & cohort==3, or
+marginscontplot couple_earnings couple_educ_gp if couple_earnings<200000, ci var1(20) // diff plots - want them on same
+marginscontplot couple_earnings couple_educ_gp if couple_earnings<200000, ci var1(20) at2(0 1) showmarginscmd // still not
+marginscontplot couple_earnings couple_educ_gp if couple_earnings<200000, var1(20) var2(2) // here we go
+
+logit dissolve_lag i.dur i.couple_educ_gp##c.earnings_ln if inlist(IN_UNIT,1,2) & cohort==3, or
+marginscontplot earnings_ln couple_educ_gp, var1(20) var2(2) // here we go
+
+summarize TAXABLE_HEAD_WIFE_
+range earn 1 100000 20
+gen loge = ln(earn)
+marginscontplot TAXABLE_HEAD_WIFE_(earnings_ln), var1(earn(loge)) ci
+marginscontplot TAXABLE_HEAD_WIFE_(earnings_ln) couple_educ_gp, var1(earn(loge)) var2(2) ci
 
 logit dissolve_lag i.dur earnings_ln if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 estimates store e0
@@ -321,10 +364,22 @@ local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrol
 ////////// No College \\\\\\\\\\\/
 ** Total earnings
 logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur couple_earnings if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+marginscontplot couple_earnings if couple_earnings<200000, ci var1(20)
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Earnings No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
 logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Earnings No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+*Alt
+logit dissolve_lag i.dur earnings_ln if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+// marginscontplot earnings(logwt), var1(w(logw)) ci
+logit dissolve_lag i.dur earnings_ln2 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ earnings_sq if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // square not sig here
+margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ c.TAXABLE_HEAD_WIFE_#c.TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // alt square
+margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
+logit dissolve_lag i.dur ib5.earnings_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 
 **Paid work
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
@@ -360,6 +415,15 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 
 logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Earnings Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+*Alt
+logit dissolve_lag i.dur earnings_ln if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur earnings_ln2 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ earnings_sq if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // square *is* sig here
+margins, at(TAXABLE_HEAD_WIFE_=(0(10000)150000))
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ c.TAXABLE_HEAD_WIFE_#c.TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // alt square
+margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
+logit dissolve_lag i.dur ib5.earnings_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 
 **Paid work
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
@@ -399,6 +463,12 @@ outreg2 using "$results/psid_marriage_dissolution_int.xls", sideway stats(coef p
 margins hh_earn_type#housework_bkt
 marginsplot
 
+logit dissolve_lag i.dur i.earn_type_hw TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // still nothing sig
+// okay when I change ref group, male bw less likely to dissolve than dual / male and female / male (so counter-normative)
+// dual / woman (as predicted by economic necessity) also sig less likely to dissolve than both of these
+margins earn_type_hw
+margins, dydx(earn_type_hw)
+
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // continuous - nothing sig
 margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(0.25)1))
@@ -420,6 +490,10 @@ outreg2 using "$results/psid_marriage_dissolution_int.xls", sideway stats(coef p
 
 margins hh_earn_type#housework_bkt
 marginsplot
+
+logit dissolve_lag i.dur i.earn_type_hw TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins earn_type_hw
+margins, dydx(earn_type_hw)
 
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // continuous - marginally pos sig (the interaction term) - so when she does a lot of hw and paid work = high. use this instead??
