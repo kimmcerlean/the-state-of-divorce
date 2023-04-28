@@ -711,6 +711,7 @@ margins earn_type_hw, pwcompare(group) level(90)
 
 ********************************************************************************
 ********************************************************************************
+**# Bookmark #1
 * For PAA Final Paper: supplemental analysis - education ref group
 ********************************************************************************
 ********************************************************************************
@@ -827,7 +828,8 @@ margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 **Employment  - no total earnings
-logit dissolve_lag i.dur i.ft_pt_head i.ft_pt_wife `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", sideway stats(coef pval) label ctitle(Employment No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
@@ -1971,7 +1973,7 @@ margins hh_earn_type_bkd
 ********************************************************************************
 *Quick descriptives for proposal
 ********************************************************************************
-// total
+/*/ total
 tab couple_educ_gp
 unique id, by(couple_educ_gp)
 
@@ -1982,6 +1984,10 @@ tab couple_educ_gp ft_head, row
 tab couple_educ_gp ft_wife, row
 tabstat wife_housework_pct, by(couple_educ_gp)
 tabstat TAXABLE_HEAD_WIFE_, by(couple_educ_gp) stat(mean p50)
+tabstat dur, by(couple_educ_gp) stat(mean p50)
+tabstat age_mar_head, by(couple_educ_gp) stat(mean p50)
+tabstat age_mar_wife, by(couple_educ_gp) stat(mean p50)
+ 
  
 // dissolved
 tab couple_educ_gp if dissolve_lag==1
@@ -1994,17 +2000,25 @@ tab couple_educ_gp ft_head if dissolve_lag==1, row
 tab couple_educ_gp ft_wife if dissolve_lag==1, row
 tabstat wife_housework_pct if dissolve_lag==1, by(couple_educ_gp)
 tabstat TAXABLE_HEAD_WIFE_ if dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+tabstat dur if dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+tabstat age_mar_head if dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+tabstat age_mar_wife if dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
 
 // pie chart
 tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==1, row nofreq
 tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==0, row nofreq // intact for ref
+ */
  
 ********************************************************************************
+**# Descriptive statistics
+
 *PAA Final
 ********************************************************************************
 // all
 // restrictions on models: inlist(IN_UNIT,1,2) & cohort==3
- 
+tab hh_earn_type, gen(earn_type)
+tab housework_bkt, gen(hw_type)
+
 tab couple_educ_gp if cohort==3 & inlist(IN_UNIT,1,2)
 unique id if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) // unique couples
 unique id if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) // dissolutions
@@ -2019,6 +2033,35 @@ tabstat earnings_head if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) sta
 tabstat housework_wife if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) stat(mean p50)
 tabstat housework_head if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) stat(mean p50)
 
+ttest TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest female_earn_pct if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2), chi2
+ttest earn_type1 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest earn_type2 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest earn_type3 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+
+ttest wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+tab couple_educ_gp housework_bkt if cohort==3 & inlist(IN_UNIT,1,2), chi2
+ttest hw_type1 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest hw_type2 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest hw_type3 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+
+ttest earnings_wife if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest earnings_head if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest housework_wife if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest housework_head if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+
+tabstat dur if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) stat(mean p50)
+tabstat age_mar_head if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) stat(mean p50)
+tabstat age_mar_wife if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) stat(mean p50)
+tab race_head couple_educ_gp if cohort==3 & inlist(IN_UNIT,1,2), col nofreq
+tab couple_educ_gp same_race if cohort==3 & inlist(IN_UNIT,1,2), row nofreq
+tab couple_educ_gp either_enrolled if cohort==3 & inlist(IN_UNIT,1,2), row nofreq
+tab couple_educ_gp cohab_with_wife if cohort==3 & inlist(IN_UNIT,1,2), row nofreq
+tab couple_educ_gp cohab_with_other if cohort==3 & inlist(IN_UNIT,1,2), row nofreq
+tab couple_educ_gp pre_marital_birth if cohort==3 & inlist(IN_UNIT,1,2), row nofreq
+
+
 // dissolved
 tabstat female_earn_pct  if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp)
 tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
@@ -2029,6 +2072,53 @@ tabstat earnings_wife if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(c
 tabstat earnings_head if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
 tabstat housework_wife if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
 tabstat housework_head if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+
+tabstat dur if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+tabstat age_mar_head if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+tabstat age_mar_wife if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
+tab race_head couple_educ_gp if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, col nofreq
+tab couple_educ_gp same_race if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row nofreq
+tab couple_educ_gp either_enrolled if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row nofreq
+tab couple_educ_gp cohab_with_wife if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row nofreq
+tab couple_educ_gp cohab_with_other if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row nofreq
+tab couple_educ_gp pre_marital_birth if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row nofreq
+
+/// tests - dissolved v. not by group
+** No College
+ttest TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest female_earn_pct if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+tab dissolve_lag hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, chi2
+ttest earn_type1 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest earn_type2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest earn_type3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest earnings_wife if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest earnings_head if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+
+ttest wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+tab dissolve_lag housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, chi2
+ttest hw_type1 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest hw_type2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest hw_type3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest housework_wife if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest housework_head if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+
+** College
+ttest TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest female_earn_pct if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+tab dissolve_lag hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, chi2
+ttest earn_type1 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest earn_type2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest earn_type3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest earnings_wife if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest earnings_head if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+
+ttest wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+tab dissolve_lag housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, chi2
+ttest hw_type1 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest hw_type2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest hw_type3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest housework_wife if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest housework_head if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 
 ********************************************************************************
 *PAA Abstract
