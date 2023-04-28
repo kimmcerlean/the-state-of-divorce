@@ -209,15 +209,16 @@ mkspline hrs_ratio1 0.5 hrs_ratio2 = female_hours_pct
 browse female_hours_pct hrs_ratio1 hrs_ratio2
 
 // alternate earnings measures
-*log
-gen earnings_total = TAXABLE_HEAD_WIFE_ 
-replace earnings_total=10 if TAXABLE_HEAD_WIFE_ <=0
+*Convert to 1000s
+gen earnings_1000s = couple_earnings / 1000
 
+*log
+gen earnings_total = couple_earnings + 1 
 gen earnings_ln = ln(earnings_total)
 * browse TAXABLE_HEAD_WIFE_ earnings_total earnings_ln
 
-gen earnings_ln2 = ln(TAXABLE_HEAD_WIFE_)
-replace earnings_ln2 = 0 if TAXABLE_HEAD_WIFE_ <=0
+// gen earnings_ln2 = ln(TAXABLE_HEAD_WIFE_)
+// replace earnings_ln2 = 0 if TAXABLE_HEAD_WIFE_ <=0
 
 *square
 gen earnings_sq = TAXABLE_HEAD_WIFE_ * TAXABLE_HEAD_WIFE_
@@ -400,10 +401,19 @@ margins dur, dydx(hh_earn_type)
 **Unpaid work
 logit dissolve_lag i.dur i.housework_bkt if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Unpaid No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.housework_bkt TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Unpaid No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins housework_bkt
+margins r.housework_bkt
+margins, dydx(housework_bkt)
+
+/* attempting to figure out which to use:
+in model: p=.034
+test 1.housework_bkt=3.housework_bkt // p =.0344 - but does this have anything to do with margins?
+Using dydx, p=.051
+margins r.housework_bkt
+*/
 
 logit dissolve_lag i.dur##i.housework_bkt TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & housework_bkt<4 & dur<=15, or
 margins dur, dydx(housework_bkt)
@@ -525,49 +535,123 @@ exploring
 */
 
 ********************************************************************************
-* Average Marginal Effects
+********************************************************************************
+**# Average Marginal Effects
+********************************************************************************
+********************************************************************************
+
+********************************************************************************
+* Logged earnings
 ********************************************************************************
 
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 
 ////////// No College \\\\\\\\\\\/
 ** Total earnings
-logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur earnings_ln `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/dissolution_margins.xls", sideway stats(coef pval) label ctitle(Earnings No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 margins, dydx(*) post
 outreg2 using "$results/dissolution_margins.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 **Paid work
-logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.hh_earn_type earnings_ln  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/dissolution_margins.xls", sideway stats(coef pval) label ctitle(Paid No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/dissolution_margins.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 **Unpaid work
-logit dissolve_lag i.dur i.housework_bkt TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.housework_bkt earnings_ln `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/dissolution_margins.xls", sideway stats(coef pval) label ctitle(Unpaid No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/dissolution_margins.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
+**Interaction
+logit dissolve_lag i.dur ib5.earn_type_hw earnings_ln `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_margins.xls", sideway stats(coef pval) label ctitle(Both No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ////////// College \\\\\\\\\\\/
 ** Total earnings
-logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur earnings_ln `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 outreg2 using "$results/dissolution_margins.xls", sideway stats(coef pval) label ctitle(Earnings Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/dissolution_margins.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 **Paid work
-logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.hh_earn_type earnings_ln  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 outreg2 using "$results/dissolution_margins.xls", sideway stats(coef pval) label ctitle(Paid Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/dissolution_margins.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 **Unpaid work
-logit dissolve_lag i.dur i.housework_bkt TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.housework_bkt earnings_ln `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
 outreg2 using "$results/dissolution_margins.xls", sideway stats(coef pval) label ctitle(Unpaid Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/dissolution_margins.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+**Interaction
+logit dissolve_lag i.dur ib5.earn_type_hw earnings_ln `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_margins.xls", sideway stats(coef pval) label ctitle(Both Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+********************************************************************************
+* Raw, 1000s of dollars
+********************************************************************************
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+
+////////// No College \\\\\\\\\\\/
+** Total earnings
+logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_margins_alt.xls", sideway stats(coef pval) label ctitle(Earnings No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins_alt.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+**Paid work
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_margins_alt.xls", sideway stats(coef pval) label ctitle(Paid No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins_alt.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+**Unpaid work
+logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_margins_alt.xls", sideway stats(coef pval) label ctitle(Unpaid No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins_alt.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+**Interaction
+logit dissolve_lag i.dur ib5.earn_type_hw earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_margins_alt.xls", sideway stats(coef pval) label ctitle(Both No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins_alt.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+////////// College \\\\\\\\\\\/
+** Total earnings
+logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_margins_alt.xls", sideway stats(coef pval) label ctitle(Earnings Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins_alt.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+**Paid work
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_margins_alt.xls", sideway stats(coef pval) label ctitle(Paid Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins_alt.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+**Unpaid work
+logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_margins_alt.xls", sideway stats(coef pval) label ctitle(Unpaid Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins_alt.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+**Interaction
+logit dissolve_lag i.dur ib5.earn_type_hw earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_margins_alt.xls", sideway stats(coef pval) label ctitle(Both Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_margins_alt.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
 
 ********************************************************************************
 ********************************************************************************
