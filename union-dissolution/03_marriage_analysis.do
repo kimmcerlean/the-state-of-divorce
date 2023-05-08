@@ -856,6 +856,29 @@ est store m8
 
 lrtest m7 m8
 
+/// max code
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins, dydx(2.housework_bkt) post
+estimates store est1
+
+logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins, dydx(3.housework_bkt) post
+estimates store est2
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins, dydx(2.housework_bkt) post
+estimates store est3
+
+logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins, dydx(3.housework_bkt) post
+estimates store est4
+
+wtmarg est1 est3 // effects of dual / female -  between coll and no coll
+wtmarg est2 est4 // effects of dual / male
+
 /*
 suest m1 m2
 test [m1]hh_earn_type=[m2]hh_earn_type
