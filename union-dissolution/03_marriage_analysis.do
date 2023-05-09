@@ -934,6 +934,19 @@ estimates store est8
 wtmarg est5 est6
 wtmarg est7 est8
 
+*************
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins, dydx(earnings_1000s) post
+estimates store est9
+
+logistic dissolve_lag i.dur earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins, dydx(earnings_1000s) post
+estimates store est10
+
+wtmarg est9 est10
+
+
 /*
 suest m1 m2
 test [m1]hh_earn_type=[m2]hh_earn_type
@@ -955,6 +968,73 @@ gsem (dissolve_no <- i.dur i.hh_earn_type earnings_1000s if inlist(IN_UNIT,1,2) 
 
 gsem (dissolve_lag <- i.dur i.hh_earn_type earnings_1000s if inlist(IN_UNIT,1,2) & cohort==3, logit), group(couple_educ_gp) ginvariant(all)
 */
+
+********************************************************************************
+**# Bookmark #1
+* Predicted Probabilities
+********************************************************************************
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+
+////////// No College \\\\\\\\\\\/
+*1. Continuous earnings ratio
+qui qui logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, at(female_earn_pct=(0(.25)1))
+
+*2. Categorical indicator of Paid work
+qui logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins hh_earn_type
+
+*3A. Employment: no interaction
+qui logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins ft_head
+margins ft_wife
+
+*3B. Employment: interaction
+qui logit dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins couple_work
+
+*4. Total earnings
+qui logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, at(earnings_1000s=(0(10)100))
+
+*5. Continuous Housework
+qui logit dissolve_lag i.dur wife_housework_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+margins, at(wife_housework_pct=(0(.25)1))
+
+*6. Categorical Housework
+qui logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+margins housework_bkt
+
+////////// College \\\\\\\\\\\/
+*1. Continuous earnings ratio
+qui logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, at(female_earn_pct=(0(.25)1))
+
+*2. Categorical indicator of Paid work
+qui logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins hh_earn_type
+
+*3A. Employment: no interaction
+qui logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins ft_head
+margins ft_wife
+
+*3B. Employment: interaction
+qui logit dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins couple_work
+
+*4. Total earnings
+qui logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, at(earnings_1000s=(0(10)100))
+
+*5. Continuous Housework
+qui logit dissolve_lag i.dur wife_housework_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+margins, at(wife_housework_pct=(0(.25)1))
+
+*6. Categorical Housework
+qui logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+margins housework_bkt
 
 ********************************************************************************
 ********************************************************************************

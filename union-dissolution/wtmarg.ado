@@ -24,9 +24,11 @@ quietly { // rename variables passed from command
 		tokenize `Variable', parse( " "".")
 		if missing(`"`2'"') {
 			noisily: disp as text "dy/dx: "as result" c.`1'"
+			local variable_check = 0
 		} 
 		else {
 			noisily: disp as text "dy/dx: "as result" i.`3'"
+			local variable_check = 1
 		}
 		noisily: disp in green "Ho: "as result" (`pe1' - `pe2')  = 0"
 		noisily: disp in green "Ha: "as result" (`pe1' - `pe2') != 0"
@@ -36,9 +38,16 @@ quietly { // rename variables passed from command
 		use `returner', clear
 		exit
 	}
-	local starts = pe1check[1,1] +1
-	local ends = (pe1check[1,1] + pe1check[1,1])
-	local outcome_quant = pe1check[1,1]
+	if `variable_check' == 1 {
+		local starts = pe1check[1,1] +1
+		local ends = (pe1check[1,1] + pe1check[1,1])
+		local outcome_quant = pe1check[1,1]
+	}
+	if `variable_check' == 0 {
+		local starts = 1
+		local ends = pe1check[1,1] 
+		local outcome_quant = pe1check[1,1]
+	}
 }
 quietly { 
 	forvalue i = `starts'/`ends' {
