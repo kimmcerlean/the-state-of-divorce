@@ -891,7 +891,30 @@ est store m8
 lrtest m7 m8
 
 /// max code
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins, dydx(2.hh_earn_type) post
+estimates store est1
 
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins, dydx(3.hh_earn_type) post
+estimates store est2
+
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins, dydx(2.hh_earn_type) post
+estimates store est3
+
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins, dydx(3.hh_earn_type) post
+estimates store est4
+
+wtmarg est1 est3 // effects of dual / male -  between coll and no coll
+wtmarg est2 est4 // effects of dual / female
+
+coefplot est1 est2 est3 est4,  drop(_cons) nolabel xline(0) levels(90)
+gr_edit plotregion1._xylines[1].style.editstyle linestyle(color(dimgray)) editcopy
+
+***********************
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(2.housework_bkt) post
@@ -912,6 +935,8 @@ estimates store est4
 
 wtmarg est1 est3 // effects of dual / female -  between coll and no coll
 wtmarg est2 est4 // effects of dual / male
+
+coefplot est1 est2 est3 est4,  drop(_cons) nolabel xline(0) levels(90)
 
 *************
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
@@ -945,6 +970,12 @@ margins, dydx(earnings_1000s) post
 estimates store est10
 
 wtmarg est9 est10
+
+coefplot matrix(DIFF), ci(CI) 
+
+coefplot est9 est10
+coefplot est9 est10,  drop(_cons) levels(95 90) 
+coefplot est9 est10,  drop(_cons) nolabel xline(0)
 
 
 /*
@@ -1035,6 +1066,47 @@ margins, at(wife_housework_pct=(0(.25)1))
 *6. Categorical Housework
 qui logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
 margins housework_bkt
+
+********************************************************************************
+* Figures
+********************************************************************************
+*Panel 1A
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & hh_earn_type <4
+margins, dydx(hh_earn_type) post
+estimates store est1
+
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & hh_earn_type <4
+margins, dydx(hh_earn_type) post
+estimates store est2
+
+coefplot est1 est2,  drop(_cons) nolabel xline(0) levels(90)
+
+*Panel 1B
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins, dydx(couple_work) post
+estimates store est3
+
+logistic dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins, dydx(couple_work) post
+estimates store est4
+
+coefplot est3 est4,  drop(_cons) nolabel xline(0) levels(90)
+
+*Panel 1C
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & housework_bkt <4
+margins, dydx(housework_bkt) post
+estimates store est5
+
+logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & housework_bkt <4
+margins, dydx(housework_bkt) post
+estimates store est6
+
+coefplot est5 est6,  drop(_cons) nolabel xline(0) levels(90)
+
+coefplot est1 est2 est3 est4 est5 est6,  drop(_cons) nolabel xline(0) levels(90)
 
 ********************************************************************************
 ********************************************************************************
