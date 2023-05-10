@@ -1162,11 +1162,6 @@ outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", sideway stats(
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & college_complete_wife==0, or
-outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", sideway stats(coef pval) label ctitle(Hers No 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-margins, dydx(*) post
-outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
 *** College
 *1. Continuous earnings ratio
 logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & college_complete_wife==1, or
@@ -1207,11 +1202,6 @@ outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins
 *6. Categorical Housework
 logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & college_complete_wife==1, or
 outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", sideway stats(coef pval) label ctitle(Hers Coll 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-margins, dydx(*) post
-outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & college_complete_wife==1, or
-outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", sideway stats(coef pval) label ctitle(Hers Coll 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
@@ -1261,11 +1251,6 @@ outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", sideway stats(
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & college_complete_head==0, or
-outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", sideway stats(coef pval) label ctitle(His No 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-margins, dydx(*) post
-outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
 *** College
 *1. Continuous earnings ratio
 logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & college_complete_head==1, or
@@ -1306,11 +1291,6 @@ outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins
 *6. Categorical Housework
 logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & college_complete_head==1, or
 outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", sideway stats(coef pval) label ctitle(His Coll 6) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-margins, dydx(*) post
-outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & college_complete_head==1, or
-outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", sideway stats(coef pval) label ctitle(His Coll 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
