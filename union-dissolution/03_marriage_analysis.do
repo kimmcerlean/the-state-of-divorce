@@ -2521,6 +2521,7 @@ tab couple_educ_gp hh_earn_type_bkd if dissolve_lag==0, row nofreq // intact for
 // restrictions on models: inlist(IN_UNIT,1,2) & cohort==3
 tab hh_earn_type, gen(earn_type)
 tab housework_bkt, gen(hw_type)
+tab couple_work, gen(couple_work)
 
 tab couple_educ_gp if cohort==3 & inlist(IN_UNIT,1,2)
 unique id if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) // unique couples
@@ -2528,6 +2529,7 @@ unique id if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_g
 
 tabstat female_earn_pct  if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2), row
+tab couple_educ_gp couple_work if cohort==3 & inlist(IN_UNIT,1,2), row
 tabstat wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 tab couple_educ_gp housework_bkt if cohort==3 & inlist(IN_UNIT,1,2), row
 tabstat TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) stat(mean p50)
@@ -2542,6 +2544,11 @@ tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2), chi2
 ttest earn_type1 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 ttest earn_type2 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 ttest earn_type3 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+
+ttest couple_work1 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest couple_work2 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest couple_work3 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest couple_work4 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 
 ttest wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 tab couple_educ_gp housework_bkt if cohort==3 & inlist(IN_UNIT,1,2), chi2
@@ -2568,6 +2575,7 @@ tab couple_educ_gp pre_marital_birth if cohort==3 & inlist(IN_UNIT,1,2), row nof
 // dissolved
 tabstat female_earn_pct  if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp)
 tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
+tab couple_educ_gp couple_work if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
 tabstat wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp)
 tab couple_educ_gp housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
 tabstat TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
@@ -2596,6 +2604,10 @@ ttest earn_type2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(diss
 ttest earn_type3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
 ttest earnings_wife if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
 ttest earnings_head if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest couple_work1 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest couple_work2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest couple_work3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest couple_work4 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
 
 ttest wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
 tab dissolve_lag housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, chi2
@@ -2614,6 +2626,10 @@ ttest earn_type2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(diss
 ttest earn_type3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 ttest earnings_wife if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 ttest earnings_head if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest couple_work1 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest couple_work2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest couple_work3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest couple_work4 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 
 ttest wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 tab dissolve_lag housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, chi2
