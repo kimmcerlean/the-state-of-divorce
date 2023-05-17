@@ -831,6 +831,7 @@ logit dissolve_lag i.dur earnings_1000s_1 earnings_1000s_2 earnings_1000s_3 `con
 logit dissolve_lag i.dur earnings_1000s_1 earnings_1000s_2 earnings_1000s_3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 
 ********************************************************************************
+**# Bookmark #2
 * Comparing ADC across models
 ********************************************************************************
 // Total Earnings
@@ -874,6 +875,7 @@ logistic dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp i.hh_earn_type#i.cou
 testparm i.hh_earn_type#i.couple_educ_gp  // 0.15
 est store m4
 
+estimates table m3 m4, stats(N ll chi2 aic bic r2_a)
 lrtest m3 m4 // 0.17
 
 // Paid work: employment
@@ -1001,8 +1003,10 @@ wtmarg est2 est4 // effects of dual / female
 coefplot est1 est2 est3 est4,  drop(_cons) nolabel xline(0) levels(90)
 gr_edit plotregion1._xylines[1].style.editstyle linestyle(color(dimgray)) editcopy
 
+********************************************************************************
+**Other tests of comparison
+********************************************************************************
 
-**# Bookmark #1
 *********************** Attempting suest AND other things
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
@@ -1042,8 +1046,10 @@ margins hh_earn_type
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
 margins hh_earn_type
 
-/* okay do I just need an interaction 
-https://www.statalist.org/forums/forum/general-stata-discussion/general/1700308-comparing-difference-in-average-marginal-effects-ame-between-stratified-samples? */
+*********************** 
+*okay do I just need an interaction 
+/* https://www.statalist.org/forums/forum/general-stata-discussion/general/1700308-comparing-difference-in-average-marginal-effects-ame-between-stratified-samples? */
+
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(hh_earn_type)
@@ -1054,11 +1060,21 @@ logit dissolve_lag i.dur i.hh_earn_type##i.couple_educ_gp earnings_1000s  `contr
 margins, dydx(hh_earn_type) over(couple_educ_gp) // so these are different to above, why? okay wait do I have to interact EVERYTHING to make it the same?
 
 qui logit dissolve_lag i.couple_educ_gp##(i.dur i.hh_earn_type c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3 // okay so yes have to interact LITERALLY everything. okay so I also need to think about this more - let EVERYTHING vary by education or just variables of interest?! this feels conceptual GAH.
+estimates store earn
 margins, dydx(hh_earn_type) over(couple_educ_gp) post
 
 di  _b[3.hh_earn_type:0bn.couple_educ_gp] -  _b[3.hh_earn_type:1.couple_educ_gp]
 test  _b[3.hh_earn_type:0bn.couple_educ_gp] = _b[3.hh_earn_type:1.couple_educ_gp] // okay so this is exactly the same as when I did it by hand. is it because the covariance is actually 0? 
 mlincom 3-4, detail // also the same. 
+
+qui logit dissolve_lag i.couple_educ_gp i.dur i.hh_earn_type c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3
+estimates store earn_noint
+
+lrtest earn earn_noint
+estimates table earn earn_noint, stats(N ll chi2 aic bic r2_a rank)
+//https://stats.oarc.ucla.edu/other/mult-pkg/faq/general/faqhow-are-the-likelihood-ratio-wald-and-lagrange-multiplier-score-tests-different-andor-similar/
+// https://www.socscistatistics.com/pvalues/chidistribution.aspx
+// https://people.richland.edu/james/lecture/m170/tbl-chi.html
 
 /*
 mlincom (1-2)-(3-4), detail
@@ -1067,6 +1083,77 @@ mlincom (1-2)-(3-4), detail
        [3.hh_earn_type]0bn.couple_educ_gp + [3.hh_earn_type]1.couple_educ_gp = 0
 */
 
+qui logit dissolve_lag i.couple_educ_gp##(i.dur i.ft_wife i.ft_head c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3
+est store employ
+margins, dydx(ft_wife) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+est restore employ
+margins, dydx(ft_head) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+qui logit dissolve_lag i.couple_educ_gp i.dur i.ft_wife i.ft_head c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store noint
+lrtest employ noint 
+
+estimates table employ noint, stats(N ll chi2 aic bic r2_a)
+
+*********************** 
+* Linear probability models?
+
+/*okay, I think when event is "rare" - prob close to 0 or 1, these are less good? and divorce is relatively rare in this sample. See King and Zeng 2001*/
+
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins hh_earn_type
+/*
+Dual Earner  |   .0825762    .006471    12.76   0.000     .0698932    .0952592
+    Male BW  |   .0703171   .0038959    18.05   0.000     .0626812    .0779531
+  Female BW  |   .0698832   .0083233     8.40   0.000     .0535698    .0861966
+*/
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |   -.012259   .0075724    -1.62   0.105    -.0271007    .0025826
+  Female BW  |   -.012693   .0107307    -1.18   0.237    -.0337247    .0083387
+  
+  coefficients
+      Male BW  |  -.1760859   .1057899    -1.66   0.096    -.3834304    .0312585
+    Female BW  |  -.1828173   .1584446    -1.15   0.249     -.493363    .1277284
+
+*/
+
+reg dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins hh_earn_type
+/*
+Dual Earner  |   .0732728   .0055579    13.18   0.000     .0623779    .0841678
+    Male BW  |   .0682522   .0038325    17.81   0.000     .0607395    .0757649
+  Female BW  |   .0731283   .0083644     8.74   0.000     .0567317    .0895249
+*/
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |  -.0050206   .0067555    -0.74   0.457    -.0182632    .0082219
+  Female BW  |  -.0001446   .0100474    -0.01   0.989    -.0198403    .0195512
+  
+  matches coefficients
+  
+      Male BW  |  -.0050206   .0067555    -0.74   0.457    -.0182632    .0082219
+    Female BW  |  -.0001446   .0100474    -0.01   0.989    -.0198403    .0195512
+
+*/
+
+/*from gsem above
+2.hh_earn_type        |
+       couple_educ_gp |
+     Neither College  |  -.0099786
+At Least One College  |   .0013729
+----------------------+----------------------------------------------------------------
+3.hh_earn_type        |
+       couple_educ_gp |
+     Neither College  |  -.0092288
+At Least One College  |   .0118725
+*/
+
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+reg dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
 
 ***********************
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
@@ -1538,6 +1625,165 @@ margins earn_type_hw, pwcompare(group) level(90)
 
 **# End supplemental analyses
 
+********************************************************************************
+/* weights?!*/
+********************************************************************************
+
+browse survey_yr COR_IMM_WT_ CORE_WEIGHT_ CROSS_SECTION_FAM_WT_ LONG_WT_ CROSS_SECTION_WT_
+gen weight = .
+replace weight = CORE_WEIGHT_ if survey_yr<=1992
+replace weight = COR_IMM_WT_ if survey_yr>=1993
+browse survey_yr COR_IMM_WT_ CORE_WEIGHT_ weight CROSS_SECTION_FAM_WT_ LONG_WT_ CROSS_SECTION_WT_
+ 
+*rescale?
+gen weight_rescale=.
+forvalues y=1968/2019{
+	capture summarize weight if survey_yr==`y'
+	capture local rescalefactor`y' `r(N)'/`r(sum)'
+	capture replace weight_rescale = weight*`rescalefactor`y'' if survey_yr==`y'
+	summarize weight_rescale
+	
+}
+
+browse survey_yr weight weight_rescale
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |   -.010365   .0075017    -1.38   0.167    -.0250681     .004338
+  Female BW  |   -.009588   .0107638    -0.89   0.373    -.0306847    .0115087
+*/
+
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pw=weight], or
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |  -.0165746   .0088763    -1.87   0.062    -.0339718    .0008226
+  Female BW  |  -.0254233    .011351    -2.24   0.025    -.0476708   -.0031757
+*/
+
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pw=weight_rescale], or
+margins, dydx(hh_earn_type)
+/* 
+   Male BW  |  -.0161444   .0089422    -1.81   0.071    -.0336709    .0013821
+  Female BW  |  -.0268314   .0112764    -2.38   0.017    -.0489327     -.00473
+*/
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |   .0014146   .0048482     0.29   0.770    -.0080877     .010917
+  Female BW  |    .012233   .0073427     1.67   0.096    -.0021583    .0266244
+*/
+
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pw=weight], or
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |  -.0053786    .005321    -1.01   0.312    -.0158076    .0050505
+  Female BW  |    .009137   .0085956     1.06   0.288    -.0077101     .025984
+*/
+
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pw=weight_rescale], or
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |  -.0052945   .0052302    -1.01   0.311    -.0155456    .0049565
+  Female BW  |    .010723   .0088483     1.21   0.226    -.0066195    .0280654
+*/
+
+*rescale BY education?
+gen weight_rescale_no=.
+forvalues y=1968/2019{
+	capture summarize weight if survey_yr==`y' & couple_educ_gp==0
+	capture local rescalefactor`y' `r(N)'/`r(sum)'
+	capture replace weight_rescale_no = weight*`rescalefactor`y'' if survey_yr==`y' & couple_educ_gp==0
+	summarize weight_rescale_no if couple_educ_gp==0
+	
+}
+
+gen weight_rescale_coll=.
+forvalues y=1968/2019{
+	capture summarize weight if survey_yr==`y' & couple_educ_gp==1
+	capture local rescalefactor`y' `r(N)'/`r(sum)'
+	capture replace weight_rescale_coll = weight*`rescalefactor`y'' if survey_yr==`y' & couple_educ_gp==1
+	summarize weight_rescale_coll if couple_educ_gp==1
+	
+}
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pw=weight_rescale_no], or
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |  -.0160083    .008972    -1.78   0.074    -.0335931    .0015766
+  Female BW  |  -.0270901   .0112719    -2.40   0.016    -.0491826   -.0049977
+*/
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pw=weight_rescale_coll], or
+margins, dydx(hh_earn_type)
+/*
+    Male BW  |  -.0051513   .0052537    -0.98   0.327    -.0154484    .0051458
+  Female BW  |   .0103768   .0087921     1.18   0.238    -.0068554     .027609
+*/
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pw=weight_rescale]
+margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pw=weight_rescale]
+margins, dydx(hh_earn_type)
+
+qui logit dissolve_lag i.couple_educ_gp##(i.dur i.hh_earn_type c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3 [pw=weight_rescale] // okay so yes have to interact LITERALLY everything. okay so I also need to think about this more - let EVERYTHING vary by education or just variables of interest?! this feels conceptual GAH.
+margins, dydx(hh_earn_type) over(couple_educ_gp) post
+
+di  _b[3.hh_earn_type:0bn.couple_educ_gp] -  _b[3.hh_earn_type:1.couple_educ_gp]
+test  _b[3.hh_earn_type:0bn.couple_educ_gp] = _b[3.hh_earn_type:1.couple_educ_gp] // okay so this is exactly the same as when I did it by hand. is it because the covariance is actually 0? 
+mlincom 3-4, detail // okay so this is even MORE sig with the weights
+
+di  _b[2.hh_earn_type:0bn.couple_educ_gp] -  _b[2.hh_earn_type:1.couple_educ_gp]
+test  _b[2.hh_earn_type:0bn.couple_educ_gp] = _b[2.hh_earn_type:1.couple_educ_gp] 
+mlincom 1-2, detail // despite the significance for the less educated, the cross-group diffs are still not sig at all.
+
+** IM SO CONFUSED
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.ft_wife i.ft_head earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins, dydx(ft_wife)
+margins, dydx(ft_head)
+
+logit dissolve_lag i.dur i.ft_wife i.ft_head earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pw=weight_rescale] // okay so these change less than above
+margins, dydx(ft_wife)
+margins, dydx(ft_head)
+
+logit dissolve_lag i.dur i.ft_wife i.ft_head earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins, dydx(ft_wife)
+margins, dydx(ft_head)
+
+logit dissolve_lag i.dur i.ft_wife i.ft_head earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pw=weight_rescale]
+margins, dydx(ft_wife) // this is now sig at p<0.05
+margins, dydx(ft_head)
+
+qui logit dissolve_lag i.couple_educ_gp##(i.dur i.ft_wife i.ft_head c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3 [pw=weight_rescale] 
+est store employ
+margins, dydx(ft_wife) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+est restore employ
+margins, dydx(ft_head) over(couple_educ_gp) post
+mlincom 1-2, detail // k p is now .10
+
+/* test
+summarize weight if survey_yr==1990
+local rescalefactor1990 `r(N)'/`r(sum)'
+display `rescalefactor1990'
+replace weight_rescale = weight*`rescalefactor1990' if survey_yr==1990
+summarize weight if survey_yr==1990
+summarize weight_rescale if survey_yr==1990
+*/
+ 
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
