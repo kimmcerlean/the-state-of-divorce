@@ -246,6 +246,7 @@ keep if inlist(IN_UNIT,1,2)
 
 
 ********************************************************************************
+**# Bookmark #1
 * Merge onto policy data
 ********************************************************************************
 /*
@@ -294,10 +295,40 @@ tabstat policysociallib_est, by(social_policy_gp)
 xtile liberal_attitudes_gp = masssociallib_est, nq(5)
 tabstat masssociallib_est, by(liberal_attitudes_gp)
 
-*******************************************************************************
+**# Analysis starts
+
+********************************************************************************
+* Overall trends
+********************************************************************************
+logit dissolve_lag i.dur i.couple_educ_gp, or
+
+logit dissolve_lag i.dur i.couple_educ_gp##i.STATE_, or nocons // prob gonna be a lot of collinearity / inability to estimate with small states?
+outreg2 using "$results/state_test.xls", sideway stats(coef pval) label dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+forvalues s=1/56{
+	capture logistic dissolve_lag i.dur i.couple_educ_gp if STATE_==`s'
+	capture estimates store m`s'
+} 
+
+estimates dir
+estimates table *, keep(i.couple_educ_gp) eform b p
+
+estout * using "$results/state_test.xls", replace keep(1.couple_educ_gp) eform cells(b p)
+
+// estout *, eform cells(b(keep(i.couple_educ_gp)) p(keep(i.couple_educ_gp)))
+
+/* test
+logit dissolve_lag i.dur i.couple_educ_gp if STATE_==1, or
+logit dissolve_lag i.dur i.couple_educ_gp if STATE_==2, or // won't estimate
+logit dissolve_lag i.dur i.couple_educ_gp if STATE_==3, or // no obs
+logit dissolve_lag i.dur i.couple_educ_gp if STATE_==4, or // will estimate
+logit dissolve_lag i.dur i.couple_educ_gp if STATE_==5, or // also will estimate
+*/
+
 ********************************************************************************
 ********************************************************************************
-* For PAA Final Paper: main analysis
+********************************************************************************
+* For PAA Final Paper: main analysis (did I mean ASA?)
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************

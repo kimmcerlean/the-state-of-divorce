@@ -1009,7 +1009,7 @@ local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrol
 
 ////////// No College \\\\\\\\\\\/
 *1. Continuous earnings ratio
-qui qui logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+qui logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, at(female_earn_pct=(0(.25)1))
 
 *2. Categorical indicator of Paid work
