@@ -569,6 +569,7 @@ exploring
 ********************************************************************************
 * Logged earnings
 ********************************************************************************
+
 /*
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 
@@ -742,6 +743,83 @@ outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alph
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins housework_bkt
+
+********************************************************************************
+* Alt earnings
+********************************************************************************
+/* logged*/
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur earnings_ln `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, at(earnings_ln=(0(2)12))
+margins, dydx(earnings_ln) post
+
+logit dissolve_lag i.dur earnings_ln `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, at(earnings_ln=(0(2)12))
+margins, dydx(earnings_ln) post
+
+logit dissolve_lag i.dur earnings_ln i.hh_earn_type `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(earnings_ln) post
+logit dissolve_lag i.dur earnings_ln i.hh_earn_type `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(earnings_ln) post
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur c.earnings_ln##i.hh_earn_type `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & hh_earn_type<4, or
+margins hh_earn_type, at(earnings_ln=(0(2)12))
+marginsplot
+
+logit dissolve_lag i.dur c.earnings_ln##i.hh_earn_type `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & hh_earn_type<4, or
+margins hh_earn_type, at(earnings_ln=(0(2)12))
+marginsplot
+
+/* squared */
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur earnings_1000s c.earnings_1000s#c.earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, at(earnings_1000s=(0(10)100))
+margins, dydx(earnings_1000s) at(earnings_1000s=(0(10)100))
+marginsplot
+
+logit dissolve_lag i.dur earnings_1000s c.earnings_1000s#c.earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, at(earnings_1000s=(0(10)100))
+margins, dydx(earnings_1000s) at(earnings_1000s=(0(10)100))
+marginsplot
+
+/* grouped */
+gen couple_earnings_gp=.
+replace couple_earnings_gp=0 if earnings_1000s==0
+replace couple_earnings_gp=1 if earnings_1000s>0 & earnings_1000s<10
+replace couple_earnings_gp=2 if earnings_1000s>=10 & earnings_1000s<20
+replace couple_earnings_gp=3 if earnings_1000s>=20 & earnings_1000s<30
+replace couple_earnings_gp=4 if earnings_1000s>=30 & earnings_1000s<40
+replace couple_earnings_gp=5 if earnings_1000s>=40 & earnings_1000s<50
+replace couple_earnings_gp=6 if earnings_1000s>=50 & earnings_1000s<60
+replace couple_earnings_gp=7 if earnings_1000s>=60 & earnings_1000s<70
+replace couple_earnings_gp=8 if earnings_1000s>=70 & earnings_1000s<80
+replace couple_earnings_gp=9 if earnings_1000s>=80 & earnings_1000s<90
+replace couple_earnings_gp=10 if earnings_1000s>=90 & earnings_1000s<100
+replace couple_earnings_gp=11 if earnings_1000s>=100 & earnings_1000s!=.
+
+label define couple_earnings_gp 0 "$0" 1 "$10" 2 "$20" 3 "$30" 4 "$40" 5 "$50" 6 "$60" ///
+7 "$70" 8 "$80" 9 "$90" 10 "$100" 11 ">$100"
+label values couple_earnings_gp couple_earnings_gp
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.couple_earnings_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur ib3.couple_earnings_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // b3 is generally median
+margins couple_earnings_gp
+margins, dydx(couple_earnings_gp)
+
+logit dissolve_lag i.dur ib3.couple_earnings_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur ib8.couple_earnings_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins couple_earnings_gp
+margins, dydx(couple_earnings_gp)
+
+/*Spline*/
+mkspline earnings_1000s_1 30 earnings_1000s_2 80 earnings_1000s_3 = earnings_1000s
+browse earnings_1000s*
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur earnings_1000s_1 earnings_1000s_2 earnings_1000s_3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur earnings_1000s_1 earnings_1000s_2 earnings_1000s_3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 
 ********************************************************************************
 * Comparing ADC across models
@@ -2460,6 +2538,7 @@ logit dissolve_lag i.dur i.hh_hours_3070 TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,
 
 
 ********************************************************************************
+**# Bookmark #1
 * Misc
 ********************************************************************************
 
@@ -2472,6 +2551,18 @@ margins hh_earn_type_bkd
 
 logit dissolve_lag dur i.hh_earn_type_bkd `controls' if couple_educ_gp==1 & inlist(IN_UNIT,1,2), or
 margins hh_earn_type_bkd
+
+/* Power analysis */
+* Need sample sizes - okay get from descriptives below
+tab couple_educ_gp if inlist(IN_UNIT,1,2) & cohort==3
+tab couple_educ_gp hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3
+
+power twomeans -0.0104 0.0014 ,n(7859) // male bw
+power twomeans -0.0096 0.0122, n(1959) // female bw - lol 7% power
+power twomeans -0.0096 0.0122 // would need n of ~60,000 for this difference
+
+power twomeans 0.0110 0.0076, n(7992) // wife FT - if means, 5%
+power twoproportions 0.0110 0.0076, n(7992) // wife FT - if proportions, 35%
 
 ********************************************************************************
 *Quick descriptives for proposal
