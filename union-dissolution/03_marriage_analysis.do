@@ -70,6 +70,10 @@ recode RELIGION_WIFE_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_wife)
 	   
 label values religion_head religion_wife update_religion
 
+// fix region
+gen region = REGION_
+replace region = . if inlist(REGION_,0,9)
+
 // splitting the college group into who has a degree. also considering advanced degree as higher than college -- this currently only works for cohort 3. I think for college - the specific years matter to split advanced, but for no college - distinguishing between grades less relevant?
 gen college_bkd=.
 replace college_bkd=1 if (EDUC_WIFE_==16 & EDUC_HEAD_==16) | (EDUC_WIFE_==17 & EDUC_HEAD_==17)
@@ -813,6 +817,11 @@ logit dissolve_lag i.dur ib8.couple_earnings_gp `controls' if inlist(IN_UNIT,1,2
 margins couple_earnings_gp
 margins, dydx(couple_earnings_gp)
 
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur ib3.couple_earnings_gp##i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3, or // b3 is generally median
+margins couple_earnings_gp#couple_educ_gp
+marginsplot // yes okay this is exactly what I need for the curve argument
+
 /*Spline*/
 mkspline earnings_1000s_1 30 earnings_1000s_2 80 earnings_1000s_3 = earnings_1000s
 browse earnings_1000s*
@@ -992,6 +1001,73 @@ wtmarg est2 est4 // effects of dual / female
 coefplot est1 est2 est3 est4,  drop(_cons) nolabel xline(0) levels(90)
 gr_edit plotregion1._xylines[1].style.editstyle linestyle(color(dimgray)) editcopy
 
+
+**# Bookmark #1
+*********************** Attempting suest AND other things
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+est store m1
+
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+est store m2
+
+suest m1 m2
+test[m1_dissolve_lag]3.hh_earn_type = [m2_dissolve_lag]3.hh_earn_type  // but this is comparing beta coefficient?
+margins, dydx(hh_earn_type) predict(equation(m1_dissolve_lag))
+margins, dydx(hh_earn_type) predict(equation(m2_dissolve_lag))
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled cohab_with_wife cohab_with_other pre_marital_birth i.REGION_"
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, vce(robust)
+// margins, dydx(*) vce(unconditional)  post  - needed varlist
+margins, dydx(hh_earn_type) vce(unconditional)  post 
+est store m1
+
+logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, vce(robust)
+margins, dydx(hh_earn_type) vce(unconditional)  post
+est store m2
+
+suest m1 m2, vce(robust) // cannot get this to work with AMEs
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+gsem (dissolve_lag <- i.dur i.hh_earn_type earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3, logit), group(couple_educ_gp) ginvariant(none)
+margins, dydx(hh_earn_type) over(couple_educ_gp) nose post  // okay but this doesn't match anything??
+margins hh_earn_type, over(couple_educ_gp) nose // so these are just different estimates, like simmilar, but different. WHY? because alt way of estimating? I am just confused because the models themselves match below...
+* mlincom 3-4, detail - not working, oh probably because I don't include se
+* test  _b[3.hh_earn_type:0bn.couple_educ_gp] = _b[3.hh_earn_type:1.couple_educ_gp] - nor is this, oh probably because I don't include se
+
+// wait okay is this treating as linear? is this now essentially an LPM?! i am so confused..., so am I just comparing across coefficients? okay I think its because in the example, there are 2 models but here i just have one, estimated by group. so I need to specify the group? so is this just an interaction now??? 
+* to compare
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins hh_earn_type
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins hh_earn_type
+
+/* okay do I just need an interaction 
+https://www.statalist.org/forums/forum/general-stata-discussion/general/1700308-comparing-difference-in-average-marginal-effects-ame-between-stratified-samples? */
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type##i.couple_educ_gp earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
+margins, dydx(hh_earn_type) over(couple_educ_gp) // so these are different to above, why? okay wait do I have to interact EVERYTHING to make it the same?
+
+qui logit dissolve_lag i.couple_educ_gp##(i.dur i.hh_earn_type c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3 // okay so yes have to interact LITERALLY everything. okay so I also need to think about this more - let EVERYTHING vary by education or just variables of interest?! this feels conceptual GAH.
+margins, dydx(hh_earn_type) over(couple_educ_gp) post
+
+di  _b[3.hh_earn_type:0bn.couple_educ_gp] -  _b[3.hh_earn_type:1.couple_educ_gp]
+test  _b[3.hh_earn_type:0bn.couple_educ_gp] = _b[3.hh_earn_type:1.couple_educ_gp] // okay so this is exactly the same as when I did it by hand. is it because the covariance is actually 0? 
+mlincom 3-4, detail // also the same. 
+
+/*
+mlincom (1-2)-(3-4), detail
+
+ ( 1)  [2.hh_earn_type]0bn.couple_educ_gp - [2.hh_earn_type]1.couple_educ_gp -
+       [3.hh_earn_type]0bn.couple_educ_gp + [3.hh_earn_type]1.couple_educ_gp = 0
+*/
+
+
 ***********************
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
@@ -1075,7 +1151,6 @@ codebook dissolve*, compact
 gsem (dissolve_no <- i.dur i.hh_earn_type earnings_1000s if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, logit) ///
      (dissolve_cl <- i.dur i.hh_earn_type earnings_1000s if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, logit)
 
-gsem (dissolve_lag <- i.dur i.hh_earn_type earnings_1000s if inlist(IN_UNIT,1,2) & cohort==3, logit), group(couple_educ_gp) ginvariant(all)
 */
 
 ********************************************************************************
