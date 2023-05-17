@@ -1046,10 +1046,50 @@ margins hh_earn_type
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
 margins hh_earn_type
 
-*********************** 
-*okay do I just need an interaction 
+********************************************************************************************
+**# Bookmark #3
+*INTERACTION for LR tests and alternate WALD TESTS
 /* https://www.statalist.org/forums/forum/general-stata-discussion/general/1700308-comparing-difference-in-average-marginal-effects-ame-between-stratified-samples? */
+********************************************************************************************
+*1. Paid Work
+qui logit dissolve_lag i.couple_educ_gp##(i.dur i.hh_earn_type c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3
+estimates store earn
 
+qui logit dissolve_lag i.couple_educ_gp i.dur i.hh_earn_type c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3
+estimates store earn_noint
+
+estimates table earn earn_noint, stats(N ll rank)
+
+*2. Employment
+qui logit dissolve_lag i.couple_educ_gp##(i.dur i.ft_wife i.ft_head c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3
+est store employ
+
+qui logit dissolve_lag i.couple_educ_gp i.dur i.ft_wife i.ft_head c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store employ_noint
+
+estimates table employ employ_noint, stats(N ll rank)
+
+*3. Earnings
+qui logit dissolve_lag i.couple_educ_gp##(i.dur c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3
+estimates store earnings
+
+qui logit dissolve_lag i.couple_educ_gp i.dur c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3
+estimates store earnings_noint
+
+estimates table earnings earnings_noint, stats(N ll rank)
+
+*4. Unpaid Work
+qui logit dissolve_lag i.couple_educ_gp##(i.dur i.housework_bkt c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3
+estimates store unpaid
+
+qui logit dissolve_lag i.couple_educ_gp i.dur i.housework_bkt c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3
+estimates store unpaid_noint
+
+estimates table unpaid unpaid_noint, stats(N ll rank)
+
+estimates table earn earn_noint employ employ_noint earnings earnings_noint unpaid unpaid_noint, stats(N ll rank)
+
+/* Validation
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(hh_earn_type)
@@ -1097,6 +1137,11 @@ est store noint
 lrtest employ noint 
 
 estimates table employ noint, stats(N ll chi2 aic bic r2_a)
+*/
+
+********************************************************************************************
+*Other checks - DNU
+********************************************************************************************
 
 *********************** 
 * Linear probability models?
