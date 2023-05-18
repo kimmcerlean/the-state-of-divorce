@@ -73,6 +73,8 @@ label values religion_head religion_wife update_religion
 // fix region
 gen region = REGION_
 replace region = . if inlist(REGION_,0,9)
+label define region 1 "Northeast" 2 "North Central" 3 "South" 4 "West" 5 "Alaska,Hawaii" 6 "Foreign"
+label values region region
 
 // splitting the college group into who has a degree. also considering advanced degree as higher than college -- this currently only works for cohort 3. I think for college - the specific years matter to split advanced, but for no college - distinguishing between grades less relevant?
 gen college_bkd=.
@@ -312,7 +314,7 @@ replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29
 // both pre and post marital birth should NOT be in model because they are essentially inverse. do I want to add if they have a child together as new flag?
 // taking out religion for now because not asked in 1968 / 1968
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 **# Analysis starts
 
@@ -386,7 +388,7 @@ logit dissolve_lag i.dur earnings_ln if inlist(IN_UNIT,1,2) & cohort==3 & couple
 margins, dydx(earnings_ln)
 */
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 ////////// No College \\\\\\\\\\\/
 ** Total earnings
@@ -423,13 +425,13 @@ margins hh_earn_type
 margins, dydx(hh_earn_type)
 margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000))
 
-logit dissolve_lag i.dur##i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & hh_earn_type<4 & dur<=15, or
+logit dissolve_lag i.dur##i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & hh_earn_type<4 & dur<=15, or
 margins dur, dydx(hh_earn_type)
 
 **Unpaid work
 logit dissolve_lag i.dur i.housework_bkt if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Unpaid No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.housework_bkt TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Unpaid No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins housework_bkt
@@ -443,7 +445,7 @@ Using dydx, p=.051
 margins r.housework_bkt
 */
 
-logit dissolve_lag i.dur##i.housework_bkt TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & housework_bkt<4 & dur<=15, or
+logit dissolve_lag i.dur##i.housework_bkt TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & housework_bkt<4 & dur<=15, or
 margins dur, dydx(housework_bkt)
 
 ////////// College \\\\\\\\\\\/
@@ -476,7 +478,7 @@ margins, at(TAXABLE_HEAD_WIFE_ =(0(10000)100000))
 margins hh_earn_type, at(dur=(1 6 12 18 24))
 margins hh_earn_type, at(dur=(1(1)24))
 
-logit dissolve_lag i.dur##i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & hh_earn_type<4 & dur<=15, or
+logit dissolve_lag i.dur##i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & hh_earn_type<4 & dur<=15, or
 margins dur, dydx(hh_earn_type)
 
 **Unpaid work
@@ -487,13 +489,13 @@ logit dissolve_lag i.dur i.housework_bkt TAXABLE_HEAD_WIFE_ `controls' if inlist
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Unpaid Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins housework_bkt
 
-logit dissolve_lag i.dur##i.housework_bkt TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & housework_bkt<4 & dur<=15, or
+logit dissolve_lag i.dur##i.housework_bkt TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & housework_bkt<4 & dur<=15, or
 margins dur, dydx(housework_bkt)
 
 ///// Decide if want to use - all in one model, interactions
 
 **No college
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type i.housework_bkt TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_int.xls", sideway stats(coef pval) label ctitle(All - No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
@@ -509,13 +511,13 @@ logit dissolve_lag i.dur i.earn_type_hw TAXABLE_HEAD_WIFE_  `controls' if inlist
 margins earn_type_hw
 margins, dydx(earn_type_hw)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // continuous - nothing sig
 margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(0.25)1))
 marginsplot
 
 logit dissolve_lag i.dur i.division_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // counter-normative = most likely to dissolve
-logit dissolve_lag i.dur i.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // though not true with controls
+logit dissolve_lag i.dur i.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // though not true with controls
 logit dissolve_lag i.dur i.division_bucket TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // opposite of earlier - once I add earnings, effects go away - so it's probably because least income?
 
 tabstat TAXABLE_HEAD_WIFE_ if cohort==3, by(division_bucket) stats(mean p50)
@@ -535,31 +537,31 @@ logit dissolve_lag i.dur i.earn_type_hw TAXABLE_HEAD_WIFE_  `controls' if inlist
 margins earn_type_hw
 margins, dydx(earn_type_hw)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct TAXABLE_HEAD_WIFE_  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // continuous - marginally pos sig (the interaction term) - so when she does a lot of hw and paid work = high. use this instead??
 margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(0.25)1))
 marginsplot
 
 logit dissolve_lag i.dur ib5.division_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // "all other" sig more likely...
 logit dissolve_lag i.dur i.division_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // "all other" sig more likely...
-logit dissolve_lag i.dur i.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // still true
-logit dissolve_lag i.dur ib4.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // was wondering if "economic necessity" worse - bc of role strain. But seems like not
+logit dissolve_lag i.dur i.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // still true
+logit dissolve_lag i.dur ib4.division_bucket TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // was wondering if "economic necessity" worse - bc of role strain. But seems like not
 
 logit dissolve_lag i.dur ib4.division_bucket##i.overwork_head if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // dual is marginally sig less likely to dissolve when husband does not overwork
 
 /*
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 
-logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // both
+logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // both
 
-logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort_v2==1 & couple_educ_gp==0, or // alt cohort
+logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort_v2==1 & couple_educ_gp==0, or // alt cohort
 
-logit dissolve_lag i.dur i.hh_earn_type age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // just earn type
+logit dissolve_lag i.dur i.hh_earn_type age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // just earn type
 
-logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // just income. income always significant
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // just income. income always significant
 
-logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ ever_cohab pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // alt cohab (botH)
+logit dissolve_lag i.dur i.hh_earn_type TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region ever_cohab pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // alt cohab (botH)
 
 exploring
 */
@@ -575,7 +577,7 @@ exploring
 ********************************************************************************
 
 /*
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 ////////// No College \\\\\\\\\\\/
 ** Total earnings
@@ -636,7 +638,7 @@ margins earn_type_hw, pwcompare(group) level(90)
 * Raw, 1000s of dollars
 ********************************************************************************
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 ////////// No College \\\\\\\\\\\/
 *1. Continuous earnings ratio
@@ -651,7 +653,7 @@ outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) la
 margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins hh_earn_type
 
@@ -673,7 +675,7 @@ outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) la
 margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, at(earnings_1000s=(0(10)100))
 
@@ -689,9 +691,15 @@ outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) la
 margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins housework_bkt
+
+*7. All 
+logit dissolve_lag i.dur i.hh_earn_type i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) label ctitle(No 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ////////// College \\\\\\\\\\\/
 *1. Continuous earnings ratio
@@ -706,7 +714,7 @@ outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) la
 margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins hh_earn_type
 
@@ -728,7 +736,7 @@ outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) la
 margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins, at(earnings_1000s=(0(10)100))
 
@@ -744,15 +752,21 @@ outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) la
 margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins housework_bkt
+
+*7. All 
+logit dissolve_lag i.dur i.hh_earn_type i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) label ctitle(Coll 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
 * Alt earnings
 ********************************************************************************
 /* logged*/
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur earnings_ln `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, at(earnings_ln=(0(2)12))
 margins, dydx(earnings_ln) post
@@ -766,7 +780,7 @@ margins, dydx(earnings_ln) post
 logit dissolve_lag i.dur earnings_ln i.hh_earn_type `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins, dydx(earnings_ln) post
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur c.earnings_ln##i.hh_earn_type `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & hh_earn_type<4, or
 margins hh_earn_type, at(earnings_ln=(0(2)12))
 marginsplot
@@ -776,7 +790,7 @@ margins hh_earn_type, at(earnings_ln=(0(2)12))
 marginsplot
 
 /* squared */
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur earnings_1000s c.earnings_1000s#c.earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, at(earnings_1000s=(0(10)100))
 margins, dydx(earnings_1000s) at(earnings_1000s=(0(10)100))
@@ -806,7 +820,7 @@ label define couple_earnings_gp 0 "$0" 1 "$10" 2 "$20" 3 "$30" 4 "$40" 5 "$50" 6
 7 "$70" 8 "$80" 9 "$90" 10 "$100" 11 ">$100"
 label values couple_earnings_gp couple_earnings_gp
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.couple_earnings_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 logit dissolve_lag i.dur ib3.couple_earnings_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // b3 is generally median
 margins couple_earnings_gp
@@ -817,25 +831,27 @@ logit dissolve_lag i.dur ib8.couple_earnings_gp `controls' if inlist(IN_UNIT,1,2
 margins couple_earnings_gp
 margins, dydx(couple_earnings_gp)
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur ib3.couple_earnings_gp##i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3, or // b3 is generally median
 margins couple_earnings_gp#couple_educ_gp
 marginsplot // yes okay this is exactly what I need for the curve argument
+marginsplot, xtitle("Total Couple Earnings (grouped, $1000s)") ylabel(, angle(0))  ytitle("Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("")  xlabel(, angle(45) labsize(small)) legend(region(lcolor(white))) legend(size(small)) plot1opts(lcolor("blue")  msize("small") mcolor("blue")) ci1opts(lcolor("blue")) plot2opts(lcolor("pink") mcolor("pink") msize("small")) ci2opts(lcolor("pink")) // recast(line)
+
+marginsplot, xtitle("Total Couple Earnings (grouped, $1000s)") ylabel(, angle(0))  ytitle("Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("")  xlabel(, angle(45) labsize(small)) legend(region(lcolor(white))) legend(size(small)) plot1opts(lcolor("blue")  msize("small") mcolor("blue"))  plot2opts(lcolor("pink") mcolor("pink") msize("small")) noci
 
 /*Spline*/
 mkspline earnings_1000s_1 30 earnings_1000s_2 80 earnings_1000s_3 = earnings_1000s
 browse earnings_1000s*
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur earnings_1000s_1 earnings_1000s_2 earnings_1000s_3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 logit dissolve_lag i.dur earnings_1000s_1 earnings_1000s_2 earnings_1000s_3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 
 ********************************************************************************
-**# Bookmark #2
-* Comparing ADC across models
+**# Comparing ADC across models
 ********************************************************************************
 // Total Earnings
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, dydx(earnings_1000s) post
 mlincom 1, stat(est se p) decimal(6) clear
@@ -844,7 +860,7 @@ logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & coho
 margins, dydx(earnings_1000s) post
 mlincom 1, stat(est se p) decimal(6) add
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.couple_educ_gp earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
 est store a
 logistic dissolve_lag i.dur i.couple_educ_gp##c.earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
@@ -853,7 +869,7 @@ est store b
 lrtest a b // .0017
 
 // Paid work: Group
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 est store m1
 margins, dydx(hh_earn_type) post
@@ -866,7 +882,7 @@ margins, dydx(hh_earn_type) post
 mlincom 1, stat(est se p) add
 mlincom 2, stat(est se p) add
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 // R=.0494
 testparm i.hh_earn_type // 0.44
 est store m3
@@ -879,7 +895,7 @@ estimates table m3 m4, stats(N ll chi2 aic bic r2_a)
 lrtest m3 m4 // 0.17
 
 // Paid work: employment
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(couple_work) post
 mlincom 1, stat(est se p) clear
@@ -892,7 +908,7 @@ mlincom 1, stat(est se p) add
 mlincom 2, stat(est se p) add
 mlincom 3, stat(est se p) add
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.couple_work i.couple_educ_gp earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
 testparm i.couple_work //  .18
 est store m5
@@ -904,7 +920,7 @@ est store m6
 lrtest m5 m6 // 0.27
 
 // Paid Work: Continuous earnings ratio
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, dydx(female_earn_pct) post
 mlincom 1, stat(est se p) decimal(6) clear
@@ -913,7 +929,7 @@ logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_
 margins, dydx(female_earn_pct) post
 mlincom 1, stat(est se p) decimal(6) add
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.couple_educ_gp female_earn_pct earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
 est store c
 logistic dissolve_lag i.dur i.couple_educ_gp##c.female_earn_pct earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
@@ -922,7 +938,7 @@ est store d
 lrtest c d
 
 // Paid Work: Continuous hours ratio
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur female_hours_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, dydx(female_hours_pct) post
 mlincom 1, stat(est se p) decimal(6) clear
@@ -931,7 +947,7 @@ logit dissolve_lag i.dur female_hours_pct earnings_1000s `controls' if inlist(IN
 margins, dydx(female_hours_pct) post
 mlincom 1, stat(est se p) decimal(6) add
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.couple_educ_gp female_hours_pct earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
 est store e
 logistic dissolve_lag i.dur i.couple_educ_gp##c.female_hours_pct earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
@@ -941,7 +957,7 @@ lrtest e f
 
 
 // Unpaid work: Continuous housework
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur wife_housework_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, dydx(wife_housework_pct) post
 mlincom 1, stat(est se p) decimal(6) clear
@@ -950,7 +966,7 @@ logit dissolve_lag i.dur wife_housework_pct earnings_1000s `controls' if inlist(
 margins, dydx(wife_housework_pct) post
 mlincom 1, stat(est se p) decimal(6) add
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.couple_educ_gp wife_housework_pct earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
 est store g
 logistic dissolve_lag i.dur i.couple_educ_gp##c.wife_housework_pct earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
@@ -959,7 +975,7 @@ est store h
 lrtest g h
 
 // Unpaid work: Group
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(housework_bkt) post
 mlincom 1, stat(est se p) clear
@@ -970,7 +986,7 @@ margins, dydx(housework_bkt) post
 mlincom 1, stat(est se p) add
 mlincom 2, stat(est se p) add
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.housework_bkt i.couple_educ_gp earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3
 est store m7
 
@@ -980,7 +996,7 @@ est store m8
 lrtest m7 m8
 
 /// max code
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(2.hh_earn_type) post
 estimates store est1
@@ -1020,7 +1036,7 @@ test[m1_dissolve_lag]3.hh_earn_type = [m2_dissolve_lag]3.hh_earn_type  // but th
 margins, dydx(hh_earn_type) predict(equation(m1_dissolve_lag))
 margins, dydx(hh_earn_type) predict(equation(m2_dissolve_lag))
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled cohab_with_wife cohab_with_other pre_marital_birth i.REGION_"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled cohab_with_wife cohab_with_other pre_marital_birth i.region"
 logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, vce(robust)
 // margins, dydx(*) vce(unconditional)  post  - needed varlist
 margins, dydx(hh_earn_type) vce(unconditional)  post 
@@ -1047,8 +1063,7 @@ logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_
 margins hh_earn_type
 
 ********************************************************************************************
-**# Bookmark #3
-*INTERACTION for LR tests and alternate WALD TESTS
+**# INTERACTION for LR tests and alternate WALD TESTS
 /* https://www.statalist.org/forums/forum/general-stata-discussion/general/1700308-comparing-difference-in-average-marginal-effects-ame-between-stratified-samples? */
 ********************************************************************************************
 *1. Paid Work
@@ -1201,7 +1216,7 @@ logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_
 reg dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
 
 ***********************
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(2.housework_bkt) post
 estimates store est1
@@ -1210,7 +1225,7 @@ logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist
 margins, dydx(3.housework_bkt) post
 estimates store est2
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
 margins, dydx(2.housework_bkt) post
 estimates store est3
@@ -1225,7 +1240,7 @@ wtmarg est2 est4 // effects of dual / male
 coefplot est1 est2 est3 est4,  drop(_cons) nolabel xline(0) levels(90)
 
 *************
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(ft_head) post
 estimates store est5
@@ -1246,7 +1261,7 @@ wtmarg est5 est6
 wtmarg est7 est8
 
 *************
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
 margins, dydx(earnings_1000s) post
 estimates store est9
@@ -1286,11 +1301,10 @@ gsem (dissolve_no <- i.dur i.hh_earn_type earnings_1000s if inlist(IN_UNIT,1,2) 
 */
 
 ********************************************************************************
-**# Bookmark #1
-* Predicted Probabilities
+**# Predicted Probabilities
 ********************************************************************************
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 ////////// No College \\\\\\\\\\\/
 *1. Continuous earnings ratio
@@ -1356,50 +1370,65 @@ margins housework_bkt
 * Figures
 ********************************************************************************
 *Panel 1A
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & hh_earn_type <4
-margins, dydx(hh_earn_type) post
+margins, dydx(hh_earn_type) level(90) post
 estimates store est1
 
 logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & hh_earn_type <4
-margins, dydx(hh_earn_type) post
+margins, dydx(hh_earn_type) level(90) post
 estimates store est2
 
 coefplot est1 est2,  drop(_cons) nolabel xline(0) levels(90)
 
 *Panel 1B
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
-logistic dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
-margins, dydx(couple_work) post
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur i.ft_head 1.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0
+estimates store no_b
+margins, dydx(ft_head) level(90) post
 estimates store est3
 
-logistic dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
-margins, dydx(couple_work) post
+estimates restore no_b
+margins, dydx(ft_wife) level(90) post
 estimates store est4
 
-coefplot est3 est4,  drop(_cons) nolabel xline(0) levels(90)
-
-*Panel 1C
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
-logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & housework_bkt <4
-margins, dydx(housework_bkt) post
+logistic dissolve_lag i.dur i.ft_head 1.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1
+estimates store coll_b
+margins, dydx(ft_head) level(90) post
 estimates store est5
 
-logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & housework_bkt <4
-margins, dydx(housework_bkt) post
+estimates restore coll_b
+margins, dydx(ft_wife) level(90) post
 estimates store est6
 
-coefplot est5 est6,  drop(_cons) nolabel xline(0) levels(90)
+coefplot est3 est4 est5 est6,  drop(_cons) nolabel xline(0) levels(90)
 
-coefplot est1 est2 est3 est4 est5 est6,  drop(_cons) nolabel xline(0) levels(90)
+*Panel 1C
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 & housework_bkt <4
+margins, dydx(housework_bkt) level(90) post
+estimates store est7
+
+logistic dissolve_lag i.dur i.housework_bkt earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & housework_bkt <4
+margins, dydx(housework_bkt) level(90) post
+estimates store est8
+
+coefplot est7 est8,  drop(_cons) nolabel xline(0) levels(90)
+
+coefplot (est3, offset(.20) label(No College)) (est4, offset(.20) nokey) (est5, offset(-.20) label(College)) (est6, offset(-.20) nokey) (est1, offset(.20) nokey) (est2, offset(-.20) nokey) (est7, offset(.20) nokey) (est8, offset(-.20) nokey), drop(_cons 0.ft_head) xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Reference Group) ///
+coeflabels(1.hh_earn_type = "Dual-Earner" 2.hh_earn_type = "Male-Breadwinner" 3.hh_earn_type = "Female-Breadwinner" 1.ft_head = "Husband Employed FT" 1.ft_wife = "Wife Employed FT" 1.housework_bkt = "Dual-Housework" 2.housework_bkt = "Female-Housework" 3.housework_bkt = "Male-Housework") ///
+ headings(1.ft_head= "{bf:Employment Status (M1)}"   1.hh_earn_type = "{bf:Paid Work Arrangement (M2)}"   1.housework_bkt = "{bf:Unpaid Work Arrangement (M4)}")
+ 
+ // legend(off)
+ // legend(order(1 "No College" 2 "College") rows(1))
+// useful: https://repec.sowi.unibe.ch/stata/coefplot/labelling.html
 
 ********************************************************************************
 ********************************************************************************
-**# Bookmark #1
-* For PAA Final Paper: supplemental analysis - education ref group
+**# For PAA Final Paper: supplemental analysis - education ref group
 ********************************************************************************
 ********************************************************************************
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 ********************************************************************************
 ////////// Her education \\\\\\\\\\\/
@@ -1586,7 +1615,7 @@ outreg2 using "$results/psid_marriage_dissolution_educ_supp.xls", ctitle(margins
 ********************************************************************************
 /* Note: 5/9/23, I have moved most of these up to the main analysis */
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 ////////// No College \\\\\\\\\\\/
 **Paid hours (instead of earnings)
@@ -1620,7 +1649,7 @@ margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 **Employment  - no total earnings
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_supp.xls", sideway stats(coef pval) label ctitle(Employment No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
@@ -1692,7 +1721,7 @@ forvalues y=1968/2019{
 
 browse survey_yr weight weight_rescale
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, dydx(hh_earn_type)
 /*
@@ -1714,7 +1743,7 @@ margins, dydx(hh_earn_type)
   Female BW  |  -.0268314   .0112764    -2.38   0.017    -.0489327     -.00473
 */
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins, dydx(hh_earn_type)
 /*
@@ -1755,7 +1784,7 @@ forvalues y=1968/2019{
 	
 }
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, dydx(hh_earn_type)
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pw=weight_rescale_no], or
@@ -1765,7 +1794,7 @@ margins, dydx(hh_earn_type)
   Female BW  |  -.0270901   .0112719    -2.40   0.016    -.0491826   -.0049977
 */
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins, dydx(hh_earn_type)
 logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pw=weight_rescale_coll], or
@@ -1839,7 +1868,7 @@ summarize weight_rescale if survey_yr==1990
 ********************************************************************************
 ********************************************************************************
 ** No College
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 logit dissolve_lag i.dur female_hours_pct if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or //  continuous paid hours - discrete time
 outreg2 using "$results/psid_marriage_dissolution_nocoll_paa.xls", sideway stats(coef pval) label ctitle(1 Base) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
@@ -2501,7 +2530,7 @@ logit dissolve_lag i.dur i.dual_hw if inlist(IN_UNIT,1,2) & cohort==3 & couple_e
 * These are the same models from the PAA paper
 ********************************************************************************
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 ////////// No College \\\\\\\\\\\/
 ** Total earnings
@@ -2904,8 +2933,7 @@ logit dissolve_lag i.dur i.hh_hours_3070 TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,
 
 
 ********************************************************************************
-**# Bookmark #1
-* Misc
+**# Misc
 ********************************************************************************
 
 tab hh_earn_type_bkd, sum(TAXABLE_HEAD_WIFE_)
@@ -2987,6 +3015,8 @@ unique id if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_g
 tabstat female_earn_pct  if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2), row
 tab couple_educ_gp couple_work if cohort==3 & inlist(IN_UNIT,1,2), row
+tab couple_educ_gp ft_head if cohort==3 & inlist(IN_UNIT,1,2), row
+tab couple_educ_gp ft_wife if cohort==3 & inlist(IN_UNIT,1,2), row
 tabstat wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 tab couple_educ_gp housework_bkt if cohort==3 & inlist(IN_UNIT,1,2), row
 tabstat TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp) stat(mean p50)
@@ -3001,6 +3031,8 @@ tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2), chi2
 ttest earn_type1 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 ttest earn_type2 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 ttest earn_type3 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest ft_head if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
+ttest ft_wife if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 
 ttest couple_work1 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
 ttest couple_work2 if cohort==3 & inlist(IN_UNIT,1,2), by(couple_educ_gp)
@@ -3033,6 +3065,8 @@ tab couple_educ_gp pre_marital_birth if cohort==3 & inlist(IN_UNIT,1,2), row nof
 tabstat female_earn_pct  if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp)
 tab couple_educ_gp hh_earn_type if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
 tab couple_educ_gp couple_work if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
+tab couple_educ_gp ft_head if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
+tab couple_educ_gp ft_wife if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
 tabstat wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp)
 tab couple_educ_gp housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, row
 tabstat TAXABLE_HEAD_WIFE_ if cohort==3 & inlist(IN_UNIT,1,2) & dissolve_lag==1, by(couple_educ_gp) stat(mean p50)
@@ -3065,6 +3099,8 @@ ttest couple_work1 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(di
 ttest couple_work2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
 ttest couple_work3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
 ttest couple_work4 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest ft_head if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
+ttest ft_wife if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
 
 ttest wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, by(dissolve_lag)
 tab dissolve_lag housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==0, chi2
@@ -3087,6 +3123,8 @@ ttest couple_work1 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(di
 ttest couple_work2 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 ttest couple_work3 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 ttest couple_work4 if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest ft_head if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
+ttest ft_wife if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 
 ttest wife_housework_pct if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, by(dissolve_lag)
 tab dissolve_lag housework_bkt if cohort==3 & inlist(IN_UNIT,1,2) & couple_educ_gp==1, chi2
