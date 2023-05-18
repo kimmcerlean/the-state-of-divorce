@@ -1415,6 +1415,8 @@ estimates store est8
 
 coefplot est7 est8,  drop(_cons) nolabel xline(0) levels(90)
 
+coefplot est3 est4 est5 est6 est1 est2 est7 est8,  drop(_cons) nolabel xline(0) levels(90)
+
 coefplot (est3, offset(.20) label(No College)) (est4, offset(.20) nokey) (est5, offset(-.20) label(College)) (est6, offset(-.20) nokey) (est1, offset(.20) nokey) (est2, offset(-.20) nokey) (est7, offset(.20) nokey) (est8, offset(-.20) nokey), drop(_cons 0.ft_head) xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Reference Group) ///
 coeflabels(1.hh_earn_type = "Dual-Earner" 2.hh_earn_type = "Male-Breadwinner" 3.hh_earn_type = "Female-Breadwinner" 1.ft_head = "Husband Employed FT" 1.ft_wife = "Wife Employed FT" 1.housework_bkt = "Dual-Housework" 2.housework_bkt = "Female-Housework" 3.housework_bkt = "Male-Housework") ///
  headings(1.ft_head= "{bf:Employment Status (M1)}"   1.hh_earn_type = "{bf:Paid Work Arrangement (M2)}"   1.housework_bkt = "{bf:Unpaid Work Arrangement (M4)}")
