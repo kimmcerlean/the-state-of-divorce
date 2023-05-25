@@ -58,6 +58,12 @@ recode RELIGION_WIFE_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_wife)
 	   
 label values religion_head religion_wife update_religion
 
+// fix region
+gen region = REGION_
+replace region = . if inlist(REGION_,0,9)
+label define region 1 "Northeast" 2 "North Central" 3 "South" 4 "West" 5 "Alaska,Hawaii" 6 "Foreign"
+label values region region
+
 // splitting the college group into who has a degree. also considering advanced degree as higher than college -- this currently only works for cohort 3. I think for college - the specific years matter to split advanced, but for no college - distinguishing between grades less relevant?
 gen college_bkd=.
 replace college_bkd=1 if (EDUC_WIFE_==16 & EDUC_HEAD_==16) | (EDUC_WIFE_==17 & EDUC_HEAD_==17)
@@ -194,6 +200,42 @@ browse female_earn_pct earn_ratio1 earn_ratio2
 mkspline hrs_ratio1 0.5 hrs_ratio2 = female_hours_pct
 browse female_hours_pct hrs_ratio1 hrs_ratio2
 
+// alternate earnings measures
+*Convert to 1000s
+gen earnings_1000s = couple_earnings / 1000
+
+*log
+gen earnings_total = couple_earnings + 1 
+gen earnings_ln = ln(earnings_total)
+* browse TAXABLE_HEAD_WIFE_ earnings_total earnings_ln
+
+// gen earnings_ln2 = ln(TAXABLE_HEAD_WIFE_)
+// replace earnings_ln2 = 0 if TAXABLE_HEAD_WIFE_ <=0
+
+*square
+gen earnings_sq = TAXABLE_HEAD_WIFE_ * TAXABLE_HEAD_WIFE_
+
+* groups
+gen earnings_bucket=.
+replace earnings_bucket = 0 if TAXABLE_HEAD_WIFE_ <=0
+replace earnings_bucket = 1 if TAXABLE_HEAD_WIFE_ > 0 		& TAXABLE_HEAD_WIFE_ <=10000
+replace earnings_bucket = 2 if TAXABLE_HEAD_WIFE_ > 10000 	& TAXABLE_HEAD_WIFE_ <=20000
+replace earnings_bucket = 3 if TAXABLE_HEAD_WIFE_ > 20000 	& TAXABLE_HEAD_WIFE_ <=30000
+replace earnings_bucket = 4 if TAXABLE_HEAD_WIFE_ > 30000 	& TAXABLE_HEAD_WIFE_ <=40000
+replace earnings_bucket = 5 if TAXABLE_HEAD_WIFE_ > 40000 	& TAXABLE_HEAD_WIFE_ <=50000
+replace earnings_bucket = 6 if TAXABLE_HEAD_WIFE_ > 50000 	& TAXABLE_HEAD_WIFE_ <=60000
+replace earnings_bucket = 7 if TAXABLE_HEAD_WIFE_ > 60000 	& TAXABLE_HEAD_WIFE_ <=70000
+replace earnings_bucket = 8 if TAXABLE_HEAD_WIFE_ > 70000 	& TAXABLE_HEAD_WIFE_ <=80000
+replace earnings_bucket = 9 if TAXABLE_HEAD_WIFE_ > 80000 	& TAXABLE_HEAD_WIFE_ <=90000
+replace earnings_bucket = 10 if TAXABLE_HEAD_WIFE_ > 90000 	& TAXABLE_HEAD_WIFE_ <=100000
+replace earnings_bucket = 11 if TAXABLE_HEAD_WIFE_ > 100000 & TAXABLE_HEAD_WIFE_ <=150000
+replace earnings_bucket = 12 if TAXABLE_HEAD_WIFE_ > 150000 & TAXABLE_HEAD_WIFE_ !=.
+
+label define earnings_bucket 0 "0" 1 "0-10000" 2 "10000-20000" 3 "20000-30000" 4 "30000-40000" 5 "40000-50000" 6 "50000-60000" 7 "60000-70000" ///
+8 "70000-80000" 9 "80000-90000" 10 "90000-100000" 11 "100000-150000" 12 "150000+"
+label values earnings_bucket earnings_bucket
+
+
 // want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?)
 browse id survey_yr rel_start_all dur hh_earn_type_bkd
 bysort id (survey_yr): egen yr_rank=rank(survey_yr)
@@ -328,7 +370,70 @@ logit dissolve_lag i.dur i.couple_educ_gp if STATE_==5, or // also will estimate
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
-* For PAA Final Paper: main analysis (did I mean ASA?)
+**# * Models that match primary divorce paper
+********************************************************************************
+********************************************************************************
+********************************************************************************
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+
+////////// No College \\\\\\\\\\\/
+*1. Total earnings
+logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(earnings_1000s)
+
+*2. Categorical indicator of Paid work
+logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+
+*3. Employment: no interaction
+logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(ft_head)
+margins, dydx(ft_wife)
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+forvalues s=1/56{
+	capture logistic dissolve_lag i.dur earnings_1000s `controls' if couple_educ_gp==0 & state_fips==`s'
+	capture margins, dydx(earnings_1000s) post
+	capture estimates store no_a`s'
+
+	capture logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s `controls' if couple_educ_gp==0 & state_fips==`s'
+	capture margins, dydx(hh_earn_type) post
+	capture estimates store no_b`s'
+	
+	capture logistic dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s `controls' if couple_educ_gp==0 & state_fips==`s'
+	capture margins, dydx(ft_head ft_wife) post
+	capture estimates store no_c`s'
+	
+} 
+
+estimates dir
+estimates table *, b p
+estout no_* using "$results/state_no_college.xls", replace cells(b p)
+
+////////// College \\\\\\\\\\\/
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+forvalues s=1/56{
+	capture logistic dissolve_lag i.dur earnings_1000s `controls' if couple_educ_gp==1 & state_fips==`s'
+	capture margins, dydx(earnings_1000s) post
+	capture estimates store coll_a`s'
+
+	capture logistic dissolve_lag i.dur i.hh_earn_type earnings_1000s `controls' if couple_educ_gp==1 & state_fips==`s'
+	capture margins, dydx(hh_earn_type) post
+	capture estimates store coll_b`s'
+	
+	capture logistic dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s `controls' if couple_educ_gp==1 & state_fips==`s'
+	capture margins, dydx(ft_head ft_wife) post
+	capture estimates store coll_c`s'
+	
+} 
+
+estout coll_* using "$results/state_college.xls", replace cells(b p)
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# For PAA Final Paper: main analysis (did I mean ASA?)
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
