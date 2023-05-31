@@ -253,6 +253,10 @@ label values earnings_bucket earnings_bucket
 mkspline earnx 4 = couple_earnings, displayknots pctile
 mkspline earn = couple_earnings, cubic displayknots
 
+browse couple_earnings earn1 earn2 earn3 earn4 earnx1 earnx2 earnx3 earnx4
+
+mkspline knot1 0 knot2 30 knot3 80 knot4 = earnings_1000s
+
 * Employment 
 gen couple_work=.
 replace couple_work=1 if ft_head==1 & ft_wife==1
@@ -400,18 +404,6 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Earnings No+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-*Alt
-logit dissolve_lag i.dur earnings_ln if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
-// marginscontplot earnings(logwt), var1(w(logw)) ci
-logit dissolve_lag i.dur earnings_ln2 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
-logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ earnings_sq if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // square not sig here
-margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
-logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ c.TAXABLE_HEAD_WIFE_#c.TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // alt square
-margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
-logit dissolve_lag i.dur ib5.earnings_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
-logit dissolve_lag i.dur earn1 earn2 earn3 earn4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
-logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
-
 **Paid work
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Paid No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -456,17 +448,6 @@ outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval)
 logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Earnings Coll+) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-*Alt
-logit dissolve_lag i.dur earnings_ln if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
-logit dissolve_lag i.dur earnings_ln2 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
-logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ earnings_sq if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // square *is* sig here
-margins, at(TAXABLE_HEAD_WIFE_=(0(10000)150000))
-logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ c.TAXABLE_HEAD_WIFE_#c.TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // alt square
-margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
-logit dissolve_lag i.dur ib5.earnings_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
-logit dissolve_lag i.dur earn1 earn2 earn3 earn4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
-logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
-
 **Paid work
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution.xls", sideway stats(coef pval) label ctitle(Paid Coll) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -491,6 +472,46 @@ margins housework_bkt
 
 logit dissolve_lag i.dur##i.housework_bkt TAXABLE_HEAD_WIFE_ age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 & housework_bkt<4 & dur<=15, or
 margins dur, dydx(housework_bkt)
+
+//// Alternate earnings
+* No College
+logit dissolve_lag i.dur earnings_ln if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+// marginscontplot earnings(logwt), var1(w(logw)) ci
+logit dissolve_lag i.dur earnings_ln2 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ earnings_sq if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // square not sig here
+margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ c.TAXABLE_HEAD_WIFE_#c.TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // alt square
+margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
+logit dissolve_lag i.dur ib5.earnings_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur earn1 earn2 earn3 earn4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur knot1 knot2 knot3 knot4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+
+logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(earnx1 earnx2 earnx3 earnx4)
+
+logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(earnx1 earnx2 earnx3 earnx4)
+
+logit dissolve_lag i.dur i.couple_educ_gp c.earnx1 c.earnx2 c.earnx3 c.earnx4 if inlist(IN_UNIT,1,2) & cohort==3, or
+est store m0
+
+logit dissolve_lag i.dur i.couple_educ_gp##(c.earnx1 c.earnx2 c.earnx3 c.earnx4) if inlist(IN_UNIT,1,2) & cohort==3, or
+est store m1
+
+lrtest m0 m1
+est table m0 m1, stats(ll rank)
+
+*College
+logit dissolve_lag i.dur earnings_ln if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur earnings_ln2 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ earnings_sq if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // square *is* sig here
+margins, at(TAXABLE_HEAD_WIFE_=(0(10000)150000))
+logit dissolve_lag i.dur TAXABLE_HEAD_WIFE_ c.TAXABLE_HEAD_WIFE_#c.TAXABLE_HEAD_WIFE_ if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // alt square
+margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
+logit dissolve_lag i.dur ib5.earnings_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur earn1 earn2 earn3 earn4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 
 ///// Decide if want to use - all in one model, interactions
 
@@ -847,6 +868,15 @@ local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrol
 logit dissolve_lag i.dur earnings_1000s_1 earnings_1000s_2 earnings_1000s_3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 logit dissolve_lag i.dur earnings_1000s_1 earnings_1000s_2 earnings_1000s_3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 
+/* does earnings as a control affect other vars?*/
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(ft_head ft_wife)
+logit dissolve_lag i.dur i.ft_head i.ft_wife ib5.earnings_bucket  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(ft_head ft_wife)
+logit dissolve_lag i.dur i.ft_head i.ft_wife earnx1 earnx2 earnx3 earnx4  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(ft_head ft_wife)
+
 ********************************************************************************
 **# Comparing ADC across models
 ********************************************************************************
@@ -1073,7 +1103,11 @@ estimates store earn
 qui logit dissolve_lag i.couple_educ_gp i.dur i.hh_earn_type c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3
 estimates store earn_noint
 
-estimates table earn earn_noint, stats(N ll rank)
+qui logit dissolve_lag i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(i.hh_earn_type c.earnings_1000s) if inlist(IN_UNIT,1,2) & cohort==3
+estimates store earn_v2
+
+estimates table earn earn_noint earn_v2, stats(N ll rank)
+lrtest earn_noint earn_v2
 
 *2. Employment
 qui logit dissolve_lag i.couple_educ_gp##(i.dur i.ft_wife i.ft_head c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3
@@ -1103,6 +1137,28 @@ estimates store unpaid_noint
 estimates table unpaid unpaid_noint, stats(N ll rank)
 
 estimates table earn earn_noint employ employ_noint earnings earnings_noint unpaid unpaid_noint, stats(N ll rank)
+
+*5. All Focal variables
+qui logit dissolve_lag i.couple_educ_gp i.dur i.ft_wife i.ft_head i.housework_bkt c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store full_noint
+
+qui logit dissolve_lag i.couple_educ_gp##(i.ft_wife i.ft_head i.housework_bkt c.earnings_1000s) i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store full
+
+estimates table full full_noint, stats(N ll rank)
+lrtest full full_noint
+
+*6. Alt tests
+qui logit dissolve_lag i.couple_educ_gp i.dur i.hh_earn_type c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store test_noint
+
+logit dissolve_lag i.couple_educ_gp i.hh_earn_type i.couple_educ_gp#i.hh_earn_type c.earnings_1000s i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store test
+
+estimates table test test_noint, stats(N ll rank)
+lrtest test_noint test
+
+testparm i.couple_educ_gp#i.hh_earn_type
 
 /* Validation
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
