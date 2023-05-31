@@ -255,7 +255,10 @@ mkspline earn = couple_earnings, cubic displayknots
 
 browse couple_earnings earn1 earn2 earn3 earn4 earnx1 earnx2 earnx3 earnx4
 
-mkspline knot1 0 knot2 30 knot3 80 knot4 = earnings_1000s
+mkspline knot1 0 knot2 20 knot3 = earnings_1000s
+
+// i'm confused
+mkspline knotx1 20 knotx2 = earnings_1000s
 
 * Employment 
 gen couple_work=.
@@ -485,7 +488,8 @@ margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
 logit dissolve_lag i.dur ib5.earnings_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 logit dissolve_lag i.dur earn1 earn2 earn3 earn4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
-logit dissolve_lag i.dur knot1 knot2 knot3 knot4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur knot1 knot2 knot3 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+logit dissolve_lag i.dur knotx1 knotx2 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 
 logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, dydx(earnx1 earnx2 earnx3 earnx4)
@@ -512,6 +516,7 @@ margins, at(TAXABLE_HEAD_WIFE_=(0(10000)100000))
 logit dissolve_lag i.dur ib5.earnings_bucket if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 logit dissolve_lag i.dur earn1 earn2 earn3 earn4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 logit dissolve_lag i.dur earnx1 earnx2 earnx3 earnx4 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur knot1 knot2 knot3 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 
 ///// Decide if want to use - all in one model, interactions
 
@@ -782,6 +787,78 @@ logit dissolve_lag i.dur i.hh_earn_type i.housework_bkt earnings_1000s `controls
 outreg2 using "$results/dissolution_AMES_final.xls", sideway stats(coef pval) label ctitle(Coll 7) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+********************************************************************************
+**# USE (actually)
+* Spline earnings
+********************************************************************************
+/* help
+logit dissolve_lag i.dur knot1 knot2 knot3 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+gen no_earnings=0
+replace no_earnings=1 if earnings_1000s==0
+
+logit dissolve_lag i.dur knot1 knot2 knot3 i.no_earnings if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(ft_head ft_wife)
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife knotx1 knotx2 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(ft_head ft_wife)
+*/
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+
+////////// No College \\\\\\\\\\\/
+*1. Employment: no interaction
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(No 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+*2. Categorical indicator of Paid work
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(No 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+*3. Total earnings
+logit dissolve_lag i.dur knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(No 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+*4. Categorical Housework
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(No 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+////////// College \\\\\\\\\\\/
+*1. Employment: no interaction
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+*2. Categorical indicator of Paid work
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(Coll 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+*3. Total earnings
+logit dissolve_lag i.dur knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(Coll 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+*4. Categorical Housework
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(Coll 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(*) post
+outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
 
 ********************************************************************************
 * Alt earnings
@@ -1194,7 +1271,8 @@ mlincom (1-2)-(3-4), detail
        [3.hh_earn_type]0bn.couple_educ_gp + [3.hh_earn_type]1.couple_educ_gp = 0
 */
 
-qui logit dissolve_lag i.couple_educ_gp##(i.dur i.ft_wife i.ft_head c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3
+****This should match what i did by hand in Wald Test Table
+qui logit dissolve_lag i.couple_educ_gp##(i.dur i.ft_wife i.ft_head c.knot1 c.knot2 c.knot3 c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth) if inlist(IN_UNIT,1,2) & cohort==3
 est store employ
 margins, dydx(ft_wife) over(couple_educ_gp) post
 mlincom 1-2, detail
@@ -1203,12 +1281,112 @@ est restore employ
 margins, dydx(ft_head) over(couple_educ_gp) post
 mlincom 1-2, detail
 
-qui logit dissolve_lag i.couple_educ_gp i.dur i.ft_wife i.ft_head c.earnings_1000s c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+qui logit dissolve_lag i.dur  c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(i.ft_wife i.ft_head c.knot1 c.knot2 c.knot3) if inlist(IN_UNIT,1,2) & cohort==3
+est store employ2
+margins, dydx(ft_wife) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+est restore employ2
+margins, dydx(ft_head) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+qui logit dissolve_lag i.couple_educ_gp i.dur i.ft_wife i.ft_head c.knot1 c.knot2 c.knot3 c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
 est store noint
-lrtest employ noint 
+lrtest employ2 noint 
 
 estimates table employ noint, stats(N ll chi2 aic bic r2_a)
 */
+
+********************************************************************************************
+**# Alternate models: interaction, but only key variables - for AMEs and Wald Test
+*Kim you are LOSING THE PLOT
+********************************************************************************************
+*1. Employment
+qui logit dissolve_lag i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(i.ft_wife i.ft_head c.knot1 c.knot2 c.knot3) if inlist(IN_UNIT,1,2) & cohort==3
+est store employ
+margins, dydx(ft_wife) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+est restore employ
+margins, dydx(ft_head) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+est restore employ
+margins, dydx(*) over(couple_educ_gp) post
+outreg2 using "$results/dissolution_AMES_int.xls", dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+qui logit dissolve_lag i.couple_educ_gp i.dur i.ft_wife i.ft_head c.knot1 c.knot2 c.knot3 c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store employ_noint
+lrtest employ employ_noint 
+
+estimates table employ employ_noint, stats(N ll chi2 aic bic rank)
+
+*2. Paid Work Type
+qui logit dissolve_lag i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(i.hh_earn_type c.knot1 c.knot2 c.knot3) if inlist(IN_UNIT,1,2) & cohort==3
+est store paid
+margins, dydx(hh_earn_type) over(couple_educ_gp) post
+mlincom 1-2, detail
+mlincom 3-4, detail
+mlincom (1-2)-(3-4), detail
+
+est restore paid
+margins, dydx(*) over(couple_educ_gp) post
+outreg2 using "$results/dissolution_AMES_int.xls", dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+qui logit dissolve_lag i.couple_educ_gp i.dur i.hh_earn_type c.knot1 c.knot2 c.knot3 c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store paid_noint
+
+lrtest paid paid_noint 
+
+*3. Earnings
+qui logit dissolve_lag i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(c.knot1 c.knot2 c.knot3) if inlist(IN_UNIT,1,2) & cohort==3
+est store earn
+margins, dydx(knot2) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+est restore earn
+margins, dydx(knot3) over(couple_educ_gp) post
+mlincom 1-2, detail
+
+est restore earn
+// margins, at(knot2=(0(10)20)) at(knot3=(0(10)100)) over(couple_educ_gp) post
+margins, at(knot2=(0 20)) at(knot3=(0 30 70)) over(couple_educ_gp) post
+mlincom (3-1), detail // ($20-0, no college)
+mlincom (4-2), detail
+mlincom (3-1)-(4-2), detail
+
+mlincom (7-5), detail // ($50-20, no college)
+mlincom (8-6), detail
+mlincom (7-5)-(8-6), detail
+
+mlincom (9-5), detail // ($100-20, no college)
+mlincom (10-6), detail
+mlincom (9-5)-(10-6), detail
+
+est restore earn
+margins, dydx(*) over(couple_educ_gp) post
+outreg2 using "$results/dissolution_AMES_int.xls", dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+qui logit dissolve_lag i.couple_educ_gp i.dur c.knot1 c.knot2 c.knot3 c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store earn_noint
+
+lrtest earn earn_noint
+
+*4. Unpaid Work Type
+qui logit dissolve_lag i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(i.housework_bkt c.knot1 c.knot2 c.knot3) if inlist(IN_UNIT,1,2) & cohort==3
+est store unpaid
+margins, dydx(housework_bkt) over(couple_educ_gp) post
+mlincom 1-2, detail
+mlincom 3-4, detail
+
+est restore unpaid
+margins, dydx(*) over(couple_educ_gp) post
+outreg2 using "$results/dissolution_AMES_int.xls", dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+qui logit dissolve_lag i.couple_educ_gp i.dur i.housework_bkt c.knot1 c.knot2 c.knot3 c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth if inlist(IN_UNIT,1,2) & cohort==3, or
+est store unpaid_noint
+
+lrtest unpaid unpaid_noint 
 
 ********************************************************************************************
 *Other checks - DNU
@@ -1359,68 +1537,86 @@ gsem (dissolve_no <- i.dur i.hh_earn_type earnings_1000s if inlist(IN_UNIT,1,2) 
 ********************************************************************************
 **# Predicted Probabilities
 ********************************************************************************
+/* confused
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 i.no_earnings `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(ft_head ft_wife)
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s i.no_earnings `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(ft_head ft_wife)
+*/
 
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+qui logit dissolve_lag i.dur knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(knot2 knot3)
+qui logit dissolve_lag i.dur knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(knot2 knot3)
 
 ////////// No College \\\\\\\\\\\/
 *1. Continuous earnings ratio
-qui logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+qui logit dissolve_lag i.dur female_earn_pct knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, at(female_earn_pct=(0(.25)1))
 
 *2. Categorical indicator of Paid work
-qui logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+qui logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3   `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins hh_earn_type
+margins, dydx(hh_earn_type)
 
 *3A. Employment: no interaction
-qui logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+qui logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins ft_head
 margins ft_wife
+margins, dydx(ft_head ft_wife)
 
 *3B. Employment: interaction
-qui logit dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+qui logit dissolve_lag i.dur ib3.couple_work knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
 margins couple_work
 
 *4. Total earnings
-qui logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
-margins, at(earnings_1000s=(0(10)100))
+qui logit dissolve_lag i.dur knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(knot2 knot3)
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 *5. Continuous Housework
-qui logit dissolve_lag i.dur wife_housework_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+qui logit dissolve_lag i.dur wife_housework_pct knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
 margins, at(wife_housework_pct=(0(.25)1))
 
 *6. Categorical Housework
-qui logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
+qui logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==0, or
 margins housework_bkt
+margins, dydx(housework_bkt)
 
 ////////// College \\\\\\\\\\\/
 *1. Continuous earnings ratio
-qui logit dissolve_lag i.dur female_earn_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+qui logit dissolve_lag i.dur female_earn_pct knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins, at(female_earn_pct=(0(.25)1))
 
 *2. Categorical indicator of Paid work
-qui logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+qui logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins hh_earn_type
+margins, dydx(hh_earn_type)
 
 *3A. Employment: no interaction
-qui logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+qui logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins ft_head
 margins ft_wife
+margins, dydx(ft_head ft_wife)
 
 *3B. Employment: interaction
-qui logit dissolve_lag i.dur ib3.couple_work earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+qui logit dissolve_lag i.dur ib3.couple_work knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins couple_work
 
 *4. Total earnings
-qui logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
-margins, at(earnings_1000s=(0(10)100))
+qui logit dissolve_lag i.dur knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 *5. Continuous Housework
-qui logit dissolve_lag i.dur wife_housework_pct earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+qui logit dissolve_lag i.dur wife_housework_pct knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
 margins, at(wife_housework_pct=(0(.25)1))
 
 *6. Categorical Housework
-qui logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
+qui logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2)  & cohort==3 & couple_educ_gp==1, or
 margins housework_bkt
+margins, dydx(housework_bkt)
 
 ********************************************************************************
 * Figures
