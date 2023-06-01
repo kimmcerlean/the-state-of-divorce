@@ -660,8 +660,7 @@ margins earn_type_hw, pwcompare(group) level(90)
 */
 
 ********************************************************************************
-**# USE
-* Raw, 1000s of dollars
+* Raw, 1000s of dollars (assumes linearity)
 ********************************************************************************
 
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
@@ -933,9 +932,11 @@ local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrol
 logit dissolve_lag i.dur ib3.couple_earnings_gp##i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2) & cohort==3, or // b3 is generally median
 margins couple_earnings_gp#couple_educ_gp
 marginsplot // yes okay this is exactly what I need for the curve argument
-marginsplot, xtitle("Total Couple Earnings (grouped, $1000s)") ylabel(, angle(0))  ytitle("Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("")  xlabel(, angle(45) labsize(small)) legend(region(lcolor(white))) legend(size(small)) plot1opts(lcolor("blue")  msize("small") mcolor("blue")) ci1opts(lcolor("blue")) plot2opts(lcolor("pink") mcolor("pink") msize("small")) ci2opts(lcolor("pink")) // recast(line)
+marginsplot, xtitle("Total Couple Earnings (grouped, $1000s)") ylabel(, angle(0))  ytitle("Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("")  xlabel(, angle(45) labsize(small)) legend(region(lcolor(white))) legend(size(small)) plot1opts(lcolor("blue")  msize("small") mcolor("blue"))  plot2opts(lcolor("pink") mcolor("pink") msize("small")) recast(line) recastci(rarea) ciopts(color(*.4)) //  ci2opts(lcolor("pink")) ci1opts(lcolor("blue"))
 
-marginsplot, xtitle("Total Couple Earnings (grouped, $1000s)") ylabel(, angle(0))  ytitle("Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("")  xlabel(, angle(45) labsize(small)) legend(region(lcolor(white))) legend(size(small)) plot1opts(lcolor("blue")  msize("small") mcolor("blue"))  plot2opts(lcolor("pink") mcolor("pink") msize("small")) noci
+marginsplot, xtitle("Total Couple Earnings (grouped, $1000s)") ylabel(, angle(0))  ytitle("Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("")  xlabel(, angle(45) labsize(small)) legend(region(lcolor(white))) legend(size(small)) plot1opts(lcolor("blue")  msize("small") mcolor("blue"))  plot2opts(lcolor("pink") mcolor("pink") msize("small")) noci recast(line)
+
+// okay so margins can do those fun horizontal plots : marginsplot, horizontal unique xline(0) recast(scatter) yscale(reverse)
 
 /*Spline*/
 mkspline earnings_1000s_1 30 earnings_1000s_2 80 earnings_1000s_3 = earnings_1000s
@@ -955,7 +956,8 @@ logit dissolve_lag i.dur i.ft_head i.ft_wife earnx1 earnx2 earnx3 earnx4  `contr
 margins, dydx(ft_head ft_wife)
 
 ********************************************************************************
-**# Comparing ADC across models
+* Comparing ADC across models
+* I think this might be comparing across coefficients NOT AMEs
 ********************************************************************************
 // Total Earnings
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
@@ -1299,11 +1301,14 @@ estimates table employ noint, stats(N ll chi2 aic bic r2_a)
 
 ********************************************************************************************
 **# Alternate models: interaction, but only key variables - for AMEs and Wald Test
-*Kim you are LOSING THE PLOT
 ********************************************************************************************
 *1. Employment
 qui logit dissolve_lag i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(i.ft_wife i.ft_head c.knot1 c.knot2 c.knot3) if inlist(IN_UNIT,1,2) & cohort==3
 est store employ
+
+margins ft_wife, over(couple_educ_gp)
+margins ft_head, over(couple_educ_gp)
+
 margins, dydx(ft_wife) over(couple_educ_gp) post
 mlincom 1-2, detail
 
@@ -1324,6 +1329,8 @@ estimates table employ employ_noint, stats(N ll chi2 aic bic rank)
 *2. Paid Work Type
 qui logit dissolve_lag i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(i.hh_earn_type c.knot1 c.knot2 c.knot3) if inlist(IN_UNIT,1,2) & cohort==3
 est store paid
+margins hh_earn_type, over(couple_educ_gp) nofvlab
+
 margins, dydx(hh_earn_type) over(couple_educ_gp) post
 mlincom 1-2, detail
 mlincom 3-4, detail
@@ -1349,7 +1356,7 @@ margins, dydx(knot3) over(couple_educ_gp) post
 mlincom 1-2, detail
 
 est restore earn
-// margins, at(knot2=(0(10)20)) at(knot3=(0(10)100)) over(couple_educ_gp) post
+// margins, at(knot2=(0(10)20)) at(knot3=(0(10)100)) over(couple_educ_gp) nofvlab
 margins, at(knot2=(0 20)) at(knot3=(0 30 70)) over(couple_educ_gp) post
 mlincom (3-1), detail // ($20-0, no college)
 mlincom (4-2), detail
@@ -1375,6 +1382,8 @@ lrtest earn earn_noint
 *4. Unpaid Work Type
 qui logit dissolve_lag i.dur c.age_mar_wife c.age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp##(i.housework_bkt c.knot1 c.knot2 c.knot3) if inlist(IN_UNIT,1,2) & cohort==3
 est store unpaid
+margins housework_bkt, over(couple_educ_gp) nofvlab
+
 margins, dydx(housework_bkt) over(couple_educ_gp) post
 mlincom 1-2, detail
 mlincom 3-4, detail
