@@ -235,6 +235,9 @@ label define earnings_bucket 0 "0" 1 "0-10000" 2 "10000-20000" 3 "20000-30000" 4
 8 "70000-80000" 9 "80000-90000" 10 "90000-100000" 11 "100000-150000" 12 "150000+"
 label values earnings_bucket earnings_bucket
 
+*Spline
+mkspline knot1 0 knot2 20 knot3 = earnings_1000s
+
 
 // want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?)
 browse id survey_yr rel_start_all dur hh_earn_type_bkd
@@ -299,6 +302,7 @@ policyeconlib_est: economic policy - 2014
 unemployment: unemployment rate - 2017, I updated up until 2020
 state_cpi_bfh_est: state CPI - 2010
 fed min: "T:\Research Projects\State data\data_keep\fed_min.dta"
+new policy file: "T:\Research Projects\State data\data_keep\final_measures.dta"
 */
 
 rename STATE_ state_fips
@@ -312,14 +316,20 @@ merge m:1 year using "T:\Research Projects\State data\data_keep\fed_min.dta"
 drop if _merge==2
 drop _merge
 
+merge m:1 state_fips year using "T:\Research Projects\State data\data_keep\final_measures.dta"
+drop if _merge==2
+drop _merge
+
 // I need to remember - not all variables have data past 2010 - should I just extend forward. I could definitely add in the min wage and unemployment
 browse year state_fips state_cpi_bfh_est
 
 
 // also want to test some binary variables
+/*
 gen above_fed_min=0
 replace above_fed_min=1 if statemin>fed_min & statemin!=.
 replace above_fed_min=. if statemin==.
+*/
 
 gen state_cpi = (state_cpi_bfh_est*100) + 100
 
@@ -340,15 +350,20 @@ tabstat masssociallib_est, by(liberal_attitudes_gp)
 **# Analysis starts
 
 ********************************************************************************
+********************************************************************************
+********************************************************************************
 * Overall trends
 ********************************************************************************
+********************************************************************************
+********************************************************************************
+
 logit dissolve_lag i.dur i.couple_educ_gp, or
 
-logit dissolve_lag i.dur i.couple_educ_gp##i.STATE_, or nocons // prob gonna be a lot of collinearity / inability to estimate with small states?
+logit dissolve_lag i.dur i.couple_educ_gp##i.state_fips, or nocons // prob gonna be a lot of collinearity / inability to estimate with small states?
 outreg2 using "$results/state_test.xls", sideway stats(coef pval) label dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
 forvalues s=1/56{
-	capture logistic dissolve_lag i.dur i.couple_educ_gp if STATE_==`s'
+	capture logistic dissolve_lag i.dur i.couple_educ_gp if state_fips==`s'
 	capture estimates store m`s'
 } 
 
@@ -367,13 +382,12 @@ logit dissolve_lag i.dur i.couple_educ_gp if STATE_==4, or // will estimate
 logit dissolve_lag i.dur i.couple_educ_gp if STATE_==5, or // also will estimate
 */
 
-********************************************************************************
-********************************************************************************
+
 ********************************************************************************
 **# * Models that match primary divorce paper
+* Just looking for state variation atm
 ********************************************************************************
-********************************************************************************
-********************************************************************************
+
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 ////////// No College \\\\\\\\\\\/
@@ -433,10 +447,197 @@ estout coll_* using "$results/state_college.xls", replace cells(b p)
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
-**# For PAA Final Paper: main analysis (did I mean ASA?)
+**# For ASA Paper
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
+
+********************************************************************************
+* Just policy variables -> do they predict dissolution?
+********************************************************************************
+/*
+min_above_fed: binary yes / no
+rent_afford: higher = more people pay 35% of income for rent
+unemployment: continuous
+gender_lfp_gap_nocoll: ratio of women to men in lf
+gender_lfp_gap_coll: ratio of women to men in lf
+paid_leave: binary yes / no
+cc_subsidies: higher = more eligible kids served
+senate_dems: higher = more dems; .88 correlation with house
+*/
+
+log using "$logdir/policy_dissolution.log", replace
+
+forvalues g=0/1{
+	melogit dissolve_lag i.dur i.min_above_fed if couple_educ_gp==`g' || state_fips:, or
+	margins, dydx(min_above_fed)
+	qui melogit dissolve_lag i.dur rent_afford if couple_educ_gp==`g' || state_fips:, or
+	margins, dydx(rent_afford)
+	qui melogit dissolve_lag i.dur unemployment if couple_educ_gp==`g' || state_fips:, or
+	margins, dydx(unemployment)
+	qui melogit dissolve_lag i.dur gender_lfp_gap_nocoll if couple_educ_gp==`g' || state_fips:, or
+	margins, dydx(gender_lfp_gap_nocoll)
+	qui melogit dissolve_lag i.dur i.paid_leave if couple_educ_gp==`g' || state_fips:, or
+	margins, dydx(paid_leave)
+	qui melogit dissolve_lag i.dur cc_subsidies if couple_educ_gp==`g' || state_fips:, or
+	margins, dydx(cc_subsidies)
+	qui melogit dissolve_lag i.dur senate_dems if couple_educ_gp==`g' || state_fips:, or
+	margins, dydx(senate_dems)
+}
+
+log close
+
+********************************************************************************
+* Interactions: Employment variables
+********************************************************************************
+log using "$logdir/policy_interactions.log", replace
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+
+/* No College */
+
+** Minimum wage
+melogit dissolve_lag i.dur i.min_above_fed i.ft_head i.ft_wife i.min_above_fed#i.ft_wife i.min_above_fed#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+// margins min_above_fed#ft_head
+// margins min_above_fed#ft_wife
+// margins, dydx(ft_head ft_wife) over(min_above_fed) // this isn't quite matching the above. which is right?!
+margins, dydx(ft_head ft_wife) at(min_above_fed=(0 1))
+// margins, dydx(ft_head#min_above_fed)
+
+**Rent affordability
+melogit dissolve_lag i.dur c.rent_afford i.ft_head i.ft_wife c.rent_afford#i.ft_wife c.rent_afford#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(rent_afford=(0.25(.05)0.45))
+
+**Unemployment
+melogit dissolve_lag i.dur c.unemployment i.ft_head i.ft_wife c.unemployment#i.ft_wife c.unemployment#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(unemployment=(3(2)11))
+
+**Gender LFP gap
+melogit dissolve_lag i.dur c.gender_lfp_gap_nocoll i.ft_head i.ft_wife c.gender_lfp_gap_nocoll#i.ft_wife c.gender_lfp_gap_nocoll#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(gender_lfp_gap_nocoll=(0.60(.05)0.85))
+
+**Paid Leave
+melogit dissolve_lag i.dur i.paid_leave i.ft_head i.ft_wife i.paid_leave#i.ft_wife i.paid_leave#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(paid_leave=(0 1))
+
+**Childcare subsidies
+melogit dissolve_lag i.dur c.cc_subsidies i.ft_head i.ft_wife c.cc_subsidies#i.ft_wife c.cc_subsidies#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(cc_subsidies=(0.05(.10)0.45))
+
+**% democrats in senate
+melogit dissolve_lag i.dur c.senate_dems i.ft_head i.ft_wife c.senate_dems#i.ft_wife c.senate_dems#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(senate_dems=(0(.10)0.8))
+
+
+/* College */
+
+** Minimum wage
+melogit dissolve_lag i.dur i.min_above_fed i.ft_head i.ft_wife i.min_above_fed#i.ft_wife i.min_above_fed#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(min_above_fed=(0 1))
+
+**Rent affordability
+melogit dissolve_lag i.dur c.rent_afford i.ft_head i.ft_wife c.rent_afford#i.ft_wife c.rent_afford#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(rent_afford=(0.25(.05)0.45))
+
+**Unemployment
+melogit dissolve_lag i.dur c.unemployment i.ft_head i.ft_wife c.unemployment#i.ft_wife c.unemployment#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(unemployment=(3(2)11))
+
+**Gender LFP gap
+melogit dissolve_lag i.dur c.gender_lfp_gap_nocoll i.ft_head i.ft_wife c.gender_lfp_gap_nocoll#i.ft_wife c.gender_lfp_gap_nocoll#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(gender_lfp_gap_nocoll=(0.60(.05)0.85))
+
+**Paid Leave
+melogit dissolve_lag i.dur i.paid_leave i.ft_head i.ft_wife i.paid_leave#i.ft_wife i.paid_leave#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(paid_leave=(0 1))
+
+**Childcare subsidies
+melogit dissolve_lag i.dur c.cc_subsidies i.ft_head i.ft_wife c.cc_subsidies#i.ft_wife c.cc_subsidies#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(cc_subsidies=(0.05(.10)0.45))
+
+**% democrats in senate
+melogit dissolve_lag i.dur c.senate_dems i.ft_head i.ft_wife c.senate_dems#i.ft_wife c.senate_dems#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(senate_dems=(0(.10)0.8))
+
+log close
+
+********************************************************************************
+* Interactions: Earnings
+********************************************************************************
+log using "$logdir/policy_interactions_earnings.log", replace
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
+
+/* No College */
+
+** Minimum wage
+melogit dissolve_lag i.dur i.min_above_fed c.knot1 c.knot2 c.knot3 i.min_above_fed#c.knot2 i.min_above_fed#c.knot3 `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(knot2 knot3) at(min_above_fed=(0 1))
+
+**Rent affordability
+melogit dissolve_lag i.dur c.rent_afford c.knot2 c.knot3 c.rent_afford#c.knot2 c.rent_afford#c.knot3 `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(knot2 knot3) at(rent_afford=(0.25(.05)0.45))
+
+**Unemployment
+melogit dissolve_lag i.dur c.unemployment c.knot2 c.knot3 c.unemployment#c.knot2 c.unemployment#c.knot3 `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(knot2 knot3) at(unemployment=(3(2)11))
+
+**Gender LFP gap
+melogit dissolve_lag i.dur c.gender_lfp_gap_nocoll c.knot2 c.knot3 c.gender_lfp_gap_nocoll#c.knot2 c.gender_lfp_gap_nocoll#c.knot3 `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(knot2 knot3) at(gender_lfp_gap_nocoll=(0.60(.05)0.85))
+
+**Paid Leave
+melogit dissolve_lag i.dur i.paid_leave c.knot2 c.knot3 i.paid_leave#c.knot2 i.paid_leave#c.knot3 `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(knot2 knot3) at(paid_leave=(0 1))
+
+**Childcare subsidies
+melogit dissolve_lag i.dur c.cc_subsidies c.knot2 c.knot3 c.cc_subsidies#c.knot2 c.cc_subsidies#c.knot3  `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(knot2 knot3) at(cc_subsidies=(0.05(.10)0.45))
+
+**% democrats in senate
+melogit dissolve_lag i.dur c.senate_dems c.knot2 c.knot3 c.senate_dems#c.knot2 c.senate_dems#c.knot3 `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(knot2 knot3) at(senate_dems=(0(.10)0.8))
+
+/* College */
+
+** Minimum wage
+melogit dissolve_lag i.dur i.min_above_fed c.knot1 c.knot2 c.knot3 i.min_above_fed#c.knot2 i.min_above_fed#c.knot3 `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(knot2 knot3) at(min_above_fed=(0 1))
+
+**Rent affordability
+melogit dissolve_lag i.dur c.rent_afford c.knot2 c.knot3 c.rent_afford#c.knot2 c.rent_afford#c.knot3 `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(knot2 knot3) at(rent_afford=(0.25(.05)0.45))
+
+**Unemployment
+melogit dissolve_lag i.dur c.unemployment c.knot2 c.knot3 c.unemployment#c.knot2 c.unemployment#c.knot3 `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(knot2 knot3) at(unemployment=(3(2)11))
+
+**Gender LFP gap
+melogit dissolve_lag i.dur c.gender_lfp_gap_nocoll c.knot2 c.knot3 c.gender_lfp_gap_nocoll#c.knot2 c.gender_lfp_gap_nocoll#c.knot3 `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(knot2 knot3) at(gender_lfp_gap_nocoll=(0.60(.05)0.85))
+
+**Paid Leave
+melogit dissolve_lag i.dur i.paid_leave c.knot2 c.knot3 i.paid_leave#c.knot2 i.paid_leave#c.knot3 `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(knot2 knot3) at(paid_leave=(0 1))
+
+**Childcare subsidies
+melogit dissolve_lag i.dur c.cc_subsidies c.knot2 c.knot3 c.cc_subsidies#c.knot2 c.cc_subsidies#c.knot3  `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(knot2 knot3) at(cc_subsidies=(0.05(.10)0.45))
+
+**% democrats in senate
+melogit dissolve_lag i.dur c.senate_dems c.knot2 c.knot3 c.senate_dems#c.knot2 c.senate_dems#c.knot3 `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(knot2 knot3) at(senate_dems=(0(.10)0.8))
+
+log close
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# Preliminary analysis
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth"
 //// state variables
 * Min wage
