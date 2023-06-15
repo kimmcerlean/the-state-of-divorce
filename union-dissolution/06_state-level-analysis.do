@@ -347,6 +347,9 @@ tabstat policysociallib_est, by(social_policy_gp)
 xtile liberal_attitudes_gp = masssociallib_est, nq(5)
 tabstat masssociallib_est, by(liberal_attitudes_gp)
 
+// is there enough variation?
+recode disapproval (2.154=1) (2.20/2.21=2) (2.2405=3) (2.27/2.29=4) (2.3935=5), gen(disapproval_bkt)
+
 **# Analysis starts
 
 ********************************************************************************
@@ -528,6 +531,14 @@ margins, dydx(ft_head ft_wife) at(cc_subsidies=(0.05(.10)0.45))
 melogit dissolve_lag i.dur c.senate_dems i.ft_head i.ft_wife c.senate_dems#i.ft_wife c.senate_dems#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
 margins, dydx(ft_head ft_wife) at(senate_dems=(0(.10)0.8))
 
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval i.ft_head i.ft_wife c.disapproval#i.ft_wife c.disapproval#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(disapproval=(2.1(.10)2.4))
+
+**attitude summary - alt
+melogit dissolve_lag i.dur i.disapproval_bkt i.ft_head i.ft_wife i.disapproval_bkt#i.ft_wife i.disapproval_bkt#i.ft_head `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(disapproval_bkt=(1(1)5))
+
 
 /* College */
 
@@ -558,6 +569,10 @@ margins, dydx(ft_head ft_wife) at(cc_subsidies=(0.05(.10)0.45))
 **% democrats in senate
 melogit dissolve_lag i.dur c.senate_dems i.ft_head i.ft_wife c.senate_dems#i.ft_wife c.senate_dems#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
 margins, dydx(ft_head ft_wife) at(senate_dems=(0(.10)0.8))
+
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval i.ft_head i.ft_wife c.disapproval#i.ft_wife c.disapproval#i.ft_head `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(ft_head ft_wife) at(disapproval=(2.1(.10)2.4))
 
 log close
 
@@ -631,7 +646,7 @@ margins, dydx(knot2 knot3) at(senate_dems=(0(.10)0.8))
 log close
 
 ********************************************************************************
-* Interactions: Employment variables
+* Interactions: Paid Work Arrangement
 ********************************************************************************
 log using "$logdir/policy_interactions_paidwork.log", replace
 
@@ -667,6 +682,10 @@ margins, dydx(hh_earn_type) at(cc_subsidies=(0.05(.10)0.45))
 melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(senate_dems=(0(.10)0.8))
 
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval i.hh_earn_type c.disapproval#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(disapproval=(2.1(.10)2.4))
+
 
 /* College */
 
@@ -697,6 +716,10 @@ margins, dydx(hh_earn_type) at(cc_subsidies=(0.05(.10)0.45))
 **% democrats in senate
 melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(senate_dems=(0(.10)0.8))
+
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval i.hh_earn_type c.disapproval#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(disapproval=(2.1(.10)2.4))
 
 log close
 
