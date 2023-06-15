@@ -613,6 +613,10 @@ margins, dydx(knot2 knot3) at(cc_subsidies=(0.05(.10)0.45))
 melogit dissolve_lag i.dur c.senate_dems c.knot2 c.knot3 c.senate_dems#c.knot2 c.senate_dems#c.knot3 `controls' if couple_educ_gp==0 || state_fips:, or
 margins, dydx(knot2 knot3) at(senate_dems=(0(.10)0.8))
 
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval c.knot2 c.knot3 c.disapproval#c.knot2 c.disapproval#c.knot3 `controls' if couple_educ_gp==0 || state_fips:, or
+margins, dydx(knot2 knot3) at(disapproval=(2.1(.10)2.4))
+
 /* College */
 
 ** Minimum wage
@@ -642,6 +646,10 @@ margins, dydx(knot2 knot3) at(cc_subsidies=(0.05(.10)0.45))
 **% democrats in senate
 melogit dissolve_lag i.dur c.senate_dems c.knot2 c.knot3 c.senate_dems#c.knot2 c.senate_dems#c.knot3 `controls' if couple_educ_gp==1 || state_fips:, or
 margins, dydx(knot2 knot3) at(senate_dems=(0(.10)0.8))
+
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval c.knot2 c.knot3 c.disapproval#c.knot2 c.disapproval#c.knot3 `controls' if couple_educ_gp==1 || state_fips:, or
+margins, dydx(knot2 knot3) at(disapproval=(2.1(.10)2.4))
 
 log close
 
