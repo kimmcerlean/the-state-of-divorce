@@ -491,6 +491,159 @@ forvalues g=0/1{
 log close
 
 ********************************************************************************
+**# MODELS WITH INTERACTIONS
+********************************************************************************
+
+log using "$logdir/policy_interactions_all.log", replace
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+
+********************************************************************************
+* Interactions: Paid Work Arrangement
+********************************************************************************
+/* No College */
+
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval i.hh_earn_type c.disapproval#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(disapproval=(2.1(.10)2.4))
+
+** Minimum wage
+melogit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(min_above_fed=(0 1))
+
+**Unemployment compensation
+melogit dissolve_lag i.dur c.unemployment_comp i.hh_earn_type c.unemployment_comp#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(unemployment_comp=(200(200)800))
+
+**% democrats in senate
+melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(senate_dems=(0(.10)0.8))
+
+**Paid Leave
+melogit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(paid_leave=(0 1))
+
+**Right to Work
+melogit dissolve_lag i.dur i.right2work i.hh_earn_type i.right2work#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(right2work=(0 1))
+
+**Childcare costs
+melogit dissolve_lag i.dur c.cc_pct_income i.hh_earn_type c.cc_pct_income#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(cc_pct_income=(0.05(.10)0.35))
+
+**Prek-12 education spending
+melogit dissolve_lag i.dur c.educ_spend i.hh_earn_type c.educ_spend#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(educ_spend=(4000(1000)9000))
+
+/* College */
+
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval i.hh_earn_type c.disapproval#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(disapproval=(2.1(.10)2.4))
+
+** Minimum wage
+melogit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(min_above_fed=(0 1))
+
+**Unemployment compensation
+melogit dissolve_lag i.dur c.unemployment_comp i.hh_earn_type c.unemployment_comp#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(unemployment_comp=(200(200)800))
+
+**% democrats in senate
+melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(senate_dems=(0(.10)0.8))
+
+**Paid Leave
+melogit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(paid_leave=(0 1))
+
+**Right to Work
+melogit dissolve_lag i.dur i.right2work i.hh_earn_type i.right2work#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(right2work=(0 1))
+
+**Childcare costs
+melogit dissolve_lag i.dur c.cc_pct_income i.hh_earn_type c.cc_pct_income#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(cc_pct_income=(0.05(.10)0.35))
+
+**Prek-12 education spending
+melogit dissolve_lag i.dur c.educ_spend i.hh_earn_type c.educ_spend#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(educ_spend=(4000(1000)9000))
+
+********************************************************************************
+* Interactions: Unpaid Work Arrangement
+********************************************************************************
+/* No College */
+
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval i.housework_bkt c.disapproval#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(disapproval=(2.1(.10)2.4))
+
+** Minimum wage
+melogit dissolve_lag i.dur i.min_above_fed i.housework_bkt i.min_above_fed#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(min_above_fed=(0 1))
+
+**Unemployment compensation
+melogit dissolve_lag i.dur c.unemployment_comp i.housework_bkt c.unemployment_comp#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(unemployment_comp=(200(200)800))
+
+**% democrats in senate
+melogit dissolve_lag i.dur c.senate_dems i.housework_bkt c.senate_dems#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(senate_dems=(0(.10)0.8))
+
+**Paid Leave
+melogit dissolve_lag i.dur i.paid_leave i.housework_bkt i.paid_leave#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(paid_leave=(0 1))
+
+**Right to Work
+melogit dissolve_lag i.dur i.right2work i.housework_bkt i.right2work#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(right2work=(0 1))
+
+**Childcare costs
+melogit dissolve_lag i.dur c.cc_pct_income i.housework_bkt c.cc_pct_income#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(cc_pct_income=(0.05(.10)0.35))
+
+**Prek-12 education spending
+melogit dissolve_lag i.dur c.educ_spend i.housework_bkt c.educ_spend#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(educ_spend=(4000(1000)9000))
+
+/* College */
+
+**attitude summary
+melogit dissolve_lag i.dur c.disapproval i.housework_bkt c.disapproval#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(disapproval=(2.1(.10)2.4))
+
+** Minimum wage
+melogit dissolve_lag i.dur i.min_above_fed i.housework_bkt i.min_above_fed#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(min_above_fed=(0 1))
+
+**Unemployment compensation
+melogit dissolve_lag i.dur c.unemployment_comp i.housework_bkt c.unemployment_comp#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(unemployment_comp=(200(200)800))
+
+**% democrats in senate
+melogit dissolve_lag i.dur c.senate_dems i.housework_bkt c.senate_dems#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(senate_dems=(0(.10)0.8))
+
+**Paid Leave
+melogit dissolve_lag i.dur i.paid_leave i.housework_bkt i.paid_leave#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(paid_leave=(0 1))
+
+**Right to Work
+melogit dissolve_lag i.dur i.right2work i.housework_bkt i.right2work#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(right2work=(0 1))
+
+**Childcare costs
+melogit dissolve_lag i.dur c.cc_pct_income i.housework_bkt c.cc_pct_income#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(cc_pct_income=(0.05(.10)0.35))
+
+**Prek-12 education spending
+melogit dissolve_lag i.dur c.educ_spend i.housework_bkt c.educ_spend#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(educ_spend=(4000(1000)9000))
+
+log close
+
+
+/*
+********************************************************************************
 * Interactions: Employment variables
 ********************************************************************************
 log using "$logdir/policy_interactions.log", replace
@@ -652,84 +805,8 @@ melogit dissolve_lag i.dur c.disapproval c.knot2 c.knot3 c.disapproval#c.knot2 c
 margins, dydx(knot2 knot3) at(disapproval=(2.1(.10)2.4))
 
 log close
+*/
 
-********************************************************************************
-* Interactions: Paid Work Arrangement
-********************************************************************************
-log using "$logdir/policy_interactions_paidwork.log", replace
-
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
-
-/* No College */
-
-** Minimum wage
-melogit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(min_above_fed=(0 1))
-
-**Rent affordability
-melogit dissolve_lag i.dur c.rent_afford i.hh_earn_type c.rent_afford#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(rent_afford=(0.25(.05)0.45))
-
-**Unemployment
-melogit dissolve_lag i.dur c.unemployment i.hh_earn_type c.unemployment#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(unemployment=(3(2)11))
-
-**Gender LFP gap
-melogit dissolve_lag i.dur c.gender_lfp_gap_nocoll i.hh_earn_type c.gender_lfp_gap_nocoll#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(gender_lfp_gap_nocoll=(0.60(.05)0.85))
-
-**Paid Leave
-melogit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(paid_leave=(0 1))
-
-**Childcare subsidies
-melogit dissolve_lag i.dur c.cc_subsidies i.hh_earn_type c.cc_subsidies#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(cc_subsidies=(0.05(.10)0.45))
-
-**% democrats in senate
-melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(senate_dems=(0(.10)0.8))
-
-**attitude summary
-melogit dissolve_lag i.dur c.disapproval i.hh_earn_type c.disapproval#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(disapproval=(2.1(.10)2.4))
-
-
-/* College */
-
-** Minimum wage
-melogit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(min_above_fed=(0 1))
-
-**Rent affordability
-melogit dissolve_lag i.dur c.rent_afford i.hh_earn_type c.rent_afford#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(rent_afford=(0.25(.05)0.45))
-
-**Unemployment
-melogit dissolve_lag i.dur c.unemployment i.hh_earn_type c.unemployment#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(unemployment=(3(2)11))
-
-**Gender LFP gap
-melogit dissolve_lag i.dur c.gender_lfp_gap_nocoll i.hh_earn_type c.gender_lfp_gap_nocoll#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(gender_lfp_gap_nocoll=(0.60(.05)0.85))
-
-**Paid Leave
-melogit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(paid_leave=(0 1))
-
-**Childcare subsidies
-melogit dissolve_lag i.dur c.cc_subsidies i.hh_earn_type c.cc_subsidies#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(cc_subsidies=(0.05(.10)0.45))
-
-**% democrats in senate
-melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(senate_dems=(0(.10)0.8))
-
-**attitude summary
-melogit dissolve_lag i.dur c.disapproval i.hh_earn_type c.disapproval#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
-margins, dydx(hh_earn_type) at(disapproval=(2.1(.10)2.4))
-
-log close
 
 ********************************************************************************
 ********************************************************************************
