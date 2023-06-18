@@ -499,6 +499,8 @@ log close
 ********************************************************************************
 
 log using "$logdir/policy_interactions_all.log", replace
+// log using "$logdir/policy_interactions_all.log", append
+
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
 
 ********************************************************************************
@@ -509,6 +511,18 @@ local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrol
 **attitude summary
 melogit dissolve_lag i.dur c.disapproval i.hh_earn_type c.disapproval#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(disapproval=(2.1(.10)2.4))
+
+	**regional attitudes: gender roles
+	melogit dissolve_lag i.dur c.genderroles_egal i.hh_earn_type c.genderroles_egal#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+	margins, dydx(hh_earn_type) at(genderroles_egal=(0.56(.04)0.72))
+
+	**regional attitudes: working mom
+	melogit dissolve_lag i.dur c.working_mom_egal i.hh_earn_type c.working_mom_egal#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+	margins, dydx(hh_earn_type) at(working_mom_egal=(0.66(.02)0.72))
+
+	**regional attitudes: preschool
+	melogit dissolve_lag i.dur c.preschool_egal i.hh_earn_type c.preschool_egal#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+	margins, dydx(hh_earn_type) at(preschool_egal=(0.58(.02)0.64))
 
 ** Minimum wage
 melogit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
@@ -547,6 +561,18 @@ margins, dydx(hh_earn_type) at(predclass=(1(1)4))
 **attitude summary
 melogit dissolve_lag i.dur c.disapproval i.hh_earn_type c.disapproval#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(disapproval=(2.1(.10)2.4))
+
+	**regional attitudes: gender roles
+	melogit dissolve_lag i.dur c.genderroles_egal i.hh_earn_type c.genderroles_egal#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+	margins, dydx(hh_earn_type) at(genderroles_egal=(0.56(.04)0.72))
+
+	**regional attitudes: working mom
+	melogit dissolve_lag i.dur c.working_mom_egal i.hh_earn_type c.working_mom_egal#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+	margins, dydx(hh_earn_type) at(working_mom_egal=(0.66(.02)0.72))
+
+	**regional attitudes: preschool
+	melogit dissolve_lag i.dur c.preschool_egal i.hh_earn_type c.preschool_egal#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+	margins, dydx(hh_earn_type) at(preschool_egal=(0.58(.02)0.64))
 
 ** Minimum wage
 melogit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
@@ -589,6 +615,18 @@ margins, dydx(hh_earn_type) at(predclass=(1(1)4))
 melogit dissolve_lag i.dur c.disapproval i.housework_bkt c.disapproval#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
 margins, dydx(housework_bkt) at(disapproval=(2.1(.10)2.4))
 
+	**regional attitudes: gender roles
+	melogit dissolve_lag i.dur c.genderroles_egal i.housework_bkt c.genderroles_egal#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+	margins, dydx(housework_bkt) at(genderroles_egal=(0.56(.04)0.72))
+
+	**regional attitudes: working mom
+	melogit dissolve_lag i.dur c.working_mom_egal i.housework_bkt c.working_mom_egal#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+	margins, dydx(housework_bkt) at(working_mom_egal=(0.66(.02)0.72))
+
+	**regional attitudes: preschool
+	melogit dissolve_lag i.dur c.preschool_egal i.housework_bkt c.preschool_egal#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+	margins, dydx(housework_bkt) at(preschool_egal=(0.58(.02)0.64))
+
 ** Minimum wage
 melogit dissolve_lag i.dur i.min_above_fed i.housework_bkt i.min_above_fed#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
 margins, dydx(housework_bkt) at(min_above_fed=(0 1))
@@ -627,6 +665,18 @@ margins, dydx(housework_bkt) at(predclass=(1(1)4))
 **attitude summary
 melogit dissolve_lag i.dur c.disapproval i.housework_bkt c.disapproval#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
 margins, dydx(housework_bkt) at(disapproval=(2.1(.10)2.4))
+
+	**regional attitudes: gender roles
+	melogit dissolve_lag i.dur c.genderroles_egal i.housework_bkt c.genderroles_egal#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+	margins, dydx(housework_bkt) at(genderroles_egal=(0.56(.04)0.72))
+
+	**regional attitudes: working mom
+	melogit dissolve_lag i.dur c.working_mom_egal i.housework_bkt c.working_mom_egal#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+	margins, dydx(housework_bkt) at(working_mom_egal=(0.66(.02)0.72))
+
+	**regional attitudes: preschool
+	melogit dissolve_lag i.dur c.preschool_egal i.housework_bkt c.preschool_egal#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+	margins, dydx(housework_bkt) at(preschool_egal=(0.58(.02)0.64))
 
 ** Minimum wage
 melogit dissolve_lag i.dur i.min_above_fed i.housework_bkt i.min_above_fed#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
