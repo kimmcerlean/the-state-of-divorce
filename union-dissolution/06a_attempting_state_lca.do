@@ -159,7 +159,7 @@ browse state_name year predclass policy_group egal_attitudes min_above_fed liber
 save "T:\Research Projects\State data\data_keep\state_lca.dta", replace
 
 ********************************************************************************
-* Quick models - eventually merge with other file and make sure accurage but this is back of the envelope
+**# Quick models - eventually merge with other file and make sure accurage but this is back of the envelope
 ********************************************************************************
 
 use "$data_keep\PSID_marriage_recoded_sample.dta", clear
@@ -192,6 +192,9 @@ drop _merge
 label define pred 1 "Trad No" 2 "Egal No" 3 "Trad Yes" 4 "Egal Yes"
 label values predclass pred
 
+**Okay I moved these to the main file
+log using "$logdir/policy_interactions_all.log", append
+
 /* Paid */
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
 melogit dissolve_lag i.dur i.predclass i.hh_earn_type i.predclass#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
@@ -201,8 +204,11 @@ melogit dissolve_lag i.dur i.predclass i.hh_earn_type i.predclass#i.hh_earn_type
 margins, dydx(hh_earn_type) at(predclass=(1(1)4))
 
 /* Unpaid*/
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
 melogit dissolve_lag i.dur i.predclass i.housework_bkt i.predclass#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
 margins, dydx(housework_bkt) at(predclass=(1(1)4))
 
 melogit dissolve_lag i.dur i.predclass i.housework_bkt i.predclass#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
 margins, dydx(housework_bkt) at(predclass=(1(1)4))
+
+log close

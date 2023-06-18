@@ -320,6 +320,10 @@ merge m:1 state_fips year using "T:\Research Projects\State data\data_keep\final
 drop if _merge==2
 drop _merge
 
+merge m:1 state_fips year using "T:\Research Projects\State data\data_keep\state_lca.dta"
+drop if _merge==2
+drop _merge
+
 // I need to remember - not all variables have data past 2010 - should I just extend forward. I could definitely add in the min wage and unemployment
 browse year state_fips state_cpi_bfh_est
 
@@ -534,6 +538,10 @@ margins, dydx(hh_earn_type) at(cc_pct_income=(0.05(.10)0.35))
 melogit dissolve_lag i.dur c.educ_spend i.hh_earn_type c.educ_spend#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(educ_spend=(4000(1000)9000))
 
+**State Latent Class
+melogit dissolve_lag i.dur i.predclass i.hh_earn_type i.predclass#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(predclass=(1(1)4))
+
 /* College */
 
 **attitude summary
@@ -567,6 +575,10 @@ margins, dydx(hh_earn_type) at(cc_pct_income=(0.05(.10)0.35))
 **Prek-12 education spending
 melogit dissolve_lag i.dur c.educ_spend i.hh_earn_type c.educ_spend#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(educ_spend=(4000(1000)9000))
+
+**State Latent Class
+melogit dissolve_lag i.dur i.predclass i.hh_earn_type i.predclass#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(predclass=(1(1)4))
 
 ********************************************************************************
 * Interactions: Unpaid Work Arrangement
@@ -605,6 +617,11 @@ margins, dydx(housework_bkt) at(cc_pct_income=(0.05(.10)0.35))
 melogit dissolve_lag i.dur c.educ_spend i.housework_bkt c.educ_spend#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
 margins, dydx(housework_bkt) at(educ_spend=(4000(1000)9000))
 
+**State Latent Class
+melogit dissolve_lag i.dur i.predclass i.housework_bkt i.predclass#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(predclass=(1(1)4))
+
+
 /* College */
 
 **attitude summary
@@ -638,6 +655,10 @@ margins, dydx(housework_bkt) at(cc_pct_income=(0.05(.10)0.35))
 **Prek-12 education spending
 melogit dissolve_lag i.dur c.educ_spend i.housework_bkt c.educ_spend#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
 margins, dydx(housework_bkt) at(educ_spend=(4000(1000)9000))
+
+**State Latent Class
+melogit dissolve_lag i.dur i.predclass i.housework_bkt i.predclass#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4 || state_fips:, or
+margins, dydx(housework_bkt) at(predclass=(1(1)4))
 
 log close
 
