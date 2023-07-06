@@ -879,6 +879,17 @@ margins, dydx(hh_earn_type) at(unemployment=(3(2)11))
 melogit dissolve_lag i.dur c.cc_subsidies i.hh_earn_type c.cc_subsidies#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(cc_subsidies=(0.05(.10)0.45))
 
+**test multiple interactions - the above just adds attitudes but NOT the interaction of attitudes and hh earn type. Do i need the INTERACTION? testing with some variables here
+local controls "c.regional_attitudes_factor age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+
+melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type c.regional_attitudes_factor#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(senate_dems=(0(.10)0.8))
+margins, dydx(hh_earn_type) at(regional_attitudes_factor=(-2.0(1)2.0))
+
+melogit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type c.regional_attitudes_factor#i.hh_earn_type  `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(paid_leave=(0 1))
+margins, dydx(hh_earn_type) at(regional_attitudes_factor=(-2.0(1)2.0))
+
 log close
 
 // Overall // 
