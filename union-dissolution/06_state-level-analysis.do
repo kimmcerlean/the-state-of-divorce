@@ -665,6 +665,10 @@ margins, dydx(hh_earn_type) at(regional_attitudes_factor=(-2.0(1)2.0))
 melogit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(min_above_fed=(0 1))
 
+	*Trying continuous
+	melogit dissolve_lag i.dur statemin i.hh_earn_type c.statemin#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+	margins, dydx(hh_earn_type) at(statemin=(4(2)10))
+
 **% democrats in senate
 melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(senate_dems=(0(.10)0.8))
@@ -729,6 +733,10 @@ margins, dydx(hh_earn_type) at(regional_attitudes_factor=(-2.0(1)2.0))
 ** Minimum wage
 melogit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(min_above_fed=(0 1))
+
+	*Trying continuous
+	melogit dissolve_lag i.dur statemin i.hh_earn_type c.statemin#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+	margins, dydx(hh_earn_type) at(statemin=(4(2)10))
 
 **% democrats in senate
 melogit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
