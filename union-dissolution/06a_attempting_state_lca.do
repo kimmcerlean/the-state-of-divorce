@@ -46,12 +46,14 @@ replace high_educ_spend=. if educ_spend==.
 ********************************************************************************
 
 /* Failures */
+/*
 gsem (egal_attitudes min_above_fed good_unemployment cc_afford liberal paid_leave right2work high_educ_spend <-), logit lclass(C 3) // STILL not estimating - does this mean not enough variation?
 
 gsem (egal_attitudes min_above_fed good_unemployment cc_afford liberal paid_leave right2work high_educ_spend <-), logit lclass(C 3) startvalues(randompr, draws(20) seed(15)) // not helping - I don't know enough but I am not sure that it's the starting values?
 
 gsem (egal_attitudes min_above_fed good_unemployment cc_afford liberal paid_leave right2work high_educ_spend <-), logit lclass(C 3) nonrtolerance // with DC removed - right2work estimates, but cc_afford still doesn't I'm so confused
 gsem (egal_attitudes min_above_fed good_unemployment cc_afford liberal paid_leave high_educ_spend <-), logit lclass(C 3) // took out right2work based on above, but still don't think helping
+*/
 
 /* Progress */
 // worked sorta??
@@ -74,10 +76,12 @@ gsem (egal_attitudes min_above_fed liberal paid_leave  <-  , logit) ///
 , lclass(C 4) nonrtolerance
 estimates store class4
 
+/*
 gsem (egal_attitudes min_above_fed liberal paid_leave <-  , logit) ///
 (unemployment_comp cc_pct_income educ_spend <-  , regress) ///
 , lclass(C 5) nonrtolerance // feel like this didn't estimate, not adding a lot of incremental value either
 estimates store class5
+*/
 
 gsem (egal_attitudes min_above_fed liberal paid_leave <-  , logit) ///
 (unemployment_comp cc_pct_income educ_spend <-  , regress) ///
@@ -150,7 +154,21 @@ replace predclass = 2 if cpost2==max
 replace predclass = 3 if cpost3==max
 replace predclass = 4 if cpost4==max
 
+label define pred 1 "Trad No" 2 "Egal No" 3 "Trad Yes" 4 "Egal Yes"
+label values predclass pred
+
 tabulate predclass
+
+/*
+
+  predclass |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |        505       43.91       43.91
+          2 |        170       14.78       58.70
+          3 |        356       30.96       89.65
+          4 |        119       10.35      100.00
+------------+-----------------------------------
+*/
 
 tab predclass policy_group, row
 
@@ -188,9 +206,6 @@ rename survey_yr year
 merge m:1 state_fips year using "T:\Research Projects\State data\data_keep\state_lca.dta"
 drop if _merge==2
 drop _merge
-
-label define pred 1 "Trad No" 2 "Egal No" 3 "Trad Yes" 4 "Egal Yes"
-label values predclass pred
 
 **Okay I moved these to the main file
 log using "$logdir/policy_interactions_all.log", append

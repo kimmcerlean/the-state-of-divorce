@@ -289,7 +289,6 @@ replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29
 keep if cohort==3
 keep if inlist(IN_UNIT,1,2)
 
-
 ********************************************************************************
 **# Bookmark #1
 * Merge onto policy data
@@ -375,6 +374,10 @@ gen regional_attitudes_scaled=(regional_attitudes_factor - r(min)) /  (r(max) - 
 sum regional_attitudes_scaled
 
 **# Analysis starts
+
+**Quick descriptives needed
+tab dissolve_lag couple_educ_gp, row
+tab dissolve_lag predclass, row
 
 ********************************************************************************
 ********************************************************************************
