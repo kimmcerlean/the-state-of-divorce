@@ -177,6 +177,7 @@ unique id if inrange(status_all,4,7) // 6060
 unique id if dissolve==1 // 7660
 
 // trying to identify if married or cohabiting. .. need relation_?
+// see fAQ, some might be labeled bf / gf in first year coresiding (code 88)
 // might need to alter code for cohab because wouldn't be in marital history, so I may have over-wrote some cohab above. 
 // will this as now for married, but for cohab, go back to original code and then ONLY KEEP cohab - will only be accurate for cohab and this file only for marriages? but here at least need to remove some marriages?
 // egen year_family=concat(survey_yr FAMILY_INTERVIEW_NUM_), punct(_)
@@ -255,7 +256,7 @@ browse unique_id survey_yr relationship_type relationship_order marriage_order m
 save "$data_tmp\PSID_all_unions.dta", replace
 
 ********************************************************************************
-* Recodes
+**# Recodes
 ********************************************************************************
 // first need to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent.
 bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(unique_id)
@@ -803,6 +804,8 @@ rename partner_1968_id*_head_wife partner_1968_id*_head
 rename partner_per_num*_head_wife partner_per_num*_head
 
 save "$data_keep\PSID_union_validation_sample.dta", replace
+
+**# Pivot to marriage only file
 
 keep if relationship_type==2
 
