@@ -1,17 +1,18 @@
 ********************************************************************************
 * Getting PSID sample for union dissolution
-* create_comparison_sample.do
+* create_cohab_sample.do
 * Kim McErlean
 ********************************************************************************
-
-* Instead of just keeping those with relationship start 20000 - keeping those later, to try to validate other findings (e.g. Killewald, Schwartz and GP). Since just marriage, can also do prior to 1983?
+// This file is adapted from 1a - need to ensure I included cohabitation properly, not just marriage. Still unsure if "marital" history includes cohabitations
 
 use "$data_tmp\PSID_full_long.dta", clear // created in other step 1
 
 // need to replace all "id" with INTERVIEW_NUM_, okay wait no unique ID
 // BUT interview_num_ to match later
+
 ********************************************************************************
-* First clean up to get a sense of WHO is even eligible
+* First, just attempting to create relationship file for all relationships,
+* marriages and cohabitations
 ********************************************************************************
 
 browse survey_yr main_per_id id unique_id INTERVIEW_NUM_ SEQ_NUMBER_ RELATION_ FIRST_MARRIAGE_YR_START MARITAL_PAIRS_
@@ -35,7 +36,7 @@ gen relationship_yr = survey_yr if relationship==1
 sort id survey_yr
 gen enter_rel=0
 replace enter_rel=1 if relationship==1 & relationship[_n-1]==0 & unique_id==unique_id[_n-1]
-replace enter_rel=1 if relationship_yr==1968 // since can't transition, but call this "relationship 1"
+replace enter_rel=1 if relationship_yr==1968 // since can't transition, but call this "built relationship 1"
 
 gen exit_rel=0
 sort id survey_yr
@@ -45,50 +46,130 @@ replace exit_rel=1 if relationship==1 & relationship[_n+1]==0 & unique_id==uniqu
 browse unique_id survey_yr relationship enter_rel MARITAL_STATUS_HEAD_ exit_rel
 
 gen relationship_start = survey_yr if enter_rel==1
-bysort unique_id: egen marrno=rank(relationship_start)
-browse unique_id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start FIRST_MARRIAGE_YR_START marrno
+bysort unique_id: egen built_rel_no=rank(relationship_start) // this is flawed if have multiple marriages prior to survey starting
+browse unique_id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start FIRST_MARRIAGE_YR_START built_rel_no
 
-gen rel1_start=.
+gen built_start_rel1=.
 // replace rel1_start = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
-replace rel1_start=relationship_start if marrno==1 // & FIRST_MARRIAGE_YR_START==9999
-bysort unique_id (rel1_start): replace rel1_start=rel1_start[1]
-gen rel2_start=.
-replace rel2_start=relationship_start if marrno==2 // & RECENT_MARRIAGE_YR_START ==9999
-bysort unique_id (rel2_start): replace rel2_start=rel2_start[1]
-gen rel3_start=.
-replace rel3_start=relationship_start if marrno==3
-bysort unique_id (rel3_start): replace rel3_start=rel3_start[1]
-gen rel4_start=.
-replace rel4_start=relationship_start if marrno==4
-bysort unique_id (rel4_start): replace rel4_start=rel4_start[1]
+replace built_start_rel1=relationship_start if built_rel_no==1 // & FIRST_MARRIAGE_YR_START==9999
+bysort unique_id (built_start_rel1): replace built_start_rel1=built_start_rel1[1]
+gen built_start_rel2=.
+replace built_start_rel2=relationship_start if built_rel_no==2 // & RECENT_MARRIAGE_YR_START ==9999
+bysort unique_id (built_start_rel2): replace built_start_rel2=built_start_rel2[1]
+gen built_start_rel3=.
+replace built_start_rel3=relationship_start if built_rel_no==3
+bysort unique_id (built_start_rel3): replace built_start_rel3=built_start_rel3[1]
+gen built_start_rel4=.
+replace built_start_rel4=relationship_start if built_rel_no==4
+bysort unique_id (built_start_rel4): replace built_start_rel4=built_start_rel4[1]
+gen built_start_rel5=.
+replace built_start_rel5=relationship_start if built_rel_no==5
+bysort unique_id (built_start_rel5): replace built_start_rel5=built_start_rel5[1]
 
 sort unique_id survey_yr
-browse unique_id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start rel1_start FIRST_MARRIAGE_YR_START rel2_start marrno
-
-browse unique_id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start rel1_start FIRST_MARRIAGE_YR_START rel2_start marrno id_spouse1 per_no_spouse1 yr_married1 id_spouse2 per_no_spouse2 yr_married2 in_marital_history MARITAL_PAIRS_
-
+browse unique_id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start FIRST_MARRIAGE_YR_START built_start_rel1 built_start_rel2 built_start_rel3 built_rel_no  yr_married1  yr_married2 yr_married3 yr_married4 in_marital_history MARITAL_PAIRS_ // id_spouse1 per_no_spouse1 id_spouse2 per_no_spouse2
 
 gen relationship_end = survey_yr if exit_rel==1
-bysort unique_id: egen exitno=rank(relationship_end)
-browse unique_id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start exitno
+bysort unique_id: egen built_exitno=rank(relationship_end)
+browse unique_id survey_yr MARITAL_STATUS_HEAD_ enter_rel relationship_start built_exitno
 
-gen rel1_end=.
-replace rel1_end=relationship_end if exitno==1
-bysort unique_id (rel1_end): replace rel1_end=rel1_end[1]
-gen rel2_end=.
-replace rel2_end=relationship_end if exitno==2
-bysort unique_id (rel2_end): replace rel2_end=rel2_end[1]
-gen rel3_end=.
-replace rel3_end=relationship_end if exitno==3
-bysort unique_id (rel3_end): replace rel3_end=rel3_end[1]
-gen rel4_end=.
-replace rel4_end=relationship_end if exitno==4
-bysort unique_id (rel4_end): replace rel4_end=rel4_end[1]
+gen built_end_rel1=.
+replace built_end_rel1=relationship_end if built_exitno==1
+bysort unique_id (built_end_rel1): replace built_end_rel1=built_end_rel1[1]
+gen built_end_rel2=.
+replace built_end_rel2=relationship_end if built_exitno==2
+bysort unique_id (built_end_rel2): replace built_end_rel2=built_end_rel2[1]
+gen built_end_rel3=.
+replace built_end_rel3=relationship_end if built_exitno==3
+bysort unique_id (built_end_rel3): replace built_end_rel3=built_end_rel3[1]
+gen built_end_rel4=.
+replace built_end_rel4=relationship_end if built_exitno==4
+bysort unique_id (built_end_rel4): replace built_end_rel4=built_end_rel4[1]
+gen built_end_rel5=.
+replace built_end_rel5=relationship_end if built_exitno==5
+bysort unique_id (built_end_rel5): replace built_end_rel5=built_end_rel5[1]
 
-browse unique_id survey_yr relationship enter_rel marrno rel1_start rel1_end rel2_start rel2_end
 sort unique_id survey_yr
-browse unique_id survey_yr rel1_start rel1_end rel2_start rel2_end in_marital_history yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 // figuring out how to combine gah
+browse unique_id survey_yr relationship enter_rel exit_rel built_start_rel1 built_end_rel1 built_start_rel2 built_end_rel2
+browse unique_id survey_yr built_start_rel1 built_end_rel1 built_start_rel2 built_end_rel2 in_marital_history yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 yr_married3 status3 yr_end3 // figuring out how to combine gah
 
+preserve
+
+collapse (mean) built_start_rel1 built_start_rel2 built_start_rel3 built_start_rel4 built_start_rel5 built_end_rel1 built_end_rel2 built_end_rel3 built_end_rel4 built_end_rel5 yr_married1 yr_married2 yr_married3 yr_married4 yr_married5 yr_married6 yr_married7 yr_married8 yr_married9 yr_end1 yr_end2 yr_end3 yr_end4 yr_end5 yr_end6 yr_end7 yr_end8 yr_end9 status1 status2 status3 status4 status5 status6 status7 status8 status9, by(unique_id)
+
+// reshape long built_start_rel built_end_rel yr_married yr_end status, i(unique_id) j(relationship)
+// okay moving the built variables to slots 10-15
+
+gen yr_married11 = built_start_rel1
+gen yr_married12 = built_start_rel2
+gen yr_married13 = built_start_rel3
+gen yr_married14 = built_start_rel4
+gen yr_married15 = built_start_rel5
+
+gen yr_end11 = built_end_rel1
+gen yr_end12 = built_end_rel2
+gen yr_end13 = built_end_rel3
+gen yr_end14 = built_end_rel4
+gen yr_end15 = built_end_rel5
+
+drop built_start_rel*  built_end_rel*
+reshape long yr_married yr_end status, i(unique_id) j(relationship)
+
+drop if yr_married==.
+drop if yr_married==9998 | yr_end==9998 // dk
+
+gen yr_end_full=yr_end
+replace yr_end=9999 if yr_end==. // so it will rank (and in marital history, this is what is given)
+
+by unique_id: egen rank_start = rank(yr_married)
+by unique_id: egen rank_end = rank(yr_end)
+egen rank_avg = rowmean(rank_start rank_end)
+
+sort unique_id rank_avg relationship 
+
+// so put them all at halfway point if like 1.25/1.75
+recode rank_avg (1.25/1.75=1.5) (2.25/2.75=2.5) (3.25/3.75=3.5) (4.25/4.75=4.5) (5.25/5.75=5.5) (6.25/6.75=6.5) (7.25/7.75=7.5) (8.25/8.75=8.5) (9.25/9.75=9.5), gen(rank_avg_dup)
+
+*https://www.stata.com/support/faqs/data-management/duplicate-observations/
+// by unique_id rank_avg:  gen dup = cond(_N==1,0,_n) // this is mostly good and then can drop dup==2, there are a few non-integers that aren't duplicates need to figure those out
+sort unique_id rank_avg_dup relationship 
+by unique_id rank_avg_dup:  gen dup = cond(_N==1,0,_n)
+
+drop if dup>=2
+
+* still a few not catching if years are off bc of recorded date v. where it is recorded when I subtract.
+* think it mostly affects those that have a maximum rank of 2 - bc it's one relationship, but looks like 2 because of dates?
+by unique_id: egen rank_max = max(rank_avg)
+gen flag=0
+replace flag=1 if rank_max==2
+
+gen same_rel=0
+replace same_rel=1 if (yr_married==yr_married[_n-1]+1 | yr_married==yr_married[_n-1]+2) & (yr_end==yr_end[_n-1]+1 | yr_end==yr_end[_n-1]+2) & unique_id==unique_id[_n-1] // & flag==1
+replace same_rel=1 if (yr_married==yr_married[_n+1]-1 | yr_married==yr_married[_n+1]-2) & (yr_end==yr_end[_n+1]-1 | yr_end==yr_end[_n+1]-2) & unique_id==unique_id[_n+1] // & flag==1
+
+* want to keep the marital history one? so
+drop if same_rel==1 & status==. // bc means not in marital history. will there always be one in marital history? it seems
+
+* need to rerank
+by unique_id: egen relationship_real = rank(yr_married)
+browse unique_id relationship relationship_real yr_married yr_end status
+drop if status==. & inlist(relationship_real,1.5,2.5,3.5,4.5,5.5,6.5) // intact, but I had them ending (prob bc censoring) so using the one attached to marital history
+
+drop relationship_real
+by unique_id: egen relationship_real = rank(yr_married), unique // few people started, ended, started all in same year
+
+// need to rename bc the current variables are named yr_married and yr_end
+gen relationship_start = yr_married
+gen relationship_end = yr_end
+gen relationship_status = status
+
+keep unique_id relationship_start relationship_end relationship_status relationship_real
+reshape wide relationship_start relationship_end relationship_status , i(unique_id) j(relationship_real)
+
+save "$data_keep\PSID_union_history_created.dta", replace
+
+/*
+this only works for marriages
 replace rel1_start=yr_married1 if in_marital_history==1
 replace rel2_start=yr_married2 if in_marital_history==1
 replace rel3_start=yr_married3 if in_marital_history==1
@@ -103,25 +184,66 @@ replace rel1_end=. if rel1_end==9999
 replace rel2_end=. if rel2_end==9999
 replace rel3_end=. if rel3_end==9999
 replace rel4_end=. if rel4_end==9999
+*/
+
+********************************************************************************
+**# Now, merge relationship information back on file 
+** 	so can create information I need
+********************************************************************************
+* restore // will this work? or just start from first file?
+
+use "$data_tmp\PSID_full_long.dta", clear // created in other step 1
+
+gen relationship=0
+replace relationship=1 if inrange(MARITAL_PAIRS_,1,4)
+
+bysort unique_id (SEQ_NUMBER_): egen in_sample=max(SEQ_NUMBER_)
+drop if in_sample==0 // people with NO DATA in any year
+drop if SEQ_NUMBER_==0 // won't have data because not in that year -- like SIPP, how do I know if last year is because divorced or last year in sample? right now individual level file, so fine - this is JUST last year in sample at the moment
+
+merge m:1 unique_id using "$data_keep\PSID_union_history_created.dta" // I think people not matched in master are those with NO relationships. that would make sense because I deleted them frm the file.
 
 gen rel_start_all=.
-replace rel_start_all = rel1_start if survey_yr>=rel1_start & survey_yr <=rel1_end
-replace rel_start_all = rel2_start if survey_yr>=rel2_start & survey_yr <=rel2_end
-replace rel_start_all = rel3_start if survey_yr>=rel3_start & survey_yr <=rel3_end
-replace rel_start_all = rel4_start if survey_yr>=rel4_start & survey_yr <=rel4_end
+replace rel_start_all = relationship_start1 if survey_yr>=relationship_start1 & survey_yr <=relationship_end1
+replace rel_start_all = relationship_start2 if survey_yr>=relationship_start2 & survey_yr <=relationship_end2
+replace rel_start_all = relationship_start3 if survey_yr>=relationship_start3 & survey_yr <=relationship_end3
+replace rel_start_all = relationship_start4 if survey_yr>=relationship_start4 & survey_yr <=relationship_end4
+replace rel_start_all = relationship_start5 if survey_yr>=relationship_start5 & survey_yr <=relationship_end5
+replace rel_start_all = relationship_start6 if survey_yr>=relationship_start6 & survey_yr <=relationship_end6
+replace rel_start_all = relationship_start7 if survey_yr>=relationship_start7 & survey_yr <=relationship_end7
+replace rel_start_all = relationship_start8 if survey_yr>=relationship_start8 & survey_yr <=relationship_end8
 
 gen rel_end_all=.
-replace rel_end_all = rel1_end if survey_yr>=rel1_start & survey_yr <=rel1_end
-replace rel_end_all = rel2_end if survey_yr>=rel2_start & survey_yr <=rel2_end
-replace rel_end_all = rel3_end if survey_yr>=rel3_start & survey_yr <=rel3_end
-replace rel_end_all = rel4_end if survey_yr>=rel4_end & survey_yr <=rel4_end
+replace rel_end_all = relationship_end1 if survey_yr>=relationship_start1 & survey_yr <=relationship_end1
+replace rel_end_all = relationship_end2 if survey_yr>=relationship_start2 & survey_yr <=relationship_end2
+replace rel_end_all = relationship_end3 if survey_yr>=relationship_start3 & survey_yr <=relationship_end3
+replace rel_end_all = relationship_end4 if survey_yr>=relationship_start4 & survey_yr <=relationship_end4
+replace rel_end_all = relationship_end5 if survey_yr>=relationship_start5 & survey_yr <=relationship_end5
+replace rel_end_all = relationship_end6 if survey_yr>=relationship_start6 & survey_yr <=relationship_end6
+replace rel_end_all = relationship_end7 if survey_yr>=relationship_start7 & survey_yr <=relationship_end7
+replace rel_end_all = relationship_end8 if survey_yr>=relationship_start8 & survey_yr <=relationship_end8
 
 gen status_all=.
-replace status_all = status1 if survey_yr>=rel1_start & survey_yr <=rel1_end
-replace status_all = status2 if survey_yr>=rel2_start & survey_yr <=rel2_end
-replace status_all = status3 if survey_yr>=rel3_start & survey_yr <=rel3_end
-replace status_all = status4 if survey_yr>=rel4_end & survey_yr <=rel4_end
+replace status_all = relationship_status1 if survey_yr>=relationship_start1 & survey_yr <=relationship_end1
+replace status_all = relationship_status2 if survey_yr>=relationship_start2 & survey_yr <=relationship_end2
+replace status_all = relationship_status3 if survey_yr>=relationship_start3 & survey_yr <=relationship_end3
+replace status_all = relationship_status4 if survey_yr>=relationship_start4 & survey_yr <=relationship_end4
+replace status_all = relationship_status5 if survey_yr>=relationship_start5 & survey_yr <=relationship_end5
+replace status_all = relationship_status6 if survey_yr>=relationship_start6 & survey_yr <=relationship_end6
+replace status_all = relationship_status7 if survey_yr>=relationship_start7 & survey_yr <=relationship_end7
+replace status_all = relationship_status8 if survey_yr>=relationship_start8 & survey_yr <=relationship_end8
 
+label values status_all status
+
+gen relationship_order=.
+forvalues r=1/8{
+	replace relationship_order=`r' if survey_yr>=relationship_start`r' & survey_yr <=relationship_end`r'
+}
+
+browse unique_id survey_yr MARITAL_PAIRS_ relationship relationship_order rel_start_all rel_end_all relationship_start1 relationship_end1 relationship_start2 relationship_start2 relationship_status1
+
+/* 
+**also only works for marriage, but might need this info at some point halp**
 gen spouse_id_all=.
 replace spouse_id_all = id_spouse1 if survey_yr>=rel1_start & survey_yr <=rel1_end
 replace spouse_id_all = id_spouse2 if survey_yr>=rel2_start & survey_yr <=rel2_end
@@ -133,25 +255,15 @@ replace spouse_per_num_all = per_no_spouse1 if survey_yr>=rel1_start & survey_yr
 replace spouse_per_num_all = per_no_spouse2 if survey_yr>=rel2_start & survey_yr <=rel2_end
 replace spouse_per_num_all = per_no_spouse3 if survey_yr>=rel3_start & survey_yr <=rel3_end
 replace spouse_per_num_all = per_no_spouse4 if survey_yr>=rel4_end & survey_yr <=rel4_end
+*/
 
-label values status_all status
-
-browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end spouse_id_all spouse_per_num_all id_spouse1 id_spouse2 per_no_spouse1 per_no_spouse2
-
-gen relationship_order=.
-
-forvalues r=1/4{
-	replace relationship_order=`r' if survey_yr>=rel`r'_start & survey_yr <=rel`r'_end
-}
-
-browse unique_id survey_yr relationship relationship_order rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
-
+bysort unique_id: egen first_survey_yr = min(survey_yr)
 bysort unique_id: egen last_survey_yr = max(survey_yr)
 
 sort unique_id survey_yr
-browse unique_id survey_yr relationship rel_start_all rel_end_all exit_rel status1 status2
+browse unique_id survey_yr FAMILY_INTERVIEW_NUM_ main_per_id rel_start_all rel_end_all status_all last_survey_yr MARRIAGE_UPDATE MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_ // exit_rel X1968_PERSON_NUM_
 
-browse unique_id survey_yr rel_start_all rel_end_all  status_all exit_rel last_survey_yr MARRIAGE_UPDATE MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_
+//// stopped here because very confused; think I need to match couples? did I ever do that later? or no bc all the information is stored against head / spouse anyway?
 
 gen dissolve=0
 replace dissolve=1 if survey_yr >=rel_end_all & (inrange(status_all,4,7) & in_marital_history==1)
