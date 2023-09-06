@@ -279,6 +279,8 @@ browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel sta
 
 ********************************************************************************
 * Restrict to anyone in a relationship
+* From FAQ:
+* As a corollary, to select individuals who have been either Reference Persons or Spouses/Partners, yearly Sequence Numbers must equal 1 or 2 and yearly Relationships to Reference Person must be in the range 1, 2, 10, 20, or 22. Once that subset is made and family data are merged, information about an individual can be found in Reference Person variables (Reference Person's work hours, Reference Person's labor income, etc.) when his or her Relationship to Reference Person=1 or 10. When Relationship to Reference Person is 2, 20, or 22, then his or her information is found in variables about the Spouse/Partner.
 ********************************************************************************
 gen total_relationship=relationship
 replace total_relationship=1 if dissolve==1
