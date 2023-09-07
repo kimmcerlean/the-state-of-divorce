@@ -11,8 +11,11 @@ use "$data_tmp\PSID_full_long.dta", clear // created in other step 1
 // BUT interview_num_ to match later
 
 ********************************************************************************
+********************************************************************************
+* APPROACH 1
 * First, just attempting to create relationship file for all relationships,
 * marriages and cohabitations
+********************************************************************************
 ********************************************************************************
 
 browse survey_yr main_per_id id unique_id INTERVIEW_NUM_ SEQ_NUMBER_ RELATION_ FIRST_MARRIAGE_YR_START MARITAL_PAIRS_
@@ -264,7 +267,8 @@ sort unique_id survey_yr
 browse unique_id survey_yr FAMILY_INTERVIEW_NUM_ main_per_id rel_start_all rel_end_all status_all last_survey_yr MARRIAGE_UPDATE MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_ // exit_rel X1968_PERSON_NUM_
 
 //// stopped here because very confused; think I need to match couples? did I ever do that later? or no bc all the information is stored against head / spouse anyway?
-
+/*
+**This all matches 1a - removing rest for now, because think I need a new approach**
 gen dissolve=0
 replace dissolve=1 if survey_yr >=rel_end_all & (inrange(status_all,4,7) & in_marital_history==1)
 replace dissolve=1 if exit_rel==1 & inlist(MARITAL_STATUS_HEAD_[_n+1],2,4,5) & unique_id == unique_id[_n+1] & in_marital_history==0
@@ -286,92 +290,82 @@ gen total_relationship=relationship
 replace total_relationship=1 if dissolve==1
 keep if total_relationship==1 
 browse id survey_yr relationship rel_start_all rel_end_all dissolve exit_rel status_all MARITAL_STATUS_HEAD_
-
-unique id if inrange(status_all,4,7) // 6060
-unique id if dissolve==1 // 7660
-
-// trying to identify if married or cohabiting. .. need relation_?
-// see fAQ, some might be labeled bf / gf in first year coresiding (code 88)
-// might need to alter code for cohab because wouldn't be in marital history, so I may have over-wrote some cohab above. 
-// will this as now for married, but for cohab, go back to original code and then ONLY KEEP cohab - will only be accurate for cohab and this file only for marriages? but here at least need to remove some marriages?
-// egen year_family=concat(survey_yr FAMILY_INTERVIEW_NUM_), punct(_)
-keep if inlist(RELATION_,1,2,10,20,22)
-
-bysort survey_yr FAMILY_INTERVIEW_NUM_ (RELATION_): egen either_cohab=max(RELATION_)
-sort survey_yr FAMILY_INTERVIEW_NUM_ id
-
-// drop if NUM_MARRIED==98
-
-browse relationship dissolve MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_ COUPLE_STATUS_REF_ // marital status_head_ = MARRIED OR COHAB IWTH NO DISTINGUISH, marital_status_ref = official - so if DIVROCED, put as cohab?
-
-browse id survey_yr relationship dissolve MARITAL_STATUS_REF_
-
-gen relationship_type=0
-replace relationship_type=1 if NUM_MARRIED==0
-replace relationship_type=2 if NUM_MARRIED>=1
-replace relationship_type=1 if either_cohab==22
-replace relationship_type=1 if inrange(MARITAL_STATUS_REF_,2,9)
-sort id survey_yr
-
-label define relationship_type 1 "Cohab" 2 "Married"
-label values relationship_type relationship_type
-
-tab MARITAL_STATUS_REF_ relationship_type
-tab relationship_type RELATION_
-tab relationship_type in_marital_history // should they automatically be married if in here since that is the dates I used?? confused...
-
-replace relationship_type=2 if relationship==0 & dissolve==1 & relationship_type[_n-1]==2 & unique_id==unique_id[_n-1]
-tab relationship_type in_marital_history // should they automatically be married if in here since that is the dates I used?? confused...
-tab relationship_type relationship // should they automatically be married if in here since that is the dates I used?? confused...
-drop if survey_yr > rel_end_all & rel_end_all!=.
-
-browse id survey_yr relationship relationship_type rel_start_all rel_end_all status_all dissolve exit_rel  MARITAL_STATUS_HEAD_
-browse id survey_yr relationship relationship_type rel_start_all rel_end_all status_all dissolve exit_rel  MARITAL_STATUS_HEAD_ if in_marital_history==1
-
-// drop if relationship_type==1
-tab RELATION_ // okay pretty equal numbers.
-
-sort id survey_yr
-gen dur = survey_yr - rel_start_all
-browse id survey_yr relationship_type rel_start_all rel_end_all dissolve dur
-browse id survey_yr relationship_type rel_start_all rel_end_all dissolve dur if FAMILY_INTERVIEW_NUM_ == 7439
-
-gen reltype1 = relationship_type if survey_yr>=rel1_start & survey_yr <=rel1_end
-bysort unique_id (reltype1): replace reltype1=reltype1[1]
-gen reltype2 = relationship_type if survey_yr>=rel2_start & survey_yr <=rel2_end
-bysort unique_id (reltype2): replace reltype2=reltype2[1]
-gen reltype3 = relationship_type if survey_yr>=rel3_start & survey_yr <=rel3_end
-bysort unique_id (reltype3): replace reltype3=reltype3[1]
-gen reltype4 = relationship_type if survey_yr>=rel4_start & survey_yr <=rel4_end
-bysort unique_id (reltype4): replace reltype4=reltype4[1]
-label values reltype* relationship_type
-
-sort unique_id survey_yr
-browse unique_id survey_yr relationship_type rel_start_all rel_end_all reltype*
-
-egen ct_unions=rownonmiss(reltype1 reltype2 reltype3 reltype4)
-egen ct_marriages=anycount(reltype1 reltype2 reltype3 reltype4), values(2)
-egen ct_cohab=anycount(reltype1 reltype2 reltype3 reltype4), values(1)
-
-browse id survey_yr relationship_type reltype* ct_unions ct_marriages ct_cohab
-
-gen marriage_order=.
-
-forvalues r=1/4{
-	replace marriage_order=`r' if survey_yr>=rel`r'_start & survey_yr <=rel`r'_end & relationship_type==2 // gah it's labelling as 2 if two in order, not one.
-}
-
-sort unique_id survey_yr
-gen marriage_order_real = marriage_order
-replace marriage_order_real = ct_marriages if marriage_order > ct_marriages & marriage_order!=. & ct_marriages!=. // think this isn't perfect if three relationships, but sufficient for now
-
-browse unique_id survey_yr relationship_type relationship_order marriage_order marriage_order_real rel_start_all rel_end_all ct_unions ct_marriages ct_cohab 
-
-save "$data_tmp\PSID_all_unions.dta", replace
+*/
 
 ********************************************************************************
-**# Recodes
 ********************************************************************************
+**# APPROACH 2
+* Start with relationship list, merge on rest of information
+********************************************************************************
+********************************************************************************
+* First create a file with just the variables I want / need
+use "$data_tmp\PSID_full_long.dta", clear // created in other step 1
+drop MOTHER_MARITALSTATUSB1 MARRIAGE_UPDATE  COMPOSITION_CHANGE_ RESPONDENT_ ///
+id_spouse6 per_no_spouse6 mo_married6 yr_married6 status6 yr_end6 id_spouse7 ///
+per_no_spouse7 mo_married7 yr_married7 status7 yr_end7 id_spouse8 per_no_spouse8 mo_married8 yr_married8 status8 yr_end8 id_spouse9 /// 
+per_no_spouse9 mo_married9 yr_married9 status9 yr_end9 id_spouse12 per_no_spouse12 mo_married12 yr_married12 status12 yr_end12 ///
+id_spouse13 per_no_spouse13 mo_married13 yr_married13 status13 yr_end13 id_spouse98 per_no_spouse98 mo_married98 yr_married98 ///
+status98 yr_end98 id_spouse99 per_no_spouse99 mo_married99 yr_married99 status99 yr_end99 releaseno RELEASE_NUM2_ STUDENT_
+
+save "$data_tmp\PSID_long_tomerge.dta", replace
+
+* Now merge
+use "$data_tmp\PSID_relationship_list_tomatch.dta", clear // created in step 1b
+rename year survey_yr
+
+merge 1:1 main_per_id unique_id survey_yr using "$data_tmp\PSID_long_tomerge.dta"
+drop if _merge==2
+drop _merge
+
+// want to get people's first and last year in survey (Based on seq_number), then remove records when not in survey
+replace SEQ_NUMBER_=1 if survey_yr==1968 & RELATION_ !=0 // didn't exist as variable yet. wait so how do I know if people existed in 1968? this doesn't work
+replace SEQ_NUMBER_=0 if survey_yr==1968 & RELATION_ ==0 
+//  browse if inrange(SEQ_NUMBER_,71,80) // need to figure out if someone can be 71 in one HH but 1 in another, I am confused if these people should be in sample or not
+browse unique_id survey_yr INTERVIEW_NUM_1968 FAMILY_INTERVIEW_NUM_ INTERVIEW_NUM_ main_per_id SEQ_NUMBER_ AGE_ if inlist(unique_id,2170, 4007, 7047) // need a variable to see what is being collected
+
+gen in_sample = 0
+replace in_sample=1 if inrange(SEQ_NUMBER_,1,20) // | inrange(SEQ_NUMBER_,71,80) - think I actually need to remove these people because don't have relationship matrix info
+
+gen survey_yr_sample=.
+replace survey_yr_sample = survey_yr if in_sample==1
+
+bysort unique_id: egen first_survey_yr = min(survey_yr_sample)
+bysort unique_id: egen last_survey_yr = max(survey_yr_sample)
+
+browse unique_id main_per_id survey_yr SEQ_NUMBER_ survey_yr_sample first_survey_yr last_survey_yr  AGE_
+
+keep if survey_yr>=first_survey_yr & survey_yr <=last_survey_yr
+
+// start to get some relationship information and prep to drop non-relationship years
+rename MX8 rel_type
+browse main_per_id survey_yr unique_id partner_unique_id first_survey_yr last_survey_yr rel_type
+
+*Want to get number of relationships (and ideally, start and end years?)
+sort unique_id survey_yr
+by unique_id: egen relationship_number = rank(partner_unique_id), track
+
+bysort unique_id relationship_number: egen rel_start = min(survey_yr) if relationship_number!=.
+bysort unique_id relationship_number: egen marriage_start = min(survey_yr) if relationship_number!=. & rel_type==20
+bysort unique_id relationship_number: egen rel_end = max(survey_yr)  if relationship_number!=.
+bysort unique_id: egen first_rel_start = min(rel_start)
+bysort unique_id: egen first_marr_start = min(marriage_start)
+
+browse main_per_id survey_yr unique_id partner_unique_id relationship_number rel_start marriage_start rel_end rel_type first_rel_start first_marr_start FIRST_MARRIAGE_YR_START yr_married1
+gen master_marriage_start=FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START!=9999
+replace master_marriage_start = first_marr_start if master_marriage_start==.
+
+//validate
+gen in_relationship=0
+replace in_relationship=1 if partner_unique_id !=.
+
+browse  main_per_id survey_yr unique_id partner_unique_id in_relationship MARITAL_PAIRS_ COUPLE_STATUS_REF_
+tab in_relationship MARITAL_PAIRS_, m // general alignment. look at those where marital_pairs says yes but not in_relationship
+browse if in_relationship==0 &  MARITAL_PAIRS_!=0 // okay most of these are mover-outs (based on sequence). I think I maybe should have removed the mover outs? but have data on ref / head even if that person specifically not in household? BUT if I don't have relationship info, then useless, right?
+
+save "$data_keep\PSID_relationship_file.dta", replace
+
+* move this to later - do eventually need to figure out how to only keep one respondent per relationship and ideally so all the genders align with head / wife but that part confuses me
+/*
 // first need to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent.
 bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(unique_id)
 browse survey_yr FAMILY_INTERVIEW_NUM_  unique_id per_id
@@ -379,12 +373,16 @@ browse survey_yr FAMILY_INTERVIEW_NUM_  unique_id per_id
 browse survey_yr FAMILY_INTERVIEW_NUM_ per_id unique_id if inlist(unique_id,12,13)
 
 keep if per_id==1
+*/
 
-unique id, by(rel_start_all) // can I get this to match S&H?
-unique id if dissolve==1, by(rel_start_all)
- 
+********************************************************************************
+**# Recodes
+* do this before I restrict sample further
+********************************************************************************
+// do I need to restrict to only people who are ref / ref wife or partner?
+
 // education
-browse survey_yr id  EDUC1_WIFE_ EDUC_WIFE_ EDUC1_HEAD_ EDUC_HEAD_
+browse survey_yr unique_id partner_unique_id EDUC1_WIFE_ EDUC_WIFE_ EDUC1_HEAD_ EDUC_HEAD_
 // educ1 until 1990, but educ started 1975, okay but then a gap until 1991? wife not asked 1969-1971 - might be able to fill in if she is in sample either 1968 or 1972? (match to the id)
 // codes are also different between the two, use educ1 until 1990, then educ 1991 post
 
@@ -405,6 +403,8 @@ replace educ_head=educ_head_early if inrange(survey_yr,1968,1990)
 replace educ_head=educ_head_1975 if inrange(survey_yr,1991,2019)
 
 label values educ_wife educ_head educ
+
+// browse survey_yr unique_id partner_unique_id RELATION_ educ_wife_early educ_wife_1975 educ_wife educ_head
 
 	// trying to fill in missing wife years when possible
 	browse id survey_yr educ_wife if inlist(id,3,12,25,117)
@@ -459,20 +459,7 @@ replace hh_earn_type=4 if earnings_head==0 & earnings_wife==0
 label define hh_earn_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
 label values hh_earn_type hh_earn_type
 
-gen hh_earn_type_bkd=.
-replace hh_earn_type_bkd=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
-replace hh_earn_type_bkd=2 if female_earn_pct < .4000 & female_earn_pct > 0
-replace hh_earn_type_bkd=3 if female_earn_pct ==0
-replace hh_earn_type_bkd=4 if female_earn_pct > .6000 & female_earn_pct <=1
-replace hh_earn_type_bkd=5 if earnings_head==0 & earnings_wife==0
-
-label define earn_type_bkd 1 "Dual Earner" 2 "Male Primary" 3 "Male Sole" 4 "Female BW" 5 "No Earners"
-label values hh_earn_type_bkd earn_type_bkd
-
 sort id survey_yr
-gen hh_earn_type_bkd_lag=.
-replace hh_earn_type_bkd_lag=hh_earn_type_bkd[_n-1] if unique_id==unique_id[_n-1]
-label values hh_earn_type_bkd_lag earn_type_bkd
 
 gen hh_earn_type_lag=.
 replace hh_earn_type_lag=hh_earn_type[_n-1] if unique_id==unique_id[_n-1]
@@ -481,24 +468,7 @@ label values hh_earn_type_lag hh_earn_type
 gen female_earn_pct_lag=.
 replace female_earn_pct_lag=female_earn_pct[_n-1] if unique_id==unique_id[_n-1]
 
-browse id survey_yr earnings_head earnings_wife hh_earn_type_bkd hh_earn_type_lag
-
-// alternate specification to try
-gen hh_earnings_3070=.
-replace hh_earnings_3070=1 if female_earn_pct >=.3000 & female_earn_pct <=.7000
-replace hh_earnings_3070=2 if female_earn_pct <.3000
-replace hh_earnings_3070=3 if female_earn_pct >.7000
-replace hh_earnings_3070=4 if (WAGES_HEAD_==0 & WAGES_WIFE_==0) | female_earn_pct==.
-
-label define hh_earnings_3070 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
-label values hh_earnings_3070 hh_earnings_3070
-
-sort id survey_yr
-gen hh_earnings_3070_lag=.
-replace hh_earnings_3070_lag=hh_earnings_3070[_n-1] if unique_id==unique_id[_n-1]
-label values hh_earnings_3070_lag hh_earnings_3070
-
-browse id survey_yr WAGES_HEAD_ WAGES_WIFE_ hh_earnings_3070 hh_earnings_3070_lag
+browse id survey_yr earnings_head earnings_wife hh_earn_type hh_earn_type_lag
 
 // hours instead of earnings	
 browse id survey_yr WEEKLY_HRS1_WIFE_ WEEKLY_HRS_WIFE_ WEEKLY_HRS1_HEAD_ WEEKLY_HRS_HEAD_
@@ -540,20 +510,6 @@ replace hh_hours_type=4 if (WEEKLY_HRS_HEAD_==0 & WEEKLY_HRS_WIFE_==0) | female_
 label define hh_hours_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
 label values hh_hours_type hh_hours_type
 
-gen hh_hours_3070=.
-replace hh_hours_3070=1 if female_hours_pct >=.3000 & female_hours_pct <=.7000
-replace hh_hours_3070=2 if female_hours_pct <.3000
-replace hh_hours_3070=3 if female_hours_pct >.7000
-replace hh_hours_3070=4 if (WEEKLY_HRS_HEAD_==0 & WEEKLY_HRS_WIFE_==0) | female_hours_pct==.
-
-label define hh_hours_3070 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
-label values hh_hours_3070 hh_hours_3070
-
-sort unique_id survey_yr
-gen hh_hours_3070_lag=.
-replace hh_hours_3070_lag=hh_hours_3070[_n-1] if unique_id==unique_id[_n-1]
-label values hh_hours_3070_lag hh_hours_3070
-
 gen hh_hours_type_lag=.
 replace hh_hours_type_lag=hh_hours_type[_n-1] if unique_id==unique_id[_n-1]
 label values hh_hours_type_lag hh_hours_type
@@ -561,7 +517,7 @@ label values hh_hours_type_lag hh_hours_type
 gen female_hours_pct_lag=.
 replace female_hours_pct_lag=female_hours_pct[_n-1] if unique_id==unique_id[_n-1]
 
-browse id survey_yr WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ female_hours_pct female_hours_pct_lag hh_hours_3070 hh_hours_3070_lag
+browse id survey_yr WEEKLY_HRS_HEAD_ WEEKLY_HRS_WIFE_ female_hours_pct female_hours_pct_lag 
 	
 // restrict to working age (18-55) - at time of marriage or all? check what others do - Killewald said ages 18-55 - others have different restrictions, table this part for now
 /*
@@ -765,13 +721,15 @@ bysort unique_id: egen first_birth_check = min(first_birth_calc2)
 replace when_first_birth = first_birth_check if when_first_birth==9999 & first_birth_check!=9999 & first_birth_check!=.
 
 sort unique_id survey_yr
-browse unique_id survey_yr when_first_birth rel_start_all
+browse unique_id survey_yr when_first_birth master_marriage_start
 
 gen pre_marital_birth=0
-replace pre_marital_birth=1 if when_first_birth < rel_start_all & when_first_birth!=.
+replace pre_marital_birth=1 if when_first_birth < master_marriage_start & when_first_birth!=. // this will not be 100% accurate for people missing marital history - bc I might not know date of first marriage if prior to survey
 
+/*
 gen post_marital_birth=0
-replace post_marital_birth=1 if when_first_birth >= rel_start_all & when_first_birth<=rel_end_all & when_first_birth!=. // needs to be IN marriage years, okay barely changed it
+replace post_marital_birth=1 if when_first_birth >= master_marriage_start & when_first_birth<=rel_end_all & when_first_birth!=. // needs to be IN marriage years, okay barely changed it - need to figure out how to do this for a given relationship. come back to this
+*/
 
 // urbanicity
 gen metro=(METRO_==1) // a lot of missing, don't use for now, control for STATE_ for now
@@ -804,41 +762,6 @@ label values housework_bkt_lag housework_bkt
 gen wife_hw_pct_lag=.
 replace wife_hw_pct_lag=wife_housework_pct[_n-1] if unique_id==unique_id[_n-1]
 
-// combined indicator of paid + unpaid hours
-gen division_labor=.
-replace division_labor=1 if hh_hours_3070==1 & housework_bkt==1 // both 30-70%
-replace division_labor=2 if hh_hours_3070==1 & housework_bkt==2 // dual employment; female homemaker
-replace division_labor=3 if hh_hours_3070==2 & wife_housework_pct <.7000 // Male BW earner; female housework < 70
-replace division_labor=4 if hh_hours_3070==2 & housework_bkt==2 // Male 70%+ hours; female 70%+ housework
-replace division_labor=5 if hh_hours_3070==3 & housework_bkt==2 // female 70%+ hours + housework
-replace division_labor=6 if (hh_hours_3070==3 & wife_housework_pct <.7000) | (hh_hours_3070==1 & housework_bkt==3) // (Female 70%+ hours & 0-70% HW) OR (Women economic 30-70%; HW 0-30%)
-replace division_labor=7 if hh_hours_3070==4
-
-label define division 1 "Dual" 2 "Dual - Female HW" 3 "Gender-specialized" 4 "Male BW" 5 "Female All" 6 "Counter-traditional" 7 "No Earners"
-label values division_labor division
-
-sort id survey_yr
-gen division_labor_lag=.
-replace division_labor_lag=division_labor[_n-1] if unique_id==unique_id[_n-1]
-label values division_labor_lag division
-
-// turning the bucket interactions into variables to interact over time
-gen hours_housework=.
-replace hours_housework=1 if hh_hours_3070==1 & housework_bkt==1 // dual both (egal)
-replace hours_housework=2 if hh_hours_3070==1 & housework_bkt==2 // dual earner, female HM (neotraditional)
-replace hours_housework=3 if hh_hours_3070==2 & housework_bkt==1 // male BW, dual HW (mm not sure)
-replace hours_housework=4 if hh_hours_3070==2 & housework_bkt==2 // male BW, female HM (conventional)
-replace hours_housework=5 if hh_hours_3070==3 & housework_bkt==1 // female BW, dual HW (gender-atypical)
-replace hours_housework=6 if hh_hours_3070==3 & housework_bkt==2 // female BW, female HM (undoing gender)
-replace hours_housework=7 if housework_bkt==3  // all where male does more housework (gender-atypical)
-replace hours_housework=8 if hh_hours_3070==4  // no earners
-
-label define hours_housework 1 "Egal" 2 "Neotraditional" 3 "Male BW, dual HW" 4 "Conventional" 5 "Gender-atypical" 6 "Undoing gender" 7 "Male HW dominant" 8 "No Earners"
-label values hours_housework hours_housework 
-
-// browse id survey_yr hh_hours_3070 housework_bkt wife_housework_pct division_labor if division_labor==.
-// most of the missing are the years they didn't ask housework so need to figure that out. leave for now? 1968, 1975, 1982 have nothing
-
 /* religion is new, but think I need to add given historical research. coding changes between 1984 and 1985, then again between 1994 and 1995 Need to recode, so tabling for now, not important for these purposes anyway
 label define update_religion  ///
        1 "Catholic"  ///
@@ -858,181 +781,77 @@ label values religion_head religion_wife update_religion
 */
 
 // also age at relationship start
-browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
-sort id survey_yr
-gen age_spouse=AGE_SPOUSE_
-replace age_spouse=AGE_SPOUSE_[_n-1]+1 if MARITAL_PAIRS_==0 & unique_id==unique_id[_n-1]
+browse unique_id survey_yr AGE_ BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
+replace AGE_SPOUSE_ = . if AGE_SPOUSE_==0
 
-//browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_ age_spouse if MARITAL_PAIRS_==0 // some not updating- do they not have prior records? - are they all relationships that started PRIOR to 1968?
-tab rel_start_all if age_spouse==0
-browse id survey_yr rel_start_all rel_end_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_ age_spouse if id == 32701
+gen yr_born = survey_yr - AGE_ - 1
+gen yr_born_head = survey_yr - AGE_REF_ - 1
+gen yr_born_wife = survey_yr - AGE_SPOUSE_ - 1
 
-// for now - setting to 2 years younger than partner.
-replace age_spouse = AGE_REF_ - 2 if age_spouse==0 // i am creating year born - but need to figure out if that is also provided. but I guess same challenge - if she isn't in HH and there is only one record, I won't know??
-
-gen yr_born_head = survey_yr - AGE_REF_
-gen yr_born_wife = survey_yr-age_spouse
-
+/* move this later, right now I do not have restricted to just relationships and just heads and wife, so this will not be accurate. I could do year rel started - year born also?
 gen age_mar_head = rel_start_all -  yr_born_head
 gen age_mar_wife = rel_start_all -  yr_born_wife
 
 drop if age_mar_head < 0 | age_mar_wife < 0
-
-browse id survey_yr yr_born_head yr_born_wife rel_start_all age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_
-browse id survey_yr yr_born_head yr_born_wife rel_start_all age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_ if dissolve==1
-browse id survey_yr yr_born_head yr_born_wife rel_start_all rel_end_all age_mar_head age_mar_wife AGE_REF_ AGE_SPOUSE_ MARITAL_PAIRS_ if id==84
-
-browse id survey_yr rel_start_all rel_end_all status_all dissolve MARITAL_PAIRS_
-browse id survey_yr rel_end_all dissolve in_marital_history dur MARITAL_PAIRS_ if dissolve==1
-tab in_marital_history , m
-tab in_marital_history if dissolve==1 & MARITAL_PAIRS_==0,m // is in marital history over or under reprsented - like is that more or less contribuitng to this problem? okay yes, so ALL in marital history. does it depend like month of survey v. month of dissolve? because marital history updated retrospetively so like maybe when answered 2005 survey, they were together and living together in month 8, but then then divorce month 10 - marital history will update, but there will still be interview data for wife because she was there at time of survey. so it's probably people who divorced later v. earler in year - so I want last full year of data I can get, whenever that is? technically I do have months in marital history... but it really doesn't matter like I don't get that info either way...
- // do I have to lag alll info though? or like JUST update year of dissolution? replace year of dissolution with all prior values of wife variables?
- 
-// merge cohabitation history for head
-// merge 1:1 survey_yr main_per_id INTERVIEW_NUM_ using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // lol now only 724 matched
-// lol okay match rate SUPER low here when WIDE- 1000
-merge m:1 unique_id using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // still only 48000 which seems low (when wide). okay try LONG -- okay this was my best bet... I AM DUMB - it shouldn;t all match because it is only people who ever had A COHABITING partner, not others.
-
-drop if _merge==2 // people not in my sample
-gen ever_cohab_head = 1 if _merge==3
-replace ever_cohab_head=0 if ever_cohab_head==.
-drop _merge
-
-foreach var in MX8* partner_1968_id* partner_per_num*{
-	rename `var' `var'_head
-}
-
-// k now trying to match on PARTNER id to get HER history
-merge m:1 spouse_per_num_all spouse_id_all using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // less matches but I am not surprised about this (i don't think??
-
-drop if _merge==2 // people not in my sample
-gen ever_cohab_wife = 1 if _merge==3
-replace ever_cohab_wife=0 if ever_cohab_wife==.
-drop _merge
-
-foreach var in MX8* partner_1968_id* partner_per_num*{
-	rename `var' `var'_wife
-}
-
-rename partner_1968_id*_head_wife partner_1968_id*_head
-rename partner_per_num*_head_wife partner_per_num*_head
-
-save "$data_keep\PSID_union_validation_sample.dta", replace
-
-**# Pivot to marriage only file
-
-keep if relationship_type==2
-
-// okay create cohabitation variables
-sort unique_id survey_yr
-browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all partner_1968_id*_head partner_per_num*_head
-
-forvalues y=1968/1997{
-	gen cohab_`y'_with_wife=0
-	replace cohab_`y'_with_wife=1 if `y' <= rel_start_all & partner_1968_id`y'_head==spouse_id_all & partner_per_num`y'_head==spouse_per_num_all
-}
-
-forvalues y=1999(2)2019{
-	gen cohab_`y'_with_wife=0
-	replace cohab_`y'_with_wife=1 if `y' <= rel_start_all & partner_1968_id`y'_head==spouse_id_all & partner_per_num`y'_head==spouse_per_num_all
-}
-
-forvalues y=1968/1997{
-	gen cohab_`y'_other=0
-	replace cohab_`y'_other=1 if `y' <= rel_start_all & ((partner_1968_id`y'_head!=spouse_id_all & spouse_id_all!=. & partner_1968_id`y'_head!=.) | (partner_per_num`y'_head!=spouse_per_num_all & spouse_per_num_all!=. & partner_per_num`y'_head!=.))
-	}
-
-forvalues y=1999(2)2019{
-	gen cohab_`y'_other=0
-	replace cohab_`y'_other=1 if `y' <= rel_start_all & ((partner_1968_id`y'_head!=spouse_id_all & spouse_id_all!=. & partner_1968_id`y'_head!=.) | (partner_per_num`y'_head!=spouse_per_num_all & spouse_per_num_all!=. & partner_per_num`y'_head!=.))
-}
-
-
-forvalues y=1968/1997{
-	gen cohab_`y'_after=0
-	replace cohab_`y'_after=1 if `y' >= rel_end_all & partner_1968_id`y'_head!=. & partner_per_num`y'_head!=.
-	}
-
-forvalues y=1999(2)2019{
-	gen cohab_`y'_after=0
-	replace cohab_`y'_after=1 if `y' >= rel_end_all & partner_1968_id`y'_head!=. & partner_per_num`y'_head!=.
-}
-
-browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all cohab_*_with_wife cohab_*_other partner_1968_id*_head partner_per_num*_head
-
-egen cohab_with_wife = rowtotal(cohab_*_with_wife)
-replace cohab_with_wife = 1 if cohab_with_wife > 1 & cohab_with_wife!=.
-
-egen cohab_with_other = rowtotal(cohab_*_other)
-replace cohab_with_other = 1 if cohab_with_other > 1 & cohab_with_other!=.
-
-egen cohab_after = rowtotal(cohab_*_after)
-replace cohab_after = 1 if cohab_after > 1 & cohab_after!=.
-
-browse unique_id ever_cohab_head cohab_with_other cohab_with_wife // about 14000 of ever cohab not accounted for - only 44 other, so put as other? OR are they missing marital history and I need to figure out?
-
-browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all partner_1968_id*_head partner_per_num*_head if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife==0 & cohab_after==0
-
-tab rel_start_all if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife==0 & cohab_after==0 // okay 90%+ are relationships started in 1968, which I exclude anyway because I don't think all of these are accurate
-
-save "$data_keep\PSID_marriage_validation_sample.dta", replace
-
-tab MARITAL_PAIRS_ if dissolve==1 // 35% have no spouse in year of dissolution - so all of my partner variables are moot.
-browse id survey_yr earnings_wife earnings_head female_earn_pct female_earn_pct_lag ft_head ft_wife educ_wife educ_head educ_type age_mar_wife MARITAL_PAIRS_ if dissolve==1 & MARITAL_PAIRS_==0
-browse id survey_yr rel_start_all rel_end_all dissolve earnings_wife earnings_head female_earn_pct female_earn_pct_lag ft_head ft_wife educ_wife educ_head educ_type age_mar_wife MARITAL_PAIRS_
-tab hh_earn_type_bkd if dissolve==1 & MARITAL_PAIRS_==0
-tab hh_earn_type_lag if dissolve==1 & MARITAL_PAIRS_==0 // much more distributed. but do lag for ALL or just if marital_pairs = 0 when dissolve ==1?
-
-// one problem - any wife MISSING on educ is automatically HYPO - that is a small percentage, but still.
-// I think earnings missing in year when marital pairs are 0, I think educ for wife is filled in, because educ wife not asked every year, and I manually filled in -which Ithink is also why "first educ" type isn't different - because this isn't 100% time varying.
-
-/*
-sort id survey_yr
-foreach var in SEX_WIFE_ HRLY_RATE_WIFE_ ENROLLED_WIFE_ RELIGION_WIFE_ WEEKLY_HRS_WIFE_ TAXABLE_HEAD_WIFE_ WAGE_RATE_WIFE_ educ_wife college_complete_wife earnings_wife employ_wife employ1_wife employ2_wife employ3_wife employed_wife employed_ly_wife ft_pt_wife_pre ft_pt_wife_post ft_pt_wife ft_wife race_1_wife_rec race_2_wife_rec race_3_wife_rec race_wife yr_born_wife age_mar_wife female_earn_pct educ_type couple_educ_gp couple_earnings hh_earn_type_bkd either_enrolled same_race{
-	replace `var'=`var'[_n-1] if MARITAL_PAIRS_==0 & id==id[_n-1] // & (`var'==0 | `var'==.) // deleted this because want to OVERWWRITE whatever is there for some created variables, so might not be 0
-}
-
-// some created variables - like couple_earnings, should I take from year prior? or recreate? I guess I want in  year prior if that's last full year for both - don't want to use like husband info from one year and wife from another....
-// this is also where wide would help - can just take year prior?
-
-// WAIT - do I also need to update the same husband variables?! because want the husband and wife info to come from same year, right? so right now, husband info will come from year wife isn't there an dwife will come frm year prior. okay - actually move UP the dissolve to the prior row? so it's there the last year they are both living together? try this then need to remove this extraneous row
 */
 
-// id 749 as example.
-sort id survey_yr
-gen dissolve_lag = dissolve
-replace dissolve_lag = 1 if dissolve==0 & dissolve[_n+1]==1 & id == id[_n+1] & MARITAL_PAIRS_[_n+1]==0
-bysort id marriage_order_real: egen ever_dissolve=max(dissolve_lag)
-sort id survey_yr
-tab status_all ever_dissolve
+save "$data_keep\PSID_relationship_file.dta", replace // same name as above, now just recodes added. Still not restricted to any relationships or just head / wife
 
-// end dates STILL seem wrong
-browse id survey_yr rel_start_all rel_end_all exit_rel status_all ever_dissolve dissolve_lag dissolve dur MARITAL_PAIRS_ // if inlist(id, 2009,2986, 2992)
+********************************************************************************
+**# Want to create a COHABITATION analysis file
+********************************************************************************
+// first, remove non-relationship rows
+browse survey_yr unique_id partner_unique_id rel_type
+drop if rel_type==.
 
+// then, need to restrict to just relationships where either head or wife / partner because that is where the book of the variables are
+browse survey_yr unique_id partner_unique_id rel_type ego_rel alter_rel RELATION_
+recode RELATION_ (1=1)(2=2)(3/7=3)(8=2)(9=3)(10=1)(20/22=2)(30/83=3)(88/92=2)(95/99=3), gen(relation)
 
-tab dissolve // 6391 -- okay now I think there are too many here OMG
-tab dissolve_lag // 6425
-// was going to do drop if dissolve==1 & dissolve_lag==1 but for 754 - that is valid, but NOT valid for 749
-drop if dissolve==1 & dissolve_lag==1 & MARITAL_PAIRS_==0 & (rel_start_all==rel_start_all[_n-1])  // k do has to be part of same relationship. i wonder if also my code update above fixed this...
-// see 1121, 20961 as example of it working - okay yes it did.
-tab dissolve_lag // 5423 // is this sketchy it got a lot lower??
+tab ego_rel relation
+keep if inlist(ego_rel,1,2) & inlist(alter_rel,1,2)
 
-// eventually also drop people where only one row and NO wife info - aka marital_pairs==0 - because can't include.
-tab dur if MARITAL_PAIRS_ ==0
-sort id survey_yr
-browse id survey_yr rel_start_all rel_end_all dur earnings_wife MARITAL_PAIRS_ dissolve dissolve_lag if id==1877
-bysort id: egen num_years = count(survey_yr)
-sort id survey_yr
-tab num_years if MARITAL_PAIRS_ ==0 // k mostly 1
-browse id survey_yr rel_start_all rel_end_all dur num_years if dissolve==1 & MARITAL_PAIRS_==0
-browse id survey_yr rel_start_all rel_end_all dur num_years if dur==.
-browse id survey_yr num_years rel_start_all rel_end_all dur earnings_wife MARITAL_PAIRS_ dissolve dissolve_lag if id==87
-browse id survey_yr num_years rel_start_all rel_end_all dur earnings_wife MARITAL_PAIRS_ dissolve dissolve_lag if id==376
-browse id survey_yr num_years rel_start_all rel_end_all dur earnings_wife MARITAL_PAIRS_ dissolve dissolve_lag if id==5614
-// okay some people also missing relationship start and end info for years here - so want to drop, but think this is going to ruin my dissolve_lag (as in the example above)
+// drop those who entered in relationship (so first survey yr is the first relationship year) - so like a bunch will have start date of 1968 if they don't have history
+browse main_per_id survey_yr unique_id partner_unique_id relationship_number rel_start marriage_start rel_end rel_type first_rel_start
+gen rel_start_flag=0
+replace rel_start_flag=1 if rel_start == first_survey_yr // what if one partner has a different first survey year? this is a lot let's table this for now bc one person may have only entered survey BC in relationship, so their first survey yr will match, but other partners won't? revisit when I get down to figuring out the duplicates
 
+// signal marital transition
+browse survey_yr unique_id partner_unique_id rel_type
+sort unique_id survey_yr
+gen marr_trans=0
+replace marr_trans=1 if rel_type==20 & rel_type[_n-1]==22 & unique_id==unique_id[_n-1] & partner_unique_id==partner_unique_id[_n-1]
+
+browse survey_yr unique_id partner_unique_id rel_type marr_trans
+keep if rel_type==22 | marr_trans==1
+
+// still need to figure out how to drop one person in HH (do I ever have a case where I just have one person?)
+// FAMILY_INTERVIEW_NUM_ is the specific year, main_per_id is HH in 1968, so the problem is multiple couples have same main_per_id if they later moved out.
+browse survey_yr unique_id partner_unique_id main_per_id
+
+sort survey_yr FAMILY_INTERVIEW_NUM_
+browse survey_yr FAMILY_INTERVIEW_NUM_ unique_id partner_unique_id
+
+bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen couple_per_id = rank(unique_id)
+browse survey_yr FAMILY_INTERVIEW_NUM_ unique_id partner_unique_id couple_per_id
+
+keep if couple_per_id==1
+
+// other recodes needed
+gen age_mar_head = rel_start -  yr_born_head
+gen age_mar_wife = rel_start -  yr_born_wife // still a lot of missing
+browse main_per_id survey_yr unique_id partner_unique_id relationship_number rel_start yr_born_head age_mar_head
+
+tab MARITAL_PAIRS_ // still a bunch recorded as no spouse, which is confusing. are these first year spouses?
+
+// need to figure out vars when head is not male. Right now my variables craeted above assume that - revisit this
+tab SEX_HEAD_
+
+/*to revisit
 drop if dur==0 | dur==.
 drop if num_years==1
 drop if MARITAL_PAIRS_==0
 drop if SEX_HEAD_==2
-save "$data_keep\PSID_marriage_recoded_sample.dta", replace
+*/
+
+save "$data_keep\PSID_cohab_sample.dta", replace
