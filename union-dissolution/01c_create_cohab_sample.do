@@ -822,7 +822,7 @@ sort unique_id survey_yr
 gen marr_trans=0
 replace marr_trans=1 if rel_type==20 & rel_type[_n-1]==22 & unique_id==unique_id[_n-1] & partner_unique_id==partner_unique_id[_n-1]
 
-browse survey_yr unique_id partner_unique_id rel_type marr_trans
+browse survey_yr unique_id partner_unique_id rel_type marr_trans MARITAL_PAIRS_
 keep if rel_type==22 | marr_trans==1
 
 // still need to figure out how to drop one person in HH (do I ever have a case where I just have one person?)
@@ -842,10 +842,11 @@ gen age_mar_head = rel_start -  yr_born_head
 gen age_mar_wife = rel_start -  yr_born_wife // still a lot of missing
 browse main_per_id survey_yr unique_id partner_unique_id relationship_number rel_start yr_born_head age_mar_head
 
-tab MARITAL_PAIRS_ // still a bunch recorded as no spouse, which is confusing. are these first year spouses?
+tab MARITAL_PAIRS_ // still a bunch recorded as no spouse, which is confusing. are these first year spouses? yes, it seems like they are first year cohabitors, because it is primarily the first year of the relationship
+browse survey_yr unique_id partner_unique_id rel_type marr_trans MARITAL_PAIRS_
 
-// need to figure out vars when head is not male. Right now my variables craeted above assume that - revisit this
-tab SEX_HEAD_
+// need to figure out vars when head is not male. Right now my variables created above assume that - this is very confusing
+tab SEX_HEAD_ // 1 = male
 
 /*to revisit
 drop if dur==0 | dur==.
@@ -855,3 +856,231 @@ drop if SEX_HEAD_==2
 */
 
 save "$data_keep\PSID_cohab_sample.dta", replace
+
+tab couple_educ_gp marr_trans if MARITAL_PAIRS_==1, row
+tab couple_educ_gp marr_trans if rel_start_flag==0 & MARITAL_PAIRS_==1, row
+
+recode rel_start (1968/1989=1)(1990/2019=2), gen(time)
+tab couple_educ_gp marr_trans if rel_start_flag==0 & time==1 & MARITAL_PAIRS_==1, row
+tab couple_educ_gp marr_trans if rel_start_flag==0 & time==2 & MARITAL_PAIRS_==1, row
+
+logit marr_trans i.couple_educ_gp if rel_start_flag==0, or
+logit marr_trans i.couple_educ_gp##i.time if rel_start_flag==0, or
+margins time#couple_educ_gp
+
+logit marr_trans i.couple_educ_gp i.hh_earn_type_lag if rel_start_flag==0 & MARITAL_PAIRS_==1, or
+
+recode rel_start (1970/1979=1)(1980/1989=2)(1990/1999=3)(2000/2009=4)(2010/2019=5), gen(time_detail)
+replace time_detail=. if inlist(time_detail,1968,1969)
+logit marr_trans i.couple_educ_gp##i.time_detail if rel_start_flag==0 & MARITAL_PAIRS_==1, or
+margins time_detail#couple_educ_gp
+
+
+/* I am dumb - see FAQ, male partner / husband is always ref.
+
+// can I do this with a loop and stubs? but some are head v. ref or spouse v. wife and a mix of upper and lower case. there is prob a way to do this but whatever
+gen age_mar_man=.
+replace age_mar_man = age_mar_head if SEX_HEAD_==1 // so if sex of head is male, head var = male
+replace age_mar_man = age_mar_wife if SEX_HEAD_==2 // if sex of head is female, the wife var = male
+gen age_mar_woman=.
+replace age_mar_woman = age_mar_wife if SEX_HEAD_==1
+replace age_mar_woman = age_mar_head if SEX_HEAD_==2
+
+gen age_man=.
+replace age_man = AGE_REF_ if SEX_HEAD_==1 
+replace age_man = AGE_SPOUSE_ if SEX_HEAD_==2
+gen age_woman=.
+replace age_woman = AGE_SPOUSE_ if SEX_HEAD_==1
+replace age_woman = AGE_REF_ if SEX_HEAD_==2
+
+gen births_man=.
+replace births_man = BIRTHS_REF_ if SEX_HEAD_==1 
+replace births_man = BIRTH_SPOUSE_ if SEX_HEAD_==2
+gen births_woman=.
+replace births_woman = BIRTH_SPOUSE_ if SEX_HEAD_==1
+replace births_woman = BIRTHS_REF_ if SEX_HEAD_==2
+
+gen educ_man=.
+replace educ_man = educ_head if SEX_HEAD_==1 
+replace educ_man = educ_wife if SEX_HEAD_==2
+gen educ_woman=.
+replace educ_woman = educ_wife if SEX_HEAD_==1
+replace educ_woman = educ_head if SEX_HEAD_==2
+
+gen college_man=.
+replace college_man = college_complete_head if SEX_HEAD_==1 
+replace college_man = college_complete_wife if SEX_HEAD_==2
+gen college_woman=.
+replace college_woman = college_complete_wife if SEX_HEAD_==1
+replace college_woman = college_complete_head if SEX_HEAD_==2
+
+gen earnings_man=.
+replace earnings_man = earnings_head if SEX_HEAD_==1 
+replace earnings_man = earnings_wife if SEX_HEAD_==2
+gen earnings_woman=.
+replace earnings_woman = earnings_wife if SEX_HEAD_==1
+replace earnings_woman = earnings_head if SEX_HEAD_==2
+
+gen employed_man=.
+replace employed_man = employed_head if SEX_HEAD_==1 
+replace employed_man = employed_wife if SEX_HEAD_==2
+gen employed_woman=.
+replace employed_woman = employed_wife if SEX_HEAD_==1
+replace employed_woman = employed_head if SEX_HEAD_==2
+
+gen employed_ly_man=.
+replace employed_ly_man = employed_ly_head if SEX_HEAD_==1 
+replace employed_ly_man = employed_ly_wife if SEX_HEAD_==2
+gen employed_ly_woman=.
+replace employed_ly_woman = employed_ly_wife if SEX_HEAD_==1
+replace employed_ly_woman = employed_ly_head if SEX_HEAD_==2
+
+gen family_structure_man=.
+replace family_structure_man = FAMILY_STRUCTURE_HEAD_ if SEX_HEAD_==1 
+replace family_structure_man = FAMILY_STRUCTURE_WIFE_ if SEX_HEAD_==2
+gen family_structure_woman=.
+replace family_structure_woman = FAMILY_STRUCTURE_WIFE_ if SEX_HEAD_==1
+replace family_structure_woman = FAMILY_STRUCTURE_HEAD_ if SEX_HEAD_==2
+
+gen father_educ_man=.
+replace father_educ_man = FATHER_EDUC_HEAD_ if SEX_HEAD_==1 
+replace father_educ_man = FATHER_EDUC_WIFE_ if SEX_HEAD_==2
+gen father_educ_woman=.
+replace father_educ_woman = FATHER_EDUC_WIFE_ if SEX_HEAD_==1
+replace father_educ_woman = FATHER_EDUC_HEAD_ if SEX_HEAD_==2
+
+gen mother_educ_man=.
+replace mother_educ_man = MOTHER_EDUC_HEAD_ if SEX_HEAD_==1 
+replace mother_educ_man = MOTHER_EDUC_WIFE_ if SEX_HEAD_==2
+gen mother_educ_woman=.
+replace mother_educ_woman = MOTHER_EDUC_WIFE_ if SEX_HEAD_==1
+replace mother_educ_woman = MOTHER_EDUC_HEAD_ if SEX_HEAD_==2
+
+gen ft_man=.
+replace ft_man = ft_head if SEX_HEAD_==1 
+replace ft_man = ft_wife if SEX_HEAD_==2
+gen ft_woman=.
+replace ft_woman = ft_wife if SEX_HEAD_==1
+replace ft_woman = ft_head if SEX_HEAD_==2
+
+gen ft_pt_man=.
+replace ft_pt_man = ft_pt_head if SEX_HEAD_==1 
+replace ft_pt_man = ft_pt_wife if SEX_HEAD_==2
+gen ft_pt_woman=.
+replace ft_pt_woman = ft_pt_wife if SEX_HEAD_==1
+replace ft_pt_woman = ft_pt_head if SEX_HEAD_==2
+
+gen housework_man=.
+replace housework_man = housework_head if SEX_HEAD_==1 
+replace housework_man = housework_wife if SEX_HEAD_==2
+gen housework_woman=.
+replace housework_woman = housework_wife if SEX_HEAD_==1
+replace housework_woman = housework_head if SEX_HEAD_==2
+
+gen race_man=.
+replace race_man = race_head if SEX_HEAD_==1 
+replace race_man = race_wife if SEX_HEAD_==2
+gen race_woman=.
+replace race_woman = race_wife if SEX_HEAD_==1
+replace race_woman = race_head if SEX_HEAD_==2
+
+gen religion_man=.
+replace religion_man = RELIGION_HEAD_ if SEX_HEAD_==1 
+replace religion_man = RELIGION_WIFE_ if SEX_HEAD_==2
+gen religion_woman=.
+replace religion_woman = RELIGION_WIFE_ if SEX_HEAD_==1
+replace religion_woman = RELIGION_HEAD_ if SEX_HEAD_==2
+
+gen sex_man=.
+replace sex_man = SEX_HEAD_ if SEX_HEAD_==1 
+replace sex_man = SEX_WIFE_ if SEX_HEAD_==2
+gen sex_woman=.
+replace sex_woman = SEX_WIFE_ if SEX_HEAD_==1
+replace sex_woman = SEX_HEAD_ if SEX_HEAD_==2
+
+gen weekly_hrs_man=.
+replace weekly_hrs_man = weekly_hrs_head if SEX_HEAD_==1 
+replace weekly_hrs_man = weekly_hrs_wife if SEX_HEAD_==2
+gen weekly_hrs_woman=.
+replace weekly_hrs_woman = weekly_hrs_wife if SEX_HEAD_==1
+replace weekly_hrs_woman = weekly_hrs_head if SEX_HEAD_==2
+
+gen yr_born_man=.
+replace yr_born_man = yr_born_head if SEX_HEAD_==1 
+replace yr_born_man = yr_born_wife if SEX_HEAD_==2
+gen yr_born_woman=.
+replace yr_born_woman = yr_born_wife if SEX_HEAD_==1
+replace yr_born_woman = yr_born_head if SEX_HEAD_==2
+
+gen num_married_man=.
+replace num_married_man = NUM_MARRIED_HEAD_ if SEX_HEAD_==1 
+replace num_married_man = NUM_MARRIED_WIFE_ if SEX_HEAD_==2
+gen num_married_woman=.
+replace num_married_woman = NUM_MARRIED_WIFE_ if SEX_HEAD_==1
+replace num_married_woman = NUM_MARRIED_HEAD_ if SEX_HEAD_==2
+
+gen first_marriage_yr_man=.
+replace first_marriage_yr_man = FIRST_MARRIAGE_YR_HEAD_ if SEX_HEAD_==1 
+replace first_marriage_yr_man = FIRST_MARRIAGE_YR_WIFE_ if SEX_HEAD_==2
+gen first_marriage_yr_woman=.
+replace first_marriage_yr_woman = FIRST_MARRIAGE_YR_WIFE_ if SEX_HEAD_==1
+replace first_marriage_yr_woman = FIRST_MARRIAGE_YR_HEAD_ if SEX_HEAD_==2
+
+gen first_marriage_end_man=.
+replace first_marriage_end_man = FIRST_MARRIAGE_END_HEAD_ if SEX_HEAD_==1 
+replace first_marriage_end_man = FIRST_MARRIAGE_END_WIFE_ if SEX_HEAD_==2
+gen first_marriage_end_woman=.
+replace first_marriage_end_woman = FIRST_MARRIAGE_END_WIFE_ if SEX_HEAD_==1
+replace first_marriage_end_woman = FIRST_MARRIAGE_END_HEAD_ if SEX_HEAD_==2
+
+gen first_divorce_yr_man=.
+replace first_divorce_yr_man = FIRST_DIVORCE_YR_HEAD_ if SEX_HEAD_==1 
+replace first_divorce_yr_man = FIRST_DIVORCE_YR_WIFE_ if SEX_HEAD_==2
+gen first_divorce_yr_woman=.
+replace first_divorce_yr_woman = FIRST_DIVORCE_YR_WIFE_ if SEX_HEAD_==1
+replace first_divorce_yr_woman = FIRST_DIVORCE_YR_HEAD_ if SEX_HEAD_==2
+
+gen first_separated_yr_man=.
+replace first_separated_yr_man = FIRST_SEPARATED_YR_HEAD_ if SEX_HEAD_==1 
+replace first_separated_yr_man = FIRST_SEPARATED_YR_WIFE_ if SEX_HEAD_==2
+gen first_separated_yr_woman=.
+replace first_separated_yr_woman = FIRST_SEPARATED_YR_WIFE_ if SEX_HEAD_==1
+replace first_separated_yr_woman = FIRST_SEPARATED_YR_HEAD_ if SEX_HEAD_==2
+
+gen first_widow_yr_man=.
+replace first_widow_yr_man = FIRST_WIDOW_YR_HEAD_ if SEX_HEAD_==1 
+replace first_widow_yr_man = FIRST_WIDOW_YR_WIFE_ if SEX_HEAD_==2
+gen first_widow_yr_woman=.
+replace first_widow_yr_woman = FIRST_WIDOW_YR_WIFE_ if SEX_HEAD_==1
+replace first_widow_yr_woman = FIRST_WIDOW_YR_HEAD_ if SEX_HEAD_==2
+
+gen last_marriage_yr_man=.
+replace last_marriage_yr_man = LAST_MARRIAGE_YR_HEAD_ if SEX_HEAD_==1 
+replace last_marriage_yr_man = LAST_MARRIAGE_YR_WIFE_ if SEX_HEAD_==2
+gen last_marriage_yr_woman=.
+replace last_marriage_yr_woman = LAST_MARRIAGE_YR_WIFE_ if SEX_HEAD_==1
+replace last_marriage_yr_woman = LAST_MARRIAGE_YR_HEAD_ if SEX_HEAD_==2
+
+gen last_divorce_yr_man=.
+replace last_divorce_yr_man = LAST_DIVORCE_YR_HEAD_ if SEX_HEAD_==1 
+replace last_divorce_yr_man = LAST_DIVORCE_YR_WIFE_ if SEX_HEAD_==2
+gen last_divorce_yr_woman=.
+replace last_divorce_yr_woman = LAST_DIVORCE_YR_WIFE_ if SEX_HEAD_==1
+replace last_divorce_yr_woman = LAST_DIVORCE_YR_HEAD_ if SEX_HEAD_==2
+
+gen last_separated_yr_man=.
+replace last_separated_yr_man = LAST_SEPARATED_YR_HEAD_ if SEX_HEAD_==1 
+replace last_separated_yr_man = LAST_SEPARATED_YR_WIFE_ if SEX_HEAD_==2
+gen last_separated_yr_woman=.
+replace last_separated_yr_woman = LAST_SEPARATED_YR_WIFE_ if SEX_HEAD_==1
+replace last_separated_yr_woman = LAST_SEPARATED_YR_HEAD_ if SEX_HEAD_==2
+
+gen last_widow_yr_man=.
+replace last_widow_yr_man = LAST_WIDOW_YR_HEAD_ if SEX_HEAD_==1 
+replace last_widow_yr_man = LAST_WIDOW_YR_WIFE_ if SEX_HEAD_==2
+gen last_widow_yr_woman=.
+replace last_widow_yr_woman = LAST_WIDOW_YR_WIFE_ if SEX_HEAD_==1
+replace last_widow_yr_woman = LAST_WIDOW_YR_HEAD_ if SEX_HEAD_==2
+
+// okay NOW make the independent variables I need
+*/
