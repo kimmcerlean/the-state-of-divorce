@@ -416,6 +416,10 @@ sum regional_attitudes_scaled
 tab dissolve_lag couple_educ_gp, row
 tab dissolve_lag predclass, row
 tabstat structural_familism gender_mood, by(dissolve_lag)
+tab ft_wife
+tab ft_wife if dissolve_lag==1
+tab ft_head
+tab ft_head if dissolve_lag==1
 
 ********************************************************************************
 ********************************************************************************
@@ -838,6 +842,10 @@ log close
 ********************************************************************************
 **# Interactions: for SDA
 ********************************************************************************
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+logit dissolve_lag i.dur i.hh_earn_type `controls' i.couple_educ_gp if hh_earn_type < 4, or
+logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' i.couple_educ_gp if hh_earn_type < 4, or
+
 // test 
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
 melogit dissolve_lag i.dur c.structural_sexism i.hh_earn_type c.structural_sexism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
@@ -845,6 +853,17 @@ logit dissolve_lag i.dur c.structural_sexism i.hh_earn_type c.structural_sexism#
 logit dissolve_lag i.dur i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
 
 set scheme cleanplots
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+logit dissolve_lag i.dur i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
+margins, dydx(ft_head ft_wife)
+
+logit dissolve_lag i.dur i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
+margins, dydx(ft_head ft_wife)
 
 // temp code - can it be as simple as this?!
 log using "$logdir/policy_interactions_sexism.log", replace
@@ -973,6 +992,31 @@ marginsplot
 logit dissolve_lag i.dur c.structural_familism c.female_earn_pct c.structural_familism#c.female_earn_pct `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
 margins, at(structural_familism=(-6(2)10) female_earn_pct=(0(.25)1))
 marginsplot
+
+// *IS EMPLOYMENT LESS ANNOYING KIMMM *//
+log using "$logdir/policy_interactions_sexism.log", append
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+* Structural familism
+logit dissolve_lag i.dur c.structural_familism i.ft_head i.ft_wife c.structural_familism#i.ft_head c.structural_familism#i.ft_wife  `controls' if couple_educ_gp==0 & state_fips!=11, or
+margins, dydx(ft_head ft_wife) at(structural_familism=(-6(2)10))
+marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Husband Employment" 2 "Wife Employment") rows(1))
+
+logit dissolve_lag i.dur c.structural_familism i.ft_head i.ft_wife c.structural_familism#i.ft_head c.structural_familism#i.ft_wife  `controls' if couple_educ_gp==1 & state_fips!=11, or
+margins, dydx(ft_head ft_wife) at(structural_familism=(-6(2)10))
+marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Husband Employment" 2 "Wife Employment") rows(1))
+
+
+* Alt attitudes
+logit dissolve_lag i.dur c.gender_mood i.ft_head i.ft_wife c.gender_mood#i.ft_head c.gender_mood#i.ft_wife `controls' if couple_educ_gp==0 & state_fips!=11, or
+margins, dydx(ft_head ft_wife)  at(gender_mood=(50(5)75))
+marginsplot, xtitle("Supportive Gender Role Attitudes") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Husband Employment" 2 "Wife Employment") rows(1))
+
+logit dissolve_lag i.dur c.gender_mood i.ft_head i.ft_wife c.gender_mood#i.ft_head c.gender_mood#i.ft_wife `controls' if couple_educ_gp==1 & state_fips!=11, or
+margins, dydx(ft_head ft_wife)  at(gender_mood=(50(5)75))
+marginsplot, xtitle("Supportive Gender Role Attitudes") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Husband Employment" 2 "Wife Employment") rows(1))
+
+log close
 
 ********************************************************************************
 * Overall models (for H1 and H2)
