@@ -140,6 +140,7 @@ replace policy_group = 4 if egal_attitudes==0 & policy_support < 2
 label define policy_group 1 "Egal, support" 2 "Egal, no" 3 "Traditional, support" 4 "Traditional, no"
 label values policy_group policy_group
 
+
 ********************************************************************************
 * Make var to use?!
 ********************************************************************************
@@ -235,6 +236,7 @@ log close
 // "T:\Research Projects\State data\data_keep\structural_sexism_raw.dta"
 
 use  "T:\Research Projects\State data\data_keep\structural_sexism_raw.dta", clear
+drop if statefip==11 // drop earlier so doesn't affect variable creation below
 
 	sum earn_ratio
 	gen earn_ratio_z = (earn_ratio - `r(mean)') / `r(sd)'
@@ -256,8 +258,8 @@ foreach var in earn_ratio lfp_ratio pov_ratio pctfemaleleg paid_leave senate_dem
 	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
 }
 
-alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st gender_mood_neg_st // 0.5401
-alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st // bc don't actually want attitudes in here -  0.4516
+alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st gender_mood_neg_st // 0.55
+alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st // bc don't actually want attitudes in here -  0.47
 
 egen structural_sexism = rowtotal(earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st)
 
@@ -292,3 +294,163 @@ estat lcmean // values by group
 estimates restore class4 // okay so this not really working either
 estat lcprob  // prob of being in each group
 estat lcmean // values by groups*/
+
+// wait these are wrong because I technically made all variables cotninuous, they aren't binary anymore (but paid leave and gun laws would only have 2 options anyway)
+
+
+********************************************************************************
+**# Structural family measure instead
+********************************************************************************
+
+/* scale instead, to match structural sexism people?*/
+// First recode so all are in the same direction (higher = more support)
+use "T:\Research Projects\State data\data_keep\final_measures.dta", clear
+merge 1:1 year state_fips using "T:\Research Projects\State data\data_keep\structural_sexism.dta"
+drop _merge
+drop paid_leave_st
+
+drop if state_fips==11 // DC doesn't have a lot of these variables
+
+// first recode so all in the same direction - want higher to be MORE support
+gen unemployment_neg = 0-unemployment
+gen cc_pct_income_neg = 0-cc_pct_income
+gen earn_ratio_neg = 0-earn_ratio
+gen min_below_fed = (min_above_fed==0)
+gen child_pov_neg = 0-child_pov
+gen welfare_neg = 0-welfare_all
+gen welfare_cash_neg = 0 -welfare_cash_asst
+
+// earn_ratio lfp_ratio pov_ratio pctfemaleleg paid_leave senate_dems house_dems dv_guns gender_mood pctmaleleg no_paid_leave no_dv_gun_law senate_rep house_rep gender_mood_neg
+
+foreach var in unemployment_neg min_above_fed paid_leave cc_pct_income_neg earn_ratio_neg cc_subsidies unemployment cc_pct_income min_below_fed child_pov child_pov_neg min_wage welfare_all welfare_cash_asst welfare_neg welfare_cash_neg{
+	sum `var'
+	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
+}
+
+alpha unemployment_neg_st min_above_fed_st paid_leave_st cc_pct_income_neg_st // 0.40
+alpha unemployment_neg_st min_above_fed_st paid_leave_st cc_pct_income_neg_st earn_ratio_neg_st // 0.45
+alpha unemployment_neg_st min_above_fed_st paid_leave_st cc_pct_income_neg_st earn_ratio_neg_st senate_dems_st // 0.51
+alpha unemployment_neg_st min_above_fed_st paid_leave_st cc_pct_income_neg_st earn_ratio_neg_st senate_dems_st child_pov_neg_st // 0.50
+alpha unemployment_neg_st min_above_fed_st paid_leave_st cc_pct_income_neg_st child_pov_neg_st senate_dems_st  // 0.47
+alpha unemployment_neg_st min_above_fed_st paid_leave_st cc_pct_income_neg_st earn_ratio_neg_st senate_dems_st, asis
+alpha unemployment_neg_st min_above_fed_st paid_leave_st cc_pct_income_neg_st earn_ratio_neg_st senate_dems_st gender_mood_st // 0.56
+alpha unemployment_neg_st min_above_fed_st paid_leave_st cc_pct_income_neg_st earn_ratio_neg_st senate_dems_st cc_subsidies_st // 0.52
+
+alpha unemployment child_pov min_wage // lol do not cluster - bc not standard
+
+alpha unemployment_st child_pov_st min_wage_st // 0.36
+alpha unemployment_st child_pov_st min_above_fed_st // 0.36
+alpha paid_leave_st cc_pct_income_st senate_dems_st // 0.35
+alpha paid_leave_st welfare_all_st senate_dems_st // 0.30
+alpha paid_leave_st welfare_cash_asst_st senate_dems_st // 0.31
+alpha paid_leave_st welfare_cash_asst_st senate_dems_st cc_pct_income_st // 0.41
+
+alpha unemployment_st child_pov_st min_wage_st paid_leave_st cc_pct_income_st senate_dems_st // 0.41
+alpha unemployment_st child_pov_st min_above_fed_st paid_leave_st cc_pct_income_st senate_dems_st // 0.47
+alpha unemployment_st child_pov_st min_below_fed_st no_paid_leave_st cc_pct_income_st senate_rep_st // 0.47
+alpha unemployment_st child_pov_st min_below_fed_st no_paid_leave_st senate_rep_st welfare_cash_asst_st // 0.44
+alpha unemployment_st child_pov_st min_below_fed_st no_paid_leave_st cc_pct_income_st senate_rep_st welfare_cash_asst_st // 0.49
+
+* Feels like unemployment and cc costs are problem
+alpha earn_ratio_st child_pov_st min_below_fed_st no_paid_leave_st senate_rep_st welfare_cash_neg_st // 0.43
+alpha unemployment_st child_pov_st min_below_fed_st no_paid_leave_st senate_rep_st welfare_cash_neg_st // 0.44
+alpha lfp_ratio_st child_pov_st min_below_fed_st no_paid_leave_st senate_rep_st welfare_cash_neg_st // 0.45
+
+alpha unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st // 0.44
+alpha unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st, asis // 0.33
+alpha unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st welfare_cash_asst_st, asis // 0.33
+
+pwcorr  unemployment_st child_pov_st min_above_fed_st paid_leave_st cc_pct_income_st senate_dems_st
+
+
+// worried the negative coding is messing this up, let's try to do higher = less support
+alpha unemployment_st min_below_fed_st no_paid_leave_st cc_pct_income_st senate_rep_st earn_ratio_st // it;s still reversing the sign so even though higher unemployment = arguably "worse" it seems as though it needs to be negative to go in alpha
+
+egen structural_familism= rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
+
+tabstat structural_familism, by(state)
+browse state year structural_familism unemployment child_pov min_above_fed paid_leave senate_dems welfare_cash_asst
+pwcorr structural_familism structural_sexism
+
+**Second approach: Factor-based
+factor unemployment_st child_pov_st min_below_fed_st no_paid_leave_st senate_rep_st welfare_cash_neg_st, ipf // Only 1 factor (factor 1) has eigenvalue greater than 1
+predict f1
+pwcorr f1 structural_familism // these become negatively correlated bc unemployment and child poverty have opposite signs of other variables.
+
+factor unemployment_st child_pov_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st, ipf
+
+save "T:\Research Projects\State data\data_keep\structural_familism.dta", replace
+/*
+** LCA
+gsem (paid_leave_st min_above_fed_st <-  , logit) ///
+(unemployment_st welfare_cash_asst_st child_pov_st senate_dems_st <-  , regress) ///
+, lclass(C 3) nonrtolerance
+estimates store class3
+
+gsem (paid_leave_st min_above_fed_st <-  , logit) ///
+(unemployment_st cc_pct_income_st child_pov_st senate_dems_st <-  , regress) ///
+, lclass(C 4) nonrtolerance
+estimates store class4
+
+estimates stats class3 class4
+
+estimates restore class4
+estat lcprob  // prob of being in each group
+estat lcmean // values by group
+*/
+/*
+
+Latent class marginal probabilities                      Number of obs = 1,500
+
+--------------------------------------------------------------
+             |            Delta-method
+             |     Margin   std. err.     [95% conf. interval]
+-------------+------------------------------------------------
+           C |
+          1  |   .1165155   .0214499      .0805977    .1655577
+          2  |   .0985991    .013543      .0750528    .1285063
+          3  |   .6122655   .0249091      .5624704     .659821
+          4  |   .1726198   .0192179      .1381309    .2135861
+--------------------------------------------------------------
+
+. estat lcmean // values by group
+
+Latent class marginal means                              Number of obs = 1,500
+
+----------------------------------------------------------------------------------
+                 |            Delta-method
+                 |     Margin   std. err.      z    P>|z|     [95% conf. interval]
+-----------------+----------------------------------------------------------------
+1                |
+      paid_leave |   4.81e-06    .000166                      2.00e-35           1
+   min_above_fed |   .0525084   .0246303                      .0205695    .1275801
+ unemployment_st |    -.68355    .093877    -7.28   0.000    -.8675454   -.4995545
+cc_pct_income_st |   -.651969    .081906    -7.96   0.000    -.8125018   -.4914363
+   earn_ratio_st |   .4325581   .1062098     4.07   0.000     .2243907    .6407255
+  senate_dems_st |  -1.323205   .1144297   -11.56   0.000    -1.547483   -1.098926
+-----------------+----------------------------------------------------------------
+2                |
+      paid_leave |   1.09e-08   3.62e-07                      5.10e-37           1
+   min_above_fed |   .0139215   .0167001                      .0012993    .1328541
+ unemployment_st |   .2653678   .0983174     2.70   0.007     .0726692    .4580664
+cc_pct_income_st |  -.9481219   .0959761    -9.88   0.000    -1.136232   -.7600122
+   earn_ratio_st |   .9547793    .124517     7.67   0.000     .7107306    1.198828
+  senate_dems_st |   .9661303   .0833795    11.59   0.000     .8027094    1.129551
+-----------------+----------------------------------------------------------------
+3                |
+      paid_leave |   1.53e-08   5.31e-06                      8.4e-305           1
+   min_above_fed |   .2702374    .023508                      .2266976    .3186932
+ unemployment_st |   .0271925   .0418765     0.65   0.516    -.0548838    .1092689
+cc_pct_income_st |   .0611587   .0452643     1.35   0.177    -.0275577    .1498751
+   earn_ratio_st |  -.0423055   .0413351    -1.02   0.306    -.1233208    .0387097
+  senate_dems_st |  -.1389419   .0423831    -3.28   0.001    -.2220112   -.0558725
+-----------------+----------------------------------------------------------------
+4                |
+      paid_leave |   .1429623   .0257176                      .0995446    .2010882
+   min_above_fed |   .8008109   .0375254                      .7171338    .8644147
+ unemployment_st |   .2127441   .0775184     2.74   0.006     .0608108    .3646773
+cc_pct_income_st |   .7658201   .0754308    10.15   0.000     .6179785    .9136617
+   earn_ratio_st |  -.4795222    .065134    -7.36   0.000    -.6071825   -.3518619
+  senate_dems_st |   1.110771   .0727979    15.26   0.000     .9680899    1.253452
+----------------------------------------------------------------------------------
+*/
