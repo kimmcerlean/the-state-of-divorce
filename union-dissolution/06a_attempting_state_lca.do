@@ -227,3 +227,68 @@ melogit dissolve_lag i.dur i.predclass i.housework_bkt i.predclass#i.housework_b
 margins, dydx(housework_bkt) at(predclass=(1(1)4))
 
 log close
+
+
+********************************************************************************
+**# Creating structural sexism scale here so I can merge to file 6
+********************************************************************************
+// "T:\Research Projects\State data\data_keep\structural_sexism_raw.dta"
+
+use  "T:\Research Projects\State data\data_keep\structural_sexism_raw.dta", clear
+
+	sum earn_ratio
+	gen earn_ratio_z = (earn_ratio - `r(mean)') / `r(sd)'
+	
+// need to flip flop some variables because some are better for women when higher and others are worse. I want HIGHER to be more struxtural sexism
+// earn_ratio = fine, already men more, same with lfp and pov
+gen pctmaleleg=1-pctfemaleleg // so becomes men
+gen no_paid_leave = (paid_leave==0) // so becomes no
+gen no_dv_gun_law = (dv_guns==0)
+gen senate_rep = 1-senate_dems // becomes republican
+gen house_rep = 1-house_dems // becomes republican
+gen gender_mood_neg = 0-gender_mood // so higher become more negative now?
+
+// okay 6 need to be changed to be less women friendly so actually let's flip flop others? but have to do in other file
+
+// foreach var in earn_ratio lfp_ratio pov_ratio pctfemaleleg paid_leave senate_dems house_dems dv_guns gender_mood
+foreach var in earn_ratio lfp_ratio pov_ratio pctfemaleleg paid_leave senate_dems house_dems dv_guns gender_mood pctmaleleg no_paid_leave no_dv_gun_law senate_rep house_rep gender_mood_neg{
+	sum `var'
+	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
+}
+
+alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st gender_mood_neg_st // 0.5401
+alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st // bc don't actually want attitudes in here -  0.4516
+
+egen structural_sexism = rowtotal(earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st)
+
+rename statefip state_fips
+
+save "T:\Research Projects\State data\data_keep\structural_sexism.dta", replace
+
+// try LCA?
+drop if state_fips==11
+ 
+gsem (no_paid_leave_st no_dv_gun_law_st <-  , logit) ///
+(earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st senate_rep_st gender_mood_neg_st<-  , regress) ///
+, lclass(C 3) nonrtolerance 
+estimates store class3
+
+gsem (no_paid_leave_st no_dv_gun_law_st <-  , logit) ///
+(earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st senate_rep_st gender_mood_neg_st<-  , regress) ///
+, lclass(C 4) nonrtolerance 
+estimates store class4
+
+gsem (no_paid_leave_st no_dv_gun_law_st <-  , logit) ///
+(earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st senate_rep_st gender_mood_neg_st<-  , regress) ///
+, lclass(C 5) nonrtolerance 
+estimates store class5
+
+estimates stats class3 class4 class5 // want low AIC /BIC
+
+estimates restore class3
+estat lcprob  // prob of being in each group
+estat lcmean // values by group
+
+estimates restore class4 // okay so this not really working either
+estat lcprob  // prob of being in each group
+estat lcmean // values by groups*/

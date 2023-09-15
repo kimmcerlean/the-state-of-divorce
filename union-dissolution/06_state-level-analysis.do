@@ -323,6 +323,10 @@ merge m:1 state_fips year using "T:\Research Projects\State data\data_keep\state
 drop if _merge==2
 drop _merge
 
+merge m:1 state_fips year using "T:\Research Projects\State data\data_keep\structural_sexism.dta"
+drop if _merge==2
+drop _merge
+
 // I need to remember - not all variables have data past 2010 - should I just extend forward. I could definitely add in the min wage and unemployment
 browse year state_fips state_cpi_bfh_est
 
@@ -352,6 +356,29 @@ tabstat masssociallib_est, by(liberal_attitudes_gp)
 
 // is there enough variation?
 recode disapproval (2.154=1) (2.20/2.21=2) (2.2405=3) (2.27/2.29=4) (2.3935=5), gen(disapproval_bkt)
+
+// creating four categorical variable of sexism and attitudes
+sum structural_sexism
+gen sexism_scale=0
+replace sexism_scale=1 if structural_sexism > `r(mean)'
+replace sexism_scale=. if structural_sexism==.
+
+sum gender_mood
+gen gender_scale=0
+replace gender_scale=1 if gender_mood > `r(mean)'
+replace gender_scale=. if gender_mood==.
+
+tab sexism_scale gender_scale // these are inverse remember kim
+
+gen state_cat = .
+replace state_cat=1 if sexism_scale==0 & gender_scale == 0 // low sexism, trad attitudes
+replace state_cat=2 if sexism_scale==0 & gender_scale == 1 //  low sexism, egal attitudes
+replace state_cat=3 if sexism_scale==1 & gender_scale == 0 // high sexism, trad attitudes
+replace state_cat=4 if sexism_scale==1 & gender_scale == 1 // high sexism, egal attitudes
+
+label define state_cat 1 "Low S, Trad Att" 2 "Best" 3 "Worst" 4 "High S, Egal Att"
+label values state_cat state_cat
+
 
 // aggregate attitudinal measure
 * One just average current
@@ -696,6 +723,13 @@ margins, dydx(hh_earn_type) at(unemployment=(3(2)11))
 melogit dissolve_lag i.dur c.cc_subsidies i.hh_earn_type c.cc_subsidies#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(cc_subsidies=(0.05(.10)0.45))
 
+**Structural Sexism
+melogit dissolve_lag i.dur c.structural_sexism i.hh_earn_type c.structural_sexism#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(structural_sexism=(-9(1)5))
+
+* Alt attitudes
+melogit dissolve_lag i.dur c.gender_mood i.hh_earn_type c.gender_mood#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(gender_mood=(50(5)75))
 
 /* Tabling for now
 **Unemployment compensation
@@ -765,6 +799,14 @@ margins, dydx(hh_earn_type) at(unemployment=(3(2)11))
 melogit dissolve_lag i.dur c.cc_subsidies i.hh_earn_type c.cc_subsidies#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
 margins, dydx(hh_earn_type) at(cc_subsidies=(0.05(.10)0.45))
 
+* Structural sexism
+melogit dissolve_lag i.dur c.structural_sexism i.hh_earn_type c.structural_sexism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(structural_sexism=(-9(1)5))
+
+* Alt attitudes
+melogit dissolve_lag i.dur c.gender_mood i.hh_earn_type c.gender_mood#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
+margins, dydx(hh_earn_type) at(gender_mood=(50(5)75))
+
 /* Tabling for now
 **Unemployment compensation
 melogit dissolve_lag i.dur c.unemployment_comp i.hh_earn_type c.unemployment_comp#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 || state_fips:, or
@@ -779,6 +821,49 @@ melogit dissolve_lag i.dur i.right2work i.hh_earn_type i.right2work#i.hh_earn_ty
 margins, dydx(hh_earn_type) at(right2work=(0 1))
 
 */
+
+// temp code
+log using "$logdir/policy_interactions_sexism.log", replace
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+* Structural sexism
+logit dissolve_lag i.dur c.structural_sexism i.hh_earn_type c.structural_sexism#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(structural_sexism=(-9(1)5))
+
+* Alt attitudes
+logit dissolve_lag i.dur c.gender_mood i.hh_earn_type c.gender_mood#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(gender_mood=(50(5)75))
+
+* Combo
+logit dissolve_lag i.dur i.state_cat i.hh_earn_type i.state_cat#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4  & state_fips!=11, or
+margins, dydx(hh_earn_type) at(state_cat=(1(1)4))
+
+* Structural sexism
+logit dissolve_lag i.dur c.structural_sexism i.hh_earn_type c.structural_sexism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(structural_sexism=(-9(1)5))
+
+* Alt attitudes
+logit dissolve_lag i.dur c.gender_mood i.hh_earn_type c.gender_mood#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4  & state_fips!=11, or
+margins, dydx(hh_earn_type) at(gender_mood=(50(5)75))
+
+* Combo
+logit dissolve_lag i.dur i.state_cat i.hh_earn_type i.state_cat#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(state_cat=(1(1)4))
+
+log close
+
+// get correlation of sexism and attitudes
+pwcorr structural_sexism gender_mood // negatively correlated which makes sense, MORe structrual sexism = LESS support for women
+
+// cont indicator instead??
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+logit dissolve_lag i.dur c.structural_sexism i.hh_earn_type c.structural_sexism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 , or // lol why is this no different to mixed effects??
+margins, dydx(hh_earn_type) at(structural_sexism=(-9(1)5))
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+logit dissolve_lag i.dur c.structural_sexism i.hh_earn_type c.structural_sexism#i.hh_earn_type `controls' i.state_fips if couple_educ_gp==1 & hh_earn_type < 4 , or
+margins, dydx(hh_earn_type) at(structural_sexism=(-9(1)5))
 
 log close
 
