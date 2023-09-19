@@ -804,12 +804,30 @@ save "$data_keep\PSID_relationship_file.dta", replace // same name as above, now
 browse survey_yr unique_id partner_unique_id rel_type
 drop if rel_type==.
 
-// then, need to restrict to just relationships where either head or wife / partner because that is where the book of the variables are
+// see what happens if I use individual education instead of ref / head
+gen college=0
+replace college=1 if inlist(YRS_EDUCATION_,16,17)
+	// tab college college_complete_head if ego_rel==1
+	// tab college college_complete_wife if ego_rel==2
+	
+recode YRS_EDUCATION_ (0/11=1)(12=2)(13/15=3)(16/17=4), gen(educ)
+replace educ=. if educ==99
+browse main_per_id survey_yr unique_id partner_unique_id AGE_ college
+
+gen employed=0
+replace employed=1 if EMPLOYMENT_ == 1
+
+// figure out income (need additional from CNEF - perhaps impute for now?)
+browse unique_id survey_yr TOTAL_MONEY_INCOME_ OFUM_LABOR_INCOME_ OFUM_TAXABLE_INCOME_ EARNINGS_2YRLAG_ employed
+	// if also head, is their income recorded against OFUM AND income for head?! or just ofum?! is this why so many are 0? bc recorded against head?! this is so confusing.
+
+// then, need to restrict to just relationships where either head or wife / partner because that is where the bulk of the variables are
+// Per Schneider et al 2018, think I need to include OFUMs, so don't do this for now
 browse survey_yr unique_id partner_unique_id rel_type ego_rel alter_rel RELATION_
 recode RELATION_ (1=1)(2=2)(3/7=3)(8=2)(9=3)(10=1)(20/22=2)(30/83=3)(88/92=2)(95/99=3), gen(relation)
 
 tab ego_rel relation
-keep if inlist(ego_rel,1,2) & inlist(alter_rel,1,2)
+** keep if inlist(ego_rel,1,2) & inlist(alter_rel,1,2)
 
 // drop those who entered in relationship (so first survey yr is the first relationship year) - so like a bunch will have start date of 1968 if they don't have history
 browse main_per_id survey_yr unique_id partner_unique_id relationship_number rel_start marriage_start rel_end rel_type first_rel_start
@@ -845,8 +863,18 @@ browse main_per_id survey_yr unique_id partner_unique_id relationship_number rel
 tab MARITAL_PAIRS_ // still a bunch recorded as no spouse, which is confusing. are these first year spouses? yes, it seems like they are first year cohabitors, because it is primarily the first year of the relationship
 browse survey_yr unique_id partner_unique_id rel_type marr_trans MARITAL_PAIRS_
 
+// not convinced hh_earn_type is right for those - bc just recording head as having $, so all male BW or none
+tab hh_earn_type
+tab hh_earn_type if MARITAL_PAIRS_ == 0
+
+tabstat AGE_, by(MARITAL_PAIRS_) // think this is Schneider's point - younger
+
 // need to figure out vars when head is not male. Right now my variables created above assume that - this is very confusing
 tab SEX_HEAD_ // 1 = male
+tab MARITAL_PAIRS_ SEX_HEAD_ , row // okay yes, the head can be either sex when 1st year cohabitors, so that will affect the created variables. need to figure this out once I use OFUM / individual data to actually get employment / earnings.
+
+gen dur=survey_yr - rel_start // this is not true duration. need to account for marital history if I do have it. 
+//  browse main_per_id survey_yr unique_id partner_unique_id relationship_number rel_start dur
 
 /*to revisit
 drop if dur==0 | dur==.
@@ -857,16 +885,31 @@ drop if SEX_HEAD_==2
 
 save "$data_keep\PSID_cohab_sample.dta", replace
 
+* Initial exploration
+
 tab couple_educ_gp marr_trans if MARITAL_PAIRS_==1, row
 tab couple_educ_gp marr_trans if rel_start_flag==0 & MARITAL_PAIRS_==1, row
 
-recode rel_start (1968/1989=1)(1990/2019=2), gen(time)
+recode rel_start (1970/1999=1)(2000/2019=2), gen(time)
 tab couple_educ_gp marr_trans if rel_start_flag==0 & time==1 & MARITAL_PAIRS_==1, row
 tab couple_educ_gp marr_trans if rel_start_flag==0 & time==2 & MARITAL_PAIRS_==1, row
 
+tab college marr_trans if rel_start_flag==0 & time==1 & MARITAL_PAIRS_==1, row
+tab college marr_trans if rel_start_flag==0 & time==2 & MARITAL_PAIRS_==1, row
+
+tab couple_educ_gp marr_trans if rel_start_flag==0 & time==1 & MARITAL_PAIRS_==1 & dur<=5, row // bc older relationships have longer duration (if didn't transition)
+tab couple_educ_gp marr_trans if rel_start_flag==0 & time==2 & MARITAL_PAIRS_==1 & dur<=5, row
+
+tab couple_educ_gp marr_trans if rel_start_flag==0 & time==1 & MARITAL_PAIRS_==1 & dur>0 & dur<=5, row
+tab couple_educ_gp marr_trans if rel_start_flag==0 & time==2 & MARITAL_PAIRS_==1 & dur>0 & dur<=5, row
+
 logit marr_trans i.couple_educ_gp if rel_start_flag==0, or
-logit marr_trans i.couple_educ_gp##i.time if rel_start_flag==0, or
-margins time#couple_educ_gp
+logit marr_trans i.couple_educ_gp##i.time if rel_start_flag==0 & inlist(time,1,2) & dur<=5, or
+margins time#couple_educ_gp // this could work too.
+
+logit marr_trans i.educ##i.time if rel_start_flag==0 & inlist(time,1,2) & dur<=5, or
+margins time#educ // this could do it
+marginsplot
 
 logit marr_trans i.couple_educ_gp i.hh_earn_type_lag if rel_start_flag==0 & MARITAL_PAIRS_==1, or
 
@@ -875,6 +918,25 @@ replace time_detail=. if inlist(time_detail,1968,1969)
 logit marr_trans i.couple_educ_gp##i.time_detail if rel_start_flag==0 & MARITAL_PAIRS_==1, or
 margins time_detail#couple_educ_gp
 
+logit marr_trans i.educ##i.time_detail if rel_start_flag==0, or // & MARITAL_PAIRS_==1, or
+margins time_detail#educ
+marginsplot
+
+recode rel_start (1970/1989=1)(1990/1999=2)(2000/2019=3), gen(time_v3)
+replace time_v3=. if inlist(time_v3,1968,1969)
+
+logit marr_trans i.educ##i.time_v3 if rel_start_flag==0, or // & MARITAL_PAIRS_==1, or
+margins time_v3#educ
+marginsplot
+
+logit marr_trans i.couple_educ_gp##i.time_v3 if rel_start_flag==0, or // & MARITAL_PAIRS_==1, or
+margins time_v3#couple_educ_gp
+marginsplot
+
+logit marr_trans i.hh_earn_type_lag if couple_educ_gp==0 & time==1, or
+logit marr_trans i.hh_earn_type_lag if couple_educ_gp==0 & time==2, or
+logit marr_trans i.hh_earn_type_lag if couple_educ_gp==1 & time==1, or
+logit marr_trans i.hh_earn_type_lag if couple_educ_gp==1 & time==2, or
 
 /* I am dumb - see FAQ, male partner / husband is always ref.
 

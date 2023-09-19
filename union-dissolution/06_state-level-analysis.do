@@ -862,6 +862,8 @@ margins, dydx(ft_head ft_wife)
 
 logit dissolve_lag i.dur i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
 margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur ib3.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type)
 logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
 margins, dydx(ft_head ft_wife)
 
@@ -873,6 +875,7 @@ log using "$logdir/policy_interactions_sexism.log", replace
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
 logit dissolve_lag i.dur c.structural_familism if state_fips!=11, or // it does PRIOR to controls, so controls prob picking some of that up
 logit dissolve_lag i.dur c.structural_familism i.couple_educ_gp if state_fips!=11, or
+margins, at(structural_familism=(-6(1)10))
 margins, at(structural_familism=(-6(2)10))
 marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) ylabel(, angle(0))  ytitle("Predicted Probability of Marital Dissolution") title("")
 
@@ -904,6 +907,11 @@ logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_famil
 margins, dydx(hh_earn_type) at(structural_familism=(-6(2)10))
 marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1))
 
+* Control for attitudes
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' c.gender_mood if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(structural_familism=(-6(2)10))
+marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1))
+
 * Alt attitudes
 logit dissolve_lag i.dur c.gender_mood i.hh_earn_type c.gender_mood#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
 margins, dydx(hh_earn_type) at(gender_mood=(50(5)75))
@@ -920,6 +928,11 @@ marginsplot, xtitle("Structural Sexism Scale") yline(0,lcolor(gs3)) ylabel(, ang
 
 * Structural familism
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(structural_familism=(-6(2)10))
+marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1))
+
+* Control for attitudes
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' c.gender_mood if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
 margins, dydx(hh_earn_type) at(structural_familism=(-6(2)10))
 marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1))
 
