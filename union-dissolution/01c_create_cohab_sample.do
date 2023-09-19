@@ -362,7 +362,7 @@ browse  main_per_id survey_yr unique_id partner_unique_id in_relationship MARITA
 tab in_relationship MARITAL_PAIRS_, m // general alignment. look at those where marital_pairs says yes but not in_relationship
 browse if in_relationship==0 &  MARITAL_PAIRS_!=0 // okay most of these are mover-outs (based on sequence). I think I maybe should have removed the mover outs? but have data on ref / head even if that person specifically not in household? BUT if I don't have relationship info, then useless, right?
 
-save "$data_keep\PSID_relationship_file.dta", replace
+save "$created_data\PSID_relationship_file.dta", replace
 
 * move this to later - do eventually need to figure out how to only keep one respondent per relationship and ideally so all the genders align with head / wife but that part confuses me
 /*
@@ -416,6 +416,7 @@ replace college_complete_wife=1 if educ_wife==4
 gen college_complete_head=0
 replace college_complete_head=1 if educ_head==4
 
+/*
 gen couple_educ_gp=0
 replace couple_educ_gp=1 if (college_complete_wife==1 | college_complete_head==1)
 
@@ -429,6 +430,7 @@ replace educ_type=3 if educ_head == educ_wife & educ_head!=. & educ_wife!=.
 
 label define educ_type 1 "Hyper" 2 "Hypo" 3 "Homo"
 label values educ_type educ_type
+*/
 
 // income / structure
 browse id survey_yr FAMILY_INTERVIEW_NUM_ TAXABLE_HEAD_WIFE_ TOTAL_FAMILY_INCOME_ LABOR_INCOME_HEAD_ WAGES_HEAD_  LABOR_INCOME_WIFE_ WAGES_WIFE_ 
@@ -444,10 +446,11 @@ gen earnings_head=.
 replace earnings_head = LABOR_INCOME_HEAD_ if inrange(survey_yr,1968,1993)
 replace earnings_head = WAGES_HEAD_ if inrange(survey_yr,1994,2019)
 
+/* moving this down because not right here
 egen couple_earnings = rowtotal(earnings_wife earnings_head)
 
 browse id survey_yr earnings_wife earnings_head couple_earnings
-	
+
 gen female_earn_pct = earnings_wife/(couple_earnings)
 
 gen hh_earn_type=.
@@ -469,6 +472,7 @@ gen female_earn_pct_lag=.
 replace female_earn_pct_lag=female_earn_pct[_n-1] if unique_id==unique_id[_n-1]
 
 browse id survey_yr earnings_head earnings_wife hh_earn_type hh_earn_type_lag
+*/
 
 // hours instead of earnings	
 browse id survey_yr WEEKLY_HRS1_WIFE_ WEEKLY_HRS_WIFE_ WEEKLY_HRS1_HEAD_ WEEKLY_HRS_HEAD_
@@ -795,7 +799,7 @@ gen age_mar_wife = rel_start_all -  yr_born_wife
 drop if age_mar_head < 0 | age_mar_wife < 0
 */
 
-save "$data_keep\PSID_relationship_file.dta", replace // same name as above, now just recodes added. Still not restricted to any relationships or just head / wife
+save "$created_data\PSID_relationship_file.dta", replace // same name as above, now just recodes added. Still not restricted to any relationships or just head / wife
 
 ********************************************************************************
 **# Want to create a COHABITATION analysis file
@@ -815,19 +819,120 @@ replace educ=. if educ==99
 browse main_per_id survey_yr unique_id partner_unique_id AGE_ college
 
 gen employed=0
-replace employed=1 if EMPLOYMENT_ == 1
-
-// figure out income (need additional from CNEF - perhaps impute for now?)
-browse unique_id survey_yr TOTAL_MONEY_INCOME_ OFUM_LABOR_INCOME_ OFUM_TAXABLE_INCOME_ EARNINGS_2YRLAG_ employed
-	// if also head, is their income recorded against OFUM AND income for head?! or just ofum?! is this why so many are 0? bc recorded against head?! this is so confusing.
-
+replace employed=1 if EMPLOYMENT_ == 1	
+	
 // then, need to restrict to just relationships where either head or wife / partner because that is where the bulk of the variables are
 // Per Schneider et al 2018, think I need to include OFUMs, so don't do this for now
 browse survey_yr unique_id partner_unique_id rel_type ego_rel alter_rel RELATION_
-recode RELATION_ (1=1)(2=2)(3/7=3)(8=2)(9=3)(10=1)(20/22=2)(30/83=3)(88/92=2)(95/99=3), gen(relation)
+recode RELATION_ (1=1)(2=2)(3/7=3)(8=2)(9=3)(10=1)(20/22=2)(30/83=3)(88/92=2)(95/99=3), gen(relation) // oh I also put the bf/gf in as 2 so that is part of the problem, but if they are 88, they actually don't get information
+recode RELATION_ (1=1)(2=2)(3/7=4)(8=3)(9=4)(10=1)(20/22=2)(30/83=4)(88/92=3)(95/99=4), gen(relation_v2)
 
 tab ego_rel relation
 ** keep if inlist(ego_rel,1,2) & inlist(alter_rel,1,2)
+
+// figure out income (need additional from CNEF - perhaps impute for now?)
+browse unique_id survey_yr RELATION_ earnings_head earnings_wife TOTAL_MONEY_INCOME_ OFUM_LABOR_INCOME_ OFUM_TAXABLE_INCOME_ EARNINGS_2YRLAG_ employed 
+	// if also head, is their income recorded against OFUM AND income for head?! or just ofum?! is this why so many are 0? bc recorded against head?! this is so confusing. okay yes, their income is recorded both, but that doesn't seem true in later years.  when they switched BACK to labor income? after 2005?
+	// but it does look like recorded in OFUMs for first year cohabitors  - see 1473173
+gen income=.
+replace income = earnings_head if relation_v2==1
+replace income = earnings_wife if relation_v2==2
+replace income = TOTAL_MONEY_INCOME_ if inlist(relation_v2,3,4) & survey_yr >=1968 & survey_yr <=1974
+replace income = OFUM_TAXABLE_INCOME_ if inlist(relation_v2,3,4) & survey_yr >=1975 & survey_yr <=1990
+replace income = OFUM_LABOR_INCOME_ if inlist(relation_v2,3,4) & ((survey_yr >=1991 & survey_yr <=1993) | (survey_yr >=2005 & survey_yr <=2019))
+browse unique_id partner_unique_id survey_yr relation_v2 income earnings_head earnings_wife TOTAL_MONEY_INCOME_ OFUM_LABOR_INCOME_ OFUM_TAXABLE_INCOME_ EARNINGS_2YRLAG_ employed 
+
+** Need to save a file so I can do a vlookup of partner information
+//  unique unique_id partner_unique_id survey_yr
+//  unique unique_id survey_yr
+
+preserve
+
+collapse (mean) income educ college employed yr_born, by(unique_id survey_yr)
+rename unique_id partner_unique_id
+gen partner_income = income
+gen partner_educ = educ
+gen partner_college = college
+gen partner_employed = employed
+gen partner_yr_born = yr_born
+
+save "$temp\PSID_partner_info_lookup.dta", replace
+
+restore
+
+// one record that is not unique partner_survey
+bysort partner_unique_id survey_yr : egen record_id = rank(survey_yr)
+keep if record_id==1
+
+unique partner_unique_id survey_yr
+merge 1:1 partner_unique_id survey_yr using "$temp\PSID_partner_info_lookup.dta", keepusing(partner_*)
+drop if _merge==2
+drop _merge
+
+browse unique_id partner_unique_id survey_yr income partner_income earnings_head earnings_wife  // okay so just need to fill this in and make sure the gender are right THEN create actual variables
+
+gen income_man=.
+replace income_man=income if SEX==1
+replace income_man=partner_income if SEX==2
+
+gen income_woman=.
+replace income_woman=income if SEX==2
+replace income_woman=partner_income if SEX==1
+
+gen employed_man=.
+replace employed_man=employed if SEX==1
+replace employed_man=partner_employed if SEX==2
+
+gen employed_woman=.
+replace employed_woman=employed if SEX==2
+replace employed_woman=partner_employed if SEX==1
+
+gen college_man=.
+replace college_man=college if SEX==1
+replace college_man=partner_college if SEX==2
+
+gen college_woman=.
+replace college_woman=college if SEX==2
+replace college_woman=partner_college if SEX==1
+
+browse unique_id partner_unique_id survey_yr sex income_man income_woman earnings_head earnings_wife income partner_income
+
+gen couple_educ_gp=0
+replace couple_educ_gp=1 if (college_man==1 | college_woman==1)
+
+label define couple_educ 0 "Neither College" 1 "At Least One College"
+label values couple_educ_gp couple_educ
+
+// key variable
+egen couple_earnings = rowtotal(income_woman income_man)
+
+gen female_earn_pct = income_woman/(couple_earnings)
+
+gen hh_earn_type=.
+replace hh_earn_type=1 if female_earn_pct >=.4000 & female_earn_pct <=.6000
+replace hh_earn_type=2 if female_earn_pct < .4000 & female_earn_pct >=0
+replace hh_earn_type=3 if female_earn_pct > .6000 & female_earn_pct <=1
+replace hh_earn_type=4 if income_man==0 & income_woman==0
+
+label define hh_earn_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values hh_earn_type hh_earn_type
+
+sort unique_id survey_yr
+
+gen hh_earn_type_lag=.
+replace hh_earn_type_lag=hh_earn_type[_n-1] if unique_id==unique_id[_n-1]
+label values hh_earn_type_lag hh_earn_type
+
+gen female_earn_pct_lag=.
+replace female_earn_pct_lag=female_earn_pct[_n-1] if unique_id==unique_id[_n-1]
+
+browse unique_id survey_yr income_man income_woman hh_earn_type hh_earn_type_lag
+
+save "$created_data\PSID_relationship_file.dta", replace // same name as above, now just partner info added. Still not restricted to any relationships or just head / wife
+
+********************************************************************************
+* Create rest of file
+********************************************************************************
 
 // drop those who entered in relationship (so first survey yr is the first relationship year) - so like a bunch will have start date of 1968 if they don't have history
 browse main_per_id survey_yr unique_id partner_unique_id relationship_number rel_start marriage_start rel_end rel_type first_rel_start
@@ -883,7 +988,7 @@ drop if MARITAL_PAIRS_==0
 drop if SEX_HEAD_==2
 */
 
-save "$data_keep\PSID_cohab_sample.dta", replace
+save "$created_data\PSID_cohab_sample.dta", replace
 
 * Initial exploration
 
@@ -933,10 +1038,18 @@ logit marr_trans i.couple_educ_gp##i.time_v3 if rel_start_flag==0, or // & MARIT
 margins time_v3#couple_educ_gp
 marginsplot
 
-logit marr_trans i.hh_earn_type_lag if couple_educ_gp==0 & time==1, or
-logit marr_trans i.hh_earn_type_lag if couple_educ_gp==0 & time==2, or
-logit marr_trans i.hh_earn_type_lag if couple_educ_gp==1 & time==1, or
-logit marr_trans i.hh_earn_type_lag if couple_educ_gp==1 & time==2, or
+// I think income is measured as last year, so already lagged by default? confirm this.. and remember i am missing a bunch of income for those in the middle because no labor market income recorded. need CNEF file. need to think about marriage bar because won't be able to get that index with non ref/head
+logit marr_trans i.hh_earn_type dur if couple_educ_gp==0 & time==1 & dur<=5, or
+logit marr_trans i.hh_earn_type dur if couple_educ_gp==0 & time==2 & dur<=5, or
+
+logit marr_trans i.employed_man i.employed_woman dur if couple_educ_gp==0 & time==1 & dur<=5, or
+logit marr_trans i.employed_man i.employed_woman dur if couple_educ_gp==0 & time==2 & dur<=5, or
+
+logit marr_trans i.hh_earn_type dur if couple_educ_gp==1 & time==1 & dur<=5, or
+logit marr_trans i.hh_earn_type dur if couple_educ_gp==1 & time==2 & dur<=5, or
+
+logit marr_trans i.employed_man i.employed_woman dur if couple_educ_gp==1 & time==1 & dur<=5, or
+logit marr_trans i.employed_man i.employed_woman dur if couple_educ_gp==1 & time==2 & dur<=5, or // okay THIS is interesting
 
 /* I am dumb - see FAQ, male partner / husband is always ref.
 
