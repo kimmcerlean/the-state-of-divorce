@@ -613,3 +613,96 @@ collapse (median) female_earn_pct if ever_children==1 & FIRST_BIRTH_YR!=9999 & e
 twoway (line female_earn_pct first_birth_dur if couple_educ_gp==0 & first_birth_dur>=-10 & first_birth_dur<=10) (line female_earn_pct first_birth_dur if couple_educ_gp==1 & first_birth_dur>=-10 & first_birth_dur<=10), legend(on order(1 "Non" 2 "College"))
 graph export "$results\earn_pct_educ_x_children_duration)dissolve.jpg", as(jpg) name("Graph") quality(90) replace
 restore
+
+********************************************************************************
+**# Trying to look at transition from cohabitation to marriage
+********************************************************************************
+
+// first get file
+use "$created_data\PSID_relationship_file_coded.dta", clear
+
+// Figure out who entered in relationship and I don't have history for
+rename start_this_rel main_rel_start
+browse unique_id partner_unique_id survey_yr first_survey_yr rel_num main_rel_start partner_rel_start rel_start MARITAL_PAIRS_
+
+egen start_this_rel = rowmin(main_rel_start partner_rel_start rel_start)
+browse unique_id partner_unique_id survey_yr start_this_rel main_rel_start partner_rel_start rel_start MARITAL_PAIRS_
+
+gen rel_start_flag=0
+replace rel_start_flag=1 if start_this_rel == first_survey_yr
+
+// signal marital transition
+browse survey_yr unique_id partner_unique_id rel_type
+sort unique_id survey_yr
+gen marr_trans=0
+replace marr_trans=1 if rel_type==20 & rel_type[_n-1]==22 & unique_id==unique_id[_n-1] & partner_unique_id==partner_unique_id[_n-1]
+
+browse survey_yr unique_id partner_unique_id rel_type marr_trans
+// keep if rel_type==22 | marr_trans==1 - want to keep all and plot duration, cohab whole time, married whole time, cohab to marriage?
+
+// type of relationship
+bysort unique_id partner_unique_id: egen ever_transition=max(marr_trans)
+browse survey_yr unique_id partner_unique_id rel_type marr_trans ever_transition
+
+gen relationship_total=.
+replace relationship_total=1 if ever_transition==0 & rel_type==20 // always married
+replace relationship_total=2 if ever_transition==0 & rel_type==22 // always cohabiting
+replace relationship_total=3 if ever_transition==1 // transitioned
+
+label define relationship_total 1 "Married" 2 "Cohab" 3 "Transitioned"
+label values relationship_total relationship_total
+
+// still need to figure out how to drop one person in HH (do I ever have a case where I just have one person?)
+bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen couple_per_id = rank(unique_id)
+browse survey_yr FAMILY_INTERVIEW_NUM_ unique_id partner_unique_id couple_per_id
+
+keep if couple_per_id==1
+
+// duration of relationship
+gen dur=survey_yr - start_this_rel
+
+sort unique_id partner_unique_id survey_yr  
+browse unique_id partner_unique_id survey_yr  rel_type relationship_total dur
+
+// explore
+preserve
+collapse (median) female_earn_pct if rel_start_flag==0 & start_this_rel>=1990, by(dur relationship_total)
+collapse (median) female_earn_pct if rel_start_flag==0, by(dur relationship_total)
+
+twoway (line female_earn_pct dur if relationship_total==1 & dur <=20) (line female_earn_pct dur if relationship_total==2 & dur <=20) (line female_earn_pct dur if relationship_total==3 & dur <=20), legend(on order(1 "Married" 2 "Cohab" 3 "Transitioned"))
+// graph export "$results\dur_x_reltype.jpg", as(jpg) name("Graph") quality(90) replace
+
+restore
+
+// to standardize on TIME TO marriage
+gen marr_trans_yr_0 = survey_yr if marr_trans==1
+by unique_id partner_unique_id: egen marr_trans_yr= max(marr_trans_yr_0)
+browse unique_id partner_unique_id survey_yr  rel_type relationship_total marr_trans marr_trans_yr marr_trans_yr_0
+
+gen transition_dur=.
+replace transition_dur = survey_yr-marr_trans_yr
+replace transition_dur = dur if transition_dur==. // should be all those intact
+// browse unique_id partner_unique_id survey_yr  rel_type relationship_total marr_trans marr_trans_yr dur transition_dur
+
+tabstat female_earn_pct if relationship_total==3 & rel_start_flag==0, by(transition_dur) stats(mean p50)
+
+preserve
+collapse (median) female_earn_pct if inlist(relationship_total,1,3) & rel_start_flag==0, by(transition_dur relationship_total)
+twoway (line female_earn_pct transition_dur if relationship_total==1 & transition_dur>=-10 & transition_dur <=10) (line female_earn_pct transition_dur if relationship_total==3 & transition_dur>=-10 & transition_dur <=10), legend(on order(1 "Married" 2 "Transitioned"))
+restore
+
+preserve
+collapse (median) female_earn_pct if rel_start_flag==0, by(transition_dur relationship_total)
+twoway (line female_earn_pct transition_dur if relationship_total==1 & transition_dur>=-10 & transition_dur <=10) (line female_earn_pct transition_dur if relationship_total==2 & transition_dur>=-10 & transition_dur <=10) (line female_earn_pct transition_dur if relationship_total==3 & transition_dur>=-10 & transition_dur <=10), legend(on order(1 "Married" 2 "Cohab" 3 "Transitioned"))
+restore
+
+// following along: https://medium.com/@thestataguide/propensity-score-matching-in-stata-ba77178e4611
+gen married=(relationship_total==1)
+replace married=. if relationship_total==3
+gen couple_earnings_ln = ln(couple_earnings + 0.01)
+
+ttest female_earn_pct, by(married)
+
+logistic married couple_educ_gp couple_earnings_ln // like these things predict being married, are these things the reason for differences?
+
+teffects psmatch (female_earn_pct) (married couple_educ_gp couple_earnings_ln)
