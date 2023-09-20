@@ -125,4 +125,27 @@ browse main_per_id INTERVIEW_NUM_ unique_id MX8* partner_1968_id* partner_per_nu
 drop cohab_1968_id* cohab_per_num* cohab_unique_id* spouse_1968_id* spouse_per_num* spouse_unique_id*
 
 reshape long MX8 ego_rel alter_rel partner_1968_id partner_per_num partner_unique_id, i(main_per_id INTERVIEW_NUM_ unique_id) j(year)
+
+// want to get relationship order
+unique partner_unique_id, by(unique_id) gen(rel_num)
+drop rel_num
+
+egen couple_num = group(unique_id partner_unique_id)
+
+//https://www.statalist.org/forums/forum/general-stata-discussion/general/1437910-trying-to-rank-numbers-without-gaps
+sort unique_id year
+by unique_id: egen rank = rank(partner_unique_id), track
+egen help_var = group(unique_id rank)
+
+bysort unique_id (rank): gen rel_num = sum(rank != rank[_n-1]) if rank != .
+
+// now do same thing specifically for MARRIAGE order
+sort unique_id year
+by unique_id: egen marr_rank = rank(partner_unique_id) if MX8==20, track
+egen marr_help_var = group(unique_id marr_rank)
+
+bysort unique_id (marr_rank): gen marr_num = sum(marr_rank != marr_rank[_n-1]) if marr_rank != .
+
+drop rank help_var marr_rank marr_help_var
+
 save "$data_tmp\PSID_relationship_list_tomatch.dta", replace
