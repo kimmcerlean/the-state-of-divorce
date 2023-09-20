@@ -1019,7 +1019,6 @@ logit dissolve_lag i.dur c.structural_familism i.ft_head i.ft_wife c.structural_
 margins, dydx(ft_head ft_wife) at(structural_familism=(-6(2)10))
 marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Husband Employment" 2 "Wife Employment") rows(1))
 
-
 * Alt attitudes
 logit dissolve_lag i.dur c.gender_mood i.ft_head i.ft_wife c.gender_mood#i.ft_head c.gender_mood#i.ft_wife `controls' if couple_educ_gp==0 & state_fips!=11, or
 margins, dydx(ft_head ft_wife)  at(gender_mood=(50(5)75))
@@ -1030,6 +1029,85 @@ margins, dydx(ft_head ft_wife)  at(gender_mood=(50(5)75))
 marginsplot, xtitle("Supportive Gender Role Attitudes") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Husband Employment" 2 "Wife Employment") rows(1))
 
 log close
+
+// *Paid Work: All variables in scale individually *//
+	// egen structural_familism= rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
+	
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3"
+
+/* No College */
+* Structural familism - to test
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+outreg2 using "$results/dissolution_AMES_familism.xls", sideway stats(coef pval) label ctitle(No 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+margins, dydx(hh_earn_type) at(structural_familism=(-6(2)10)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Unemployment
+logit dissolve_lag i.dur c.unemployment i.hh_earn_type c.unemployment#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(unemployment=(3(1)10)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Child Poverty
+logit dissolve_lag i.dur c.child_pov i.hh_earn_type c.child_pov#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(child_pov=(.10(.05).30)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(childpov) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Min Wage
+logit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(min_above_fed=(0 1)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Paid Leave
+logit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(paid_leave=(0 1)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Senate Dems
+logit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(senate_dems=(.20(.10).80)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(dems) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Cash Assistance Expenditures
+logit dissolve_lag i.dur c.welfare_cash_asst i.hh_earn_type c.welfare_cash_asst#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(welfare_cash_asst=(0(25)200)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* College */
+* Structural familism - to test
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+outreg2 using "$results/dissolution_AMES_familism.xls", sideway stats(coef pval) label ctitle(Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(hh_earn_type) at(structural_familism=(-6(2)10)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Unemployment
+logit dissolve_lag i.dur c.unemployment i.hh_earn_type c.unemployment#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(unemployment=(3(1)10)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Child Poverty
+logit dissolve_lag i.dur c.child_pov i.hh_earn_type c.child_pov#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(child_pov=(.10(.05).30)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(childpov) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Min Wage
+logit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(min_above_fed=(0 1)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Paid Leave
+logit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(paid_leave=(0 1)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Senate Dems
+logit dissolve_lag i.dur c.senate_dems i.hh_earn_type c.senate_dems#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(senate_dems=(.20(.10).80)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(dems) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Cash Assistance Expenditures
+logit dissolve_lag i.dur c.welfare_cash_asst i.hh_earn_type c.welfare_cash_asst#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(welfare_cash_asst=(0(25)200)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
 * Overall models (for H1 and H2)
