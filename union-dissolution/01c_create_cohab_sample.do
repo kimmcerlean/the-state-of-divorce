@@ -840,8 +840,14 @@ recode YRS_EDUCATION_ (0/11=1)(12=2)(13/15=3)(16/17=4), gen(educ)
 replace educ=. if educ==99
 browse main_per_id survey_yr unique_id partner_unique_id AGE_ college
 
-gen employed=0
+recode ANNUAL_WORK_HRS_ (9998/9999=.)
+gen employed=.
+replace employed=0 if inrange(EMPLOYMENT_,2,9)
 replace employed=1 if EMPLOYMENT_ == 1	
+replace employed=0 if ANNUAL_WORK_HRS_ ==0 & survey_yr < 1979
+replace employed=1 if ANNUAL_WORK_HRS_ >0 & ANNUAL_WORK_HRS_!=. & survey_yr < 1979
+
+browse survey_yr unique_id employed ANNUAL_WORK_HRS_
 	
 // then, need to restrict to just relationships where either head or wife / partner because that is where the bulk of the variables are
 // Per Schneider et al 2018, think I need to include OFUMs, so don't do this for now
@@ -950,8 +956,9 @@ gen female_earn_pct_lag=.
 replace female_earn_pct_lag=female_earn_pct[_n-1] if unique_id==unique_id[_n-1]
 
 browse unique_id survey_yr income_man income_woman hh_earn_type hh_earn_type_lag
+browse unique_id partner_unique_id survey_yr employed_ly_head employed_head employed_man employed_wife employed_ly_wife employed_woman
 
-save "$created_data\PSID_relationship_file.dta", replace // same name as above, now just partner info added. Still not restricted to any relationships or just head / wife
+save "$created_data\PSID_relationship_file_coded.dta", replace
 
 ********************************************************************************
 * Create rest of file and sample restrictions
