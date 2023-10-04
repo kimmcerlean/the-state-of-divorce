@@ -322,7 +322,7 @@ gen welfare_cash_neg = 0 -welfare_cash_asst
 
 // earn_ratio lfp_ratio pov_ratio pctfemaleleg paid_leave senate_dems house_dems dv_guns gender_mood pctmaleleg no_paid_leave no_dv_gun_law senate_rep house_rep gender_mood_neg
 
-foreach var in unemployment_neg min_above_fed paid_leave cc_pct_income_neg earn_ratio_neg cc_subsidies unemployment cc_pct_income min_below_fed child_pov child_pov_neg min_wage welfare_all welfare_cash_asst welfare_neg welfare_cash_neg{
+foreach var in unemployment_neg min_above_fed paid_leave cc_pct_income_neg earn_ratio_neg cc_subsidies unemployment cc_pct_income min_below_fed child_pov child_pov_neg min_wage welfare_all welfare_cash_asst welfare_neg welfare_cash_neg ccdf_direct ccdf_per_cap cc_served_percap cc_pct_served{
 	sum `var'
 	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
 }
@@ -361,15 +361,34 @@ alpha unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate
 alpha unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st welfare_cash_asst_st, asis // 0.33
 
 pwcorr  unemployment_st child_pov_st min_above_fed_st paid_leave_st cc_pct_income_st senate_dems_st
+pwcorr welfare_all_st welfare_cash_asst_st
 
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st ccdf_per_cap_st  // 0.47
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st ccdf_per_cap_st earn_ratio_st // 0.48
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st ccdf_per_cap_st unemployment_neg_st // 0.49
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st ccdf_per_cap_st earn_ratio_st unemployment_neg_st // 0.49
+
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st ccdf_per_cap_st  // 0.53
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st ccdf_per_cap_st earn_ratio_neg_st // 0.57
+
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st ccdf_per_cap_st unemployment_neg_st // 0.52
+
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st ccdf_per_cap_st  child_pov_neg_st // 0.44
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st ccdf_per_cap_st cc_served_percap_st // 0.43
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st ccdf_per_cap_st cc_pct_served_st // 0.45
 
 // worried the negative coding is messing this up, let's try to do higher = less support
 alpha unemployment_st min_below_fed_st no_paid_leave_st cc_pct_income_st senate_rep_st earn_ratio_st // it;s still reversing the sign so even though higher unemployment = arguably "worse" it seems as though it needs to be negative to go in alpha
 
-egen structural_familism= rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
+**ORIGINAL
+egen structural_familism_v0 = rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
 
-tabstat structural_familism, by(state)
+**NEW
+egen structural_familism = rowtotal(min_above_fed_st paid_leave_st senate_dems_st welfare_all_st ccdf_per_cap_st earn_ratio_neg_st)
+
+tabstat structural_familism_v0 structural_familism, by(state)
 browse state year structural_familism unemployment child_pov min_above_fed paid_leave senate_dems welfare_cash_asst
+pwcorr structural_familism_v0 structural_familism
 pwcorr structural_familism structural_sexism
 
 **Second approach: Factor-based

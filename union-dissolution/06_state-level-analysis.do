@@ -387,7 +387,7 @@ replace state_cat=4 if familism_scale==1 & gender_scale == 1 // both good
 label define state_cat 1 "Both Trad" 2 "Policy Trad" 3 "Policy Support" 4 "Both Good"
 label values state_cat state_cat
 
-rename f1 family_factor
+// rename f1 family_factor
 
 
 // aggregate attitudinal measure
@@ -905,6 +905,10 @@ marginsplot, xtitle("Structural Sexism Scale") yline(0,lcolor(gs3)) ylabel(, ang
 * Structural familism
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
 margins, dydx(hh_earn_type) at(structural_familism=(-6(2)10))
+marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1))
+
+logit dissolve_lag i.dur c.structural_familism_v0 i.hh_earn_type c.structural_familism_v0#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(structural_familism_v0=(-6(2)10))
 marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(range(-.1 .15)) ylabel(-.1(.05).15, angle(0))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1))
 
 * Control for attitudes
