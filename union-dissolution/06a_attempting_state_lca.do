@@ -372,6 +372,7 @@ alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st ccdf_per_cap_
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st ccdf_per_cap_st earn_ratio_neg_st // 0.57
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_st earn_ratio_neg_st // 0.65
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st earn_ratio_neg_st  // 0.67
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st  // 0.64
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st earn_ratio_neg_st child_pov_neg_st // 0.64
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st ccdf_per_cap_st earn_ratio_neg_st // 0.67
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st ccdf_per_cap_st // 0.64
@@ -390,6 +391,7 @@ egen structural_familism_v0 = rowtotal(unemployment_neg_st child_pov_neg_st min_
 
 **NEW
 egen structural_familism = rowtotal(min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st earn_ratio_neg_st)
+egen structural_familism_alt = rowtotal(min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st)
 
 tabstat structural_familism_v0 structural_familism, by(state)
 browse state year structural_familism unemployment child_pov min_above_fed paid_leave senate_dems welfare_cash_asst
