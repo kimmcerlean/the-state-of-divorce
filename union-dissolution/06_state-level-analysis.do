@@ -1129,8 +1129,8 @@ margins, dydx(hh_earn_type) at(educ_spend_percap=(1000(200)2000)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no educ) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Earnings Ratio
-logit dissolve_lag i.dur c.earn_ratio i.hh_earn_type c.earn_ratio#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
-margins, dydx(hh_earn_type) at(earn_ratio=(1(.1)1.5)) post
+logit dissolve_lag i.dur c.parent_earn_ratio i.hh_earn_type c.parent_earn_ratio#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(parent_earn_ratio=(1(.2)2)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Structural sexism
@@ -1142,6 +1142,28 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no sexism) dec(4)
 logit dissolve_lag i.dur c.gender_mood i.hh_earn_type c.gender_mood#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
 margins, dydx(hh_earn_type) at(gender_mood=(50(5)75)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no attitudes) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Economic challenges
+logit dissolve_lag i.dur c.economic_challenges i.hh_earn_type c.economic_challenges#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+outreg2 using "$results/dissolution_AMES_familism.xls", sideway stats(coef pval) label ctitle(No 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(hh_earn_type) at(economic_challenges=(-3(1)5)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no economic) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Unemployment
+logit dissolve_lag i.dur c.unemployment i.hh_earn_type c.unemployment#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(unemployment=(2(2)10)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no unemploy) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Child poverty
+logit dissolve_lag i.dur c.child_pov i.hh_earn_type c.child_pov#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(child_pov=(.10(.05).30)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no pov) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Gini
+logit dissolve_lag i.dur c.gini i.hh_earn_type c.gini#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(gini=(.55(.05).70)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no gini) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
 
 /* College */
 * Structural familism - to test
@@ -1176,8 +1198,8 @@ margins, dydx(hh_earn_type) at(educ_spend_percap=(1000(200)2000)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col educ) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Earnings Ratio
-logit dissolve_lag i.dur c.earn_ratio i.hh_earn_type c.earn_ratio#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
-margins, dydx(hh_earn_type) at(earn_ratio=(1(.1)1.5)) post
+logit dissolve_lag i.dur c.parent_earn_ratio i.hh_earn_type c.parent_earn_ratio#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(parent_earn_ratio=(1(.2)2)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Structural sexism
@@ -1189,6 +1211,27 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col sexism) dec(4
 logit dissolve_lag i.dur c.gender_mood i.hh_earn_type c.gender_mood#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
 margins, dydx(hh_earn_type) at(gender_mood=(50(5)75)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col attitudes) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Economic challenges
+logit dissolve_lag i.dur c.economic_challenges i.hh_earn_type c.economic_challenges#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+outreg2 using "$results/dissolution_AMES_familism.xls", sideway stats(coef pval) label ctitle(Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+margins, dydx(hh_earn_type) at(economic_challenges=(-3(1)5)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(coll economic) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Unemployment
+logit dissolve_lag i.dur c.unemployment i.hh_earn_type c.unemployment#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(unemployment=(2(2)10)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(coll unemploy) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Child poverty
+logit dissolve_lag i.dur c.child_pov i.hh_earn_type c.child_pov#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(child_pov=(.10(.05).30)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(coll pov) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Gini
+logit dissolve_lag i.dur c.gini i.hh_earn_type c.gini#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(gini=(.55(.05).70)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(coll gini) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 
 ********************************************************************************
@@ -1267,6 +1310,29 @@ marginsplot, xtitle("Structural Familism Scale") ylabel(, angle(0))  ytitle("Pro
 margins, at(gender_mood=(55(10)75))
 marginsplot, xtitle("Gender Equality Mood") xlabel(55(10)75, format(%15.0gc)) ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) plot1opts(lcolor("191 87 0") mcolor("191 87 0")) ci1opts(color("191 87 0")) plot2opts(lcolor("0 95 134") mcolor("0 95 134")) ci2opts(color("0 95 134")) plot3opts(lcolor("248 151 31") mcolor("248 151 31")) ci3opts(color("248 151 31")) 
 
+// Economic challenges
+mlogit hh_earn_type i.dur economic_challenges if hh_earn_type < 4 & state_fips!=11, rrr // when higher, more likely to be dual / female BW than male BW
+margins, at(economic_challenges=(-3(1)5))
+outreg2 using "$results/policy_DOL.xls", ctitle(total) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+mlogit hh_earn_type i.dur economic_challenges if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==0, rrr // no diffs
+margins, at(economic_challenges=(-3(1)5))
+outreg2 using "$results/policy_DOL.xls", ctitle(no) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+mlogit hh_earn_type i.dur economic_challenges if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==1, rrr // really the trends here
+margins, at(economic_challenges=(-3(1)5))
+outreg2 using "$results/policy_DOL.xls", ctitle(coll) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+mlogit hh_earn_type i.dur economic_challenges if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==0, rrr // counterintuive - female BW more likely when more challenges
+margins, at(economic_challenges=(-3(1)5))
+marginsplot, xtitle("Economic Inequality") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
+// plot1opts(lcolor("248 151 31") mcolor("248 151 31")) ci1opts(color("248 151 31")) 
+
+mlogit hh_earn_type i.dur economic_challenges if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==1, rrr // no real association here
+margins, at(economic_challenges=(-3(1)5))
+marginsplot, xtitle("Economic Inequality") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
+
+
 // alt
 mlogit hh_earn_type i.dur regional_attitudes_factor if hh_earn_type < 4 & state_fips!=11, rrr // only sig for dual
 margins, at(regional_attitudes_factor=(-2.0(2)2.0))
@@ -1286,49 +1352,69 @@ marginsplot
 // By education
 forvalues g=0/1{
 	qui logit dissolve_lag i.dur structural_familism if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals.xls", ctitle(fam `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 	margins, at(structural_familism=(-5(1)10)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(fam `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 	qui logit dissolve_lag i.dur i.min_above_fed if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	outreg2 using "$results/divorce_totals.xls", ctitle(wage `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	margins, at(min_above_fed=(0 1)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(wage `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 	qui logit dissolve_lag i.dur i.paid_leave if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	outreg2 using "$results/divorce_totals.xls", ctitle(leave `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	margins, at(paid_leave=(0 1)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(leave `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 	
 	qui logit dissolve_lag i.dur senate_dems if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	outreg2 using "$results/divorce_totals.xls", ctitle(dems `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	margins, at(senate_dems=(.20(.10).80)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(dems `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 	
 	qui logit dissolve_lag i.dur welfare_all if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	outreg2 using "$results/divorce_totals.xls", ctitle(welfare `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	margins, at(welfare_all=(500(500)2500)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(welfare `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 	qui logit dissolve_lag i.dur educ_spend_percap if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	outreg2 using "$results/divorce_totals.xls", ctitle(educ `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	margins, at(educ_spend_percap=(1000(200)2000)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(educ `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 	
-	qui logit dissolve_lag i.dur earn_ratio if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-	margins, at(earn_ratio=(1(.1)1.5)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	qui logit dissolve_lag i.dur parent_earn_ratio if couple_educ_gp==`g', or
+	outreg2 using "$results/divorce_totals.xls", ctitle(ratio `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	margins, at(parent_earn_ratio=(1(.2)2)) post
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(ratio `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 	
 	qui logit dissolve_lag i.dur structural_sexism if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	outreg2 using "$results/divorce_totals.xls", ctitle(sexism `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	margins, at(structural_sexism=(-8(2)4)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(sexism `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 	
 	qui logit dissolve_lag i.dur gender_mood if couple_educ_gp==`g', or
-	outreg2 using "$results/divorce_totals.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	outreg2 using "$results/divorce_totals.xls", ctitle(mood `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	margins, at(gender_mood=(50(5)75)) post
-	outreg2 using "$results/divorce_totals_margins.xls", ctitle(Group `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(mood `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	//
+	qui logit dissolve_lag i.dur economic_challenges if couple_educ_gp==`g', or
+	outreg2 using "$results/divorce_totals.xls", ctitle(economic `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	margins, at(economic_challenges=(-3(1)5)) post
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(economic `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	
+	qui logit dissolve_lag i.dur unemployment if couple_educ_gp==`g', or
+	outreg2 using "$results/divorce_totals.xls", ctitle(unemploy `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	margins, at(unemployment=(2(2)10)) post
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(unemploy `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	
+	qui logit dissolve_lag i.dur child_pov if couple_educ_gp==`g', or
+	outreg2 using "$results/divorce_totals.xls", ctitle(pov `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	margins, at(child_pov=(.10(.05).30)) post
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(pov `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+	
+	qui logit dissolve_lag i.dur gini if couple_educ_gp==`g', or
+	outreg2 using "$results/divorce_totals.xls", ctitle(gini `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	margins, at(gini=(.55(.05).70)) post
+	outreg2 using "$results/divorce_totals_margins.xls", ctitle(gini `g') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 }
 
 **# Old things below here
