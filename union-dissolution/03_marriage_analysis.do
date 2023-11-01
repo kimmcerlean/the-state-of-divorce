@@ -137,6 +137,17 @@ replace bw_type=5 if ft_pt_head==0 & inlist(ft_pt_wife,1,2)
 label define bw_type 1 "Male BW" 2 "Male and a half" 3 "Dual" 4 "Female and a half" 5 "Female BW"
 label values bw_type bw_type
 
+gen bw_type_alt=.
+replace bw_type_alt=1 if inlist(ft_pt_head,1,2) & ft_pt_wife==0
+replace bw_type_alt=2 if ft_pt_head==2 & ft_pt_wife==1
+replace bw_type_alt=3 if ft_pt_head==2 & ft_pt_wife==2
+replace bw_type_alt=4 if ft_pt_wife==1 & ft_pt_head==1
+replace bw_type_alt=5 if ft_pt_head==1 & ft_pt_wife==2
+replace bw_type_alt=6 if ft_pt_head==0 & inlist(ft_pt_wife,1,2)
+
+label define bw_type_alt 1 "Male BW" 2 "Male and a half" 3 "Dual FT" 4 "Dual PT" 5 "Female and a half" 6 "Female BW"
+label values bw_type_alt bw_type_alt
+
 gen hours_type_hw=.
 replace hours_type_hw=1 if bw_type==3 & housework_bkt==1
 replace hours_type_hw=2 if bw_type==3 & housework_bkt==2
@@ -287,6 +298,25 @@ browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
 // alt cohab
 gen ever_cohab=0
 replace ever_cohab=1 if cohab_with_wife==1 | cohab_with_other==1
+
+// categorical for number of children
+recode NUM_CHILDREN_ (0=0)(1=1)(2=2)(3/13=3), gen(num_children)
+label define num_children 0 "None" 1 "1 Child" 2 "2 Children" 3 "3+ Children"
+label values num_children num_children
+
+// square age of marriage
+gen age_mar_head_sq = age_mar_head * age_mar_head
+gen age_mar_wife_sq = age_mar_wife * age_mar_wife
+
+// create dummy variable for interval length
+gen interval=.
+replace interval=1 if inrange(survey_yr,1968,1997)
+replace interval=2 if inrange(survey_yr,1999,2019)
+
+// need to combine weight variables
+gen weight=.
+replace weight=CORE_WEIGHT_ if inrange(survey_yr,1968,1992)
+replace weight=COR_IMM_WT_ if inrange(survey_yr,1993,2019)
 
 // missing value inspect
 inspect age_mar_wife // 0
@@ -788,7 +818,7 @@ margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
-**# USE (actually)
+**# USE (actually) - this is in existing ASR paper
 * Spline earnings
 ********************************************************************************
 /* help
