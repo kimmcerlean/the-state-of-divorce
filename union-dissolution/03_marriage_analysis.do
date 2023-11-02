@@ -318,6 +318,27 @@ gen weight=.
 replace weight=CORE_WEIGHT_ if inrange(survey_yr,1968,1992)
 replace weight=COR_IMM_WT_ if inrange(survey_yr,1993,2019)
 
+gen weight_rescale=.
+
+forvalues y=1991/1997{
+	summarize weight if survey_yr==`y'
+	local rescalefactor `r(N)'/`r(sum)'
+	display `rescalefactor'
+	replace weight_rescale = weight*`rescalefactor' if survey_yr==`y'
+	summarize weight_rescale if survey_yr==`y'
+}
+
+forvalues y=1999(2)2019{
+	summarize weight if survey_yr==`y'
+	local rescalefactor `r(N)'/`r(sum)'
+	display `rescalefactor'
+	replace weight_rescale = weight*`rescalefactor' if survey_yr==`y'
+	summarize weight_rescale if survey_yr==`y'
+}
+
+tabstat weight, by(interval)
+tabstat weight_rescale, by(interval)
+
 // missing value inspect
 inspect age_mar_wife // 0
 inspect age_mar_head // 0
@@ -887,6 +908,79 @@ logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(
 outreg2 using "$results/dissolution_AMES_alt_earn.xls", sideway stats(coef pval) label ctitle(Coll 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+********************************************************************************
+**# Weight comparison (with other small tweaks asked for)
+********************************************************************************
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+
+// No College: Employment
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // original
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // add dummy for year change (+ new controls) -- okay so this makes ft_wife statistically sig
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or // adding weights - so ft_wife is marginally sig
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight_rescale], or // adding weights - so ft_wife is marginally sig
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No3b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// No College: DoL
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No4) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // add dummy for year change - okay this one changes less
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No5) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or // add weights - okay so this makes results significant - dual earning has HIGHEST risk of divorce
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No6) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight_rescale], or // add weights - okay so this makes results significant - dual earning has HIGHEST risk of divorce
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No6b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// College: Employment
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // add dummy for year change (+ new controls) -- very similar, nothing changes
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pweight=weight], or // adding weights - now ft head = less likely and ft wife more likely
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pweight=weight_rescale], or // adding weights - now ft head = less likely and ft wife more likely
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll3b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// College: DoL
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll4) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or // add dummy for year change - okay this one changes less
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll5) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pweight=weight], or // add weights - now nothing sig
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll6) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pweight=weight_rescale], or // add weights - now nothing sig
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll6b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 
 ********************************************************************************

@@ -129,3 +129,107 @@ margins, dydx(earn_type_hw)
 
 logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pweight=weight], or
 margins, dydx(earn_type_hw)
+
+*********************************************** attempting to figure out weights
+// No College: DoL
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // no weights
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq AGE_REF_ AGE_SPOUSE_ `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // no weights + age - yeah okay can't have age because age, duration, and age at marriage all relate to each other
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or // weights
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [iweight=weight], or // alt weight
+margins, dydx(hh_earn_type)
+
+local controls "age_mar_wife age_mar_head i.race_head i.race_wife i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // alt controls - control for both husband and wife race
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or // alt controls - control for both husband and wife race
+margins, dydx(hh_earn_type)
+
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // no weights - remove interval
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or // weights - remove interval
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // no weights - no controls
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type  knot1 knot2 knot3 if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or // weights - no controls
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or // no weights - no controls
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or // weights - no controls
+margins, dydx(hh_earn_type)
+
+*********************************************** Race differences
+local controls "age_mar_wife age_mar_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp i.interval i.num_children age_mar_head_sq age_mar_wife_sq"
+
+// White
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==1, or // no weights
+margins, dydx(*) post
+outreg2 using "$results/dissolution_race.xls", sideway stats(coef se pval) ctitle(White1a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==1 [pweight=weight], or // weights
+margins, dydx(*) post
+outreg2 using "$results/dissolution_race.xls", sideway stats(coef se pval) ctitle(White1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur ft_head ft_wife knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==1, or // no weights
+margins, dydx(*) post
+outreg2 using "$results/dissolution_race.xls", sideway stats(coef se pval) ctitle(White2a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur ft_head ft_wife knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==1 [pweight=weight], or // weights
+margins, dydx(*) post
+outreg2 using "$results/dissolution_race.xls", sideway stats(coef se pval) ctitle(White2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// Black
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2, or // no weights
+margins, dydx(*) post
+outreg2 using "$results/dissolution_race.xls", sideway stats(coef se pval) ctitle(Black1a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2 [pweight=weight], or // weights
+margins, dydx(*) post
+outreg2 using "$results/dissolution_race.xls", sideway stats(coef se pval) ctitle(Black1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur ft_head ft_wife knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2, or // no weights
+margins, dydx(*) post
+outreg2 using "$results/dissolution_race.xls", sideway stats(coef se pval) ctitle(Black2a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur ft_head ft_wife knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2 [pweight=weight], or // weights
+margins, dydx(*) post
+outreg2 using "$results/dissolution_race.xls", sideway stats(coef se pval) ctitle(Black2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+local controls "age_mar_wife age_mar_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp i.interval i.num_children age_mar_head_sq age_mar_wife_sq"
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2 & hh_earn_type<4, or // no weights
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2 & hh_earn_type<4 [pweight=weight], or // weights
+margins, dydx(hh_earn_type)
+
+local controls "age_mar_wife age_mar_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp i.interval i.num_children age_mar_head_sq age_mar_wife_sq"
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2 & couple_educ_gp==0 [pweight=weight], or
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2 & couple_educ_gp==1, or
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,1,2) & cohort==3 & race_head==2 & couple_educ_gp==1 [pweight=weight], or
+margins, dydx(hh_earn_type)
+
+tab race_head hh_earn_type if inlist(race_head,1,2), row
+tab race_head hh_earn_type if inlist(race_head,1,2) [aweight=weight], row
