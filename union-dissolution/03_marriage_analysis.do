@@ -948,6 +948,15 @@ logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_child
 margins, dydx(*) post
 outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No6b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+// No College: Unpaid DoL
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No7) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(No8) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
 // College: Employment
 logit dissolve_lag i.dur i.ft_head i.ft_wife knot1 knot2 knot3  `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
 margins, dydx(*) post
@@ -982,6 +991,14 @@ logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_child
 margins, dydx(*) post
 outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll6b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+// College: Unpaid DoL
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll7) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==1 [pweight=weight], or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_weight_analysis.xls", sideway stats(coef se pval) ctitle(Coll8) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 ********************************************************************************
 * Alt earnings

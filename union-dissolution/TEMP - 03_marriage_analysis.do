@@ -174,6 +174,14 @@ margins, dydx(hh_earn_type)
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or // weights - no controls
 margins, dydx(hh_earn_type)
 
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if cohort==3 & couple_educ_gp==0, or // no weights - innclude immigrant refresh
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if cohort==3 & couple_educ_gp==0 [pweight=weight], or // weights - innclude immigrant refresh
+margins, dydx(hh_earn_type)
+
 *********************************************** Race differences
 local controls "age_mar_wife age_mar_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.couple_educ_gp i.interval i.num_children age_mar_head_sq age_mar_wife_sq"
 
