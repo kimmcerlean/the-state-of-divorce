@@ -240,7 +240,8 @@ gen earnings_ln = ln(earnings_total)
 *square
 // gen earnings_sq = TAXABLE_HEAD_WIFE_ * TAXABLE_HEAD_WIFE_
 gen earnings_sq = earnings_1000s * earnings_1000s
-// browse couple_earnings TAXABLE_HEAD_WIFE_ earnings_1000s  earnings_sq
+
+
 
 * groups
 gen earnings_bucket=.

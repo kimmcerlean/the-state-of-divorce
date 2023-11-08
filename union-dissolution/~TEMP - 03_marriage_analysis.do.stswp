@@ -630,9 +630,9 @@ outreg2 using "$results/dissolution_earnings_v2.xls", sideway stats(coef) ctitle
 // spline
 logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or // no weights
 margins, dydx(*) post
-outreg2 using "$results/dissolution_earnings_v2.xls", sideway stats(coef) ctitle(5a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/dissolution_earnings.xls", sideway stats(coef) ctitle(5a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 svy: logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or // weights
 margins, dydx(*) post
-outreg2 using "$results/dissolution_earnings_v2.xls", sideway stats(coef) ctitle(5b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/dissolution_earnings.xls", sideway stats(coef) ctitle(5b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
