@@ -1047,6 +1047,18 @@ tabstat weight if inlist(IN_UNIT,0,1,2) & cohort==3 & race_head==2 & couple_educ
 tabstat weight if inlist(IN_UNIT,0,1,2) & cohort==3 & race_head==1 & couple_educ_gp==0, by(dissolve_lag)
 tabstat weight if inlist(IN_UNIT,0,1,2) & cohort==3 & race_head==1 & couple_educ_gp==1, by(dissolve_lag)
 
+tabstat weight if inlist(IN_UNIT,0,1,2) & cohort==3, by(hh_earn_type)
+tabstat weight if inlist(IN_UNIT,0,1,2) & cohort==3 & dissolve_lag==0, by(hh_earn_type)
+tabstat weight if inlist(IN_UNIT,0,1,2) & cohort==3 & dissolve_lag==1, by(hh_earn_type)
+
+tabstat weight if couple_educ_gp==0 & inlist(IN_UNIT,0,1,2) & cohort==3, by(hh_earn_type)
+tabstat weight if couple_educ_gp==0 & inlist(IN_UNIT,0,1,2) & cohort==3 & dissolve_lag==0, by(hh_earn_type)
+tabstat weight if couple_educ_gp==0 & inlist(IN_UNIT,0,1,2) & cohort==3 & dissolve_lag==1, by(hh_earn_type)
+
+tabstat weight if couple_educ_gp==1 & inlist(IN_UNIT,0,1,2) & cohort==3, by(hh_earn_type)
+tabstat weight if couple_educ_gp==1 & inlist(IN_UNIT,0,1,2) & cohort==3 & dissolve_lag==0, by(hh_earn_type)
+tabstat weight if couple_educ_gp==1 & inlist(IN_UNIT,0,1,2) & cohort==3 & dissolve_lag==1, by(hh_earn_type)
+
 ********************************************************************************
 * Alt earnings
 ********************************************************************************

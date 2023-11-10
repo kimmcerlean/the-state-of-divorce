@@ -120,17 +120,25 @@ logit dissolve_lag i.dur ib3.bw_type knot1 knot2 knot3 i.interval i.num_children
 margins, dydx(bw_type)
 
 // combined
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
-logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==0, or
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children age_mar_head_sq age_mar_wife_sq earnings_1000s"
+logit dissolve_lag i.dur ib5.earn_type_hw `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins earn_type_hw
+marginsplot
 margins, dydx(earn_type_hw)
 
-logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==0 [pweight=weight], or
+logit dissolve_lag i.dur ib5.earn_type_hw  `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0 [pweight=weight], or
+margins earn_type_hw
+marginsplot
 margins, dydx(earn_type_hw)
 
-logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==1, or
+logit dissolve_lag i.dur ib5.earn_type_hw  `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins earn_type_hw
+marginsplot
 margins, dydx(earn_type_hw)
 
-logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq  `controls' if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==1 [pweight=weight], or
+logit dissolve_lag i.dur ib5.earn_type_hw  `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1 [pweight=weight], or
+margins earn_type_hw
+marginsplot
 margins, dydx(earn_type_hw)
 
 *********************************************** attempting to figure out weights
@@ -636,3 +644,24 @@ svy: logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' knot1 knot2 knot3 i
 margins, dydx(*) post
 outreg2 using "$results/dissolution_earnings_v2.xls", sideway stats(coef) ctitle(5b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+/// Help
+ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children"
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s i.ft_head#c.earnings_1000s i.ft_wife#c.earnings_1000s `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // no weights
+margins ft_wife, at(earnings_1000s=(0(10)100))
+
+logit dissolve_lag i.dur i.ft_head i.ft_wife i.earnings_bucket i.ft_head#i.earnings_bucket i.ft_wife#i.earnings_bucket `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // no weights
+margins earnings_bucket#ft_wife
+margins earnings_bucket#ft_head
+
+logit dissolve_lag i.dur i.ft_head##i.ft_wife i.earnings_bucket `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // no weights
+margins ft_head#ft_wife
+marginsplot
+
+logit dissolve_lag i.dur i.ft_head##i.ft_wife i.earnings_bucket `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or // no weights
+margins ft_head#ft_wife
+marginsplot
+
+logit dissolve_lag i.dur i.ft_pt_head##i.ft_pt_wife i.earnings_bucket `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // no weights
+margins ft_pt_head#ft_pt_wife
+marginsplot
