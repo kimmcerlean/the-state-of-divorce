@@ -933,6 +933,7 @@ outreg2 using "$results/dissolution_AMES_alt_earn.xls", ctitle(margins) dec(4) a
 **# Weight comparison (with other small tweaks asked for)
 ********************************************************************************
 svyset [pweight=weight]
+svyset cluster [pweight=weight], strata(stratum)
 
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 

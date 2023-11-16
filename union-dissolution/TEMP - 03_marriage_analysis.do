@@ -26,6 +26,9 @@ margins, dydx(ft_head ft_wife)
 // No College: DoL
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==0, or // no controls
+margins, dydx(hh_earn_type)
+
 logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3  `controls' if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==0, or
 margins, dydx(hh_earn_type)
 
@@ -664,4 +667,80 @@ marginsplot
 
 logit dissolve_lag i.dur i.ft_pt_head##i.ft_pt_wife i.earnings_bucket `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // no weights
 margins ft_pt_head#ft_pt_wife
+marginsplot
+
+/// Alt svyset
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+
+svyset [pweight=weight]
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+svy: logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+
+svyset cluster [pweight=weight], strata(stratum)
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+svy: logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 i.interval i.num_children age_mar_head_sq age_mar_wife_sq `controls' if inlist(IN_UNIT,0,1,2) & cohort==3 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+
+// no controls
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, dydx(hh_earn_type)
+
+// earnings
+logit dissolve_lag i.dur i.earnings_bucket##i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & earnings_bucket!=0, or
+margins earnings_bucket#couple_educ_gp
+marginsplot
+
+logit dissolve_lag i.dur i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+logit dissolve_lag i.dur i.couple_educ_gp i.earnings_bucket i.ft_head i.ft_wife if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+
+
+logit dissolve_lag i.dur i.earnings_bucket if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins earnings_bucket
+marginsplot
+
+logit dissolve_lag i.dur i.earnings_bucket if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1 & earnings_bucket!=0, or
+margins earnings_bucket
+marginsplot
+
+logit dissolve_lag i.dur i.couple_educ_gp##c.earnings_1000s if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+margins couple_educ_gp, at(earnings_1000s=(0(10)150))
+marginsplot
+
+logit dissolve_lag i.dur earnings_1000s earnings_sq if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+margins, at(earnings_1000s=(0(10)150))
+
+logit dissolve_lag i.dur i.couple_educ_gp##c.earnings_1000s i.couple_educ_gp##c.earnings_sq if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+margins couple_educ_gp, at(earnings_1000s=(0(10)150))
+marginsplot
+
+logit dissolve_lag i.dur i.couple_educ_gp##c.earnings_ln if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+margins couple_educ_gp, at(earnings_ln=(8(1)12))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
+marginsplot
+
+// okay *this* is interesting
+logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // gender deviance neutralization
+margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or // specialization?
+margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
+marginsplot
+
+ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children knot1 knot2 knot3"
+ logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // gender deviance neutralization
+margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or // specialization?
+margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
 marginsplot
