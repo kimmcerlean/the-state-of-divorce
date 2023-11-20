@@ -18,9 +18,10 @@ gen cohort_alt=.
 replace cohort_alt=1 if inrange(rel_start_all,1969,1979)
 replace cohort_alt=2 if inrange(rel_start_all,1980,1989)
 replace cohort_alt=3 if inrange(rel_start_all,1990,1999)
-replace cohort_alt=4 if inrange(rel_start_all,2000,2014)
+replace cohort_alt=4 if inrange(rel_start_all,2000,2009)
+replace cohort_alt=5 if inrange(rel_start_all,2010,2019)
 
-label define cohort 1 "pre-1980s" 2 "1980s" 3 "1990s" 4 "2000s"
+label define cohort 1 "pre-1980s" 2 "1980s" 3 "1990s" 4 "2000s" 5 "2010s"
 label value cohort_alt cohort
 
 tab cohort_alt dissolve, row
@@ -192,6 +193,11 @@ label values division_bucket division_bucket
 sum weekly_hrs_head if ft_pt_head==2, detail
 sum weekly_hrs_wife if ft_pt_wife==2, detail
 
+replace weekly_hrs_head=. if weekly_hrs_head==99
+replace weekly_hrs_wife=. if weekly_hrs_wife==99
+
+egen total_weekly_hrs = rowtotal(weekly_hrs_head weekly_hrs_wife)
+
 // dissimilarity
 gen hours_diff = weekly_hrs_head - weekly_hrs_wife
 browse hours_diff weekly_hrs_head weekly_hrs_wife
@@ -296,6 +302,16 @@ browse id survey_yr rel_start_all yr_rank dur hh_earn_type_bkd hh_earn_type_mar
 sort id survey_yr
 gen female_earn_pct_chg = (female_earn_pct-female_earn_pct[_n-1]) if id==id[_n-1]
 browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
+
+// spline of female earnings percent
+mkspline earn_pct1 .40 earn_pct2 .60 earn_pct3 = female_earn_pct
+browse female_earn_pct earn_pct*
+
+gen earn_pct_sq = female_earn_pct*female_earn_pct
+
+// spline of female HW percent
+mkspline hw_pct1 .40 hw_pct2 .60 hw_pct3 = wife_housework_pct
+browse wife_housework_pct hw_pct*
 
 // alt cohab
 gen ever_cohab=0
@@ -3051,61 +3067,61 @@ logit dissolve_lag i.dur i.dual_hw if inlist(IN_UNIT,1,2) & cohort==3 & couple_e
 * These are the same models from the main paper
 ********************************************************************************
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children knot1 knot2 knot3"
 
 ////////// No College \\\\\\\\\\\/
 *1. Employment: no interaction
-logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.ft_head i.ft_wife  `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(No 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 *2. Categorical indicator of Paid work
-logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.hh_earn_type `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(No 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 *3. Total earnings
-logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==0, or
+logit dissolve_lag i.dur `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(No 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 *4. Categorical Housework
-logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort_v2==0 & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.housework_bkt `controls' if inlist(IN_UNIT,0,1,2)  & cohort_v2==0 & couple_educ_gp==0, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(No 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ////////// College \\\\\\\\\\\/
 *1. Employment: no interaction
-logit dissolve_lag i.dur i.ft_head i.ft_wife earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.ft_head i.ft_wife  `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 *2. Categorical indicator of Paid work
-logit dissolve_lag i.dur i.hh_earn_type earnings_1000s  `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.hh_earn_type  `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Coll 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 *3. Total earnings
-logit dissolve_lag i.dur earnings_1000s `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0 & couple_educ_gp==1, or
+logit dissolve_lag i.dur `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Coll 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 *4. Categorical Housework
-logit dissolve_lag i.dur i.housework_bkt earnings_1000s `controls' if inlist(IN_UNIT,1,2)  & cohort_v2==0 & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.housework_bkt `controls' if inlist(IN_UNIT,0,1,2)  & cohort_v2==0 & couple_educ_gp==1, or
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", sideway stats(coef pval) label ctitle(Coll 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 margins, dydx(*) post
 outreg2 using "$results/psid_marriage_dissolution_hist.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 // earnings linearity?
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
-logit dissolve_lag i.dur ib3.couple_earnings_gp##i.couple_educ_gp `controls' if inlist(IN_UNIT,1,2) & cohort_v2==0, or // b3 is generally median
+logit dissolve_lag i.dur ib3.couple_earnings_gp##i.couple_educ_gp `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==0, or // b3 is generally median
 margins couple_earnings_gp#couple_educ_gp
 marginsplot // yes okay this is exactly what I need for the curve argument
 marginsplot, xtitle("Total Couple Earnings (grouped, $1000s)") ylabel(, angle(0))  ytitle("Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("")  xlabel(, angle(45) labsize(small)) legend(region(lcolor(white))) legend(size(small)) plot1opts(lcolor("blue")  msize("small") mcolor("blue"))  plot2opts(lcolor("pink") mcolor("pink") msize("small")) recast(line) recastci(rarea) ciopts(color(*.4)) //  ci2opts(lcolor("pink")) ci1opts(lcolor("blue"))

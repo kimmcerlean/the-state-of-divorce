@@ -123,7 +123,7 @@ logit dissolve_lag i.dur ib3.bw_type knot1 knot2 knot3 i.interval i.num_children
 margins, dydx(bw_type)
 
 // combined
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children age_mar_head_sq age_mar_wife_sq earnings_1000s"
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children age_mar_head_sq age_mar_wife_sq knot1 knot2 knot3"
 logit dissolve_lag i.dur ib5.earn_type_hw `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
 margins earn_type_hw
 marginsplot
@@ -647,6 +647,10 @@ svy: logit dissolve_lag i.dur i.ft_head i.ft_wife `controls' knot1 knot2 knot3 i
 margins, dydx(*) post
 outreg2 using "$results/dissolution_earnings_v2.xls", sideway stats(coef) ctitle(5b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+********************************************************************************
+* More exploration
+********************************************************************************
+
 /// Help
  local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children"
 
@@ -727,7 +731,12 @@ logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct if inlist(IN_UN
 margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
 marginsplot
 
-// okay *this* is interesting
+********************************************************************************
+**# Possible interactions of interest
+********************************************************************************
+** Housework / TIME BINDS
+
+// okay *this* is interesting re: TIME BINDS - way to visualize: https://www.stata.com/stata-news/news32-1/spotlight/
 logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // gender deviance neutralization
 margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
 marginsplot
@@ -737,10 +746,257 @@ margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
 marginsplot
 
  local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children knot1 knot2 knot3"
- logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // gender deviance neutralization
+// No College
+logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // gender deviance neutralization
 margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
+margins, at(wife_housework_pct=(0(.25)1) female_earn_pct=(0(.25)1))
+marginsplot
+margins, at(female_earn_pct=(0(.1)1) wife_housework_pct=(0(.1)1)) saving(nocollege_unpaid, replace)
+use nocollege_unpaid, clear
+twoway contour _margin _at2 _at3, scolor(green) ecolor(red) levels(10)
+twoway contour _margin _at3 _at2, scolor(green) ecolor(red) levels(10)
+
+logit dissolve_lag i.dur i.hh_earn_type##c.wife_housework_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0 & hh_earn_type < 4, or
+margins hh_earn_type, at(wife_housework_pct=(0(.25)1))
 marginsplot
 
-logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or // specialization?
-margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
+ logit dissolve_lag i.dur c.female_earn_pct##c.total_weekly_hrs `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(female_earn_pct=(0(.25)1) total_weekly_hrs=(0(20)80))
 marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.weekly_hrs_head `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==0, or 
+margins, at(female_earn_pct=(0(.25)1) weekly_hrs_head=(0(10)80))
+marginsplot
+
+// College
+ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children knot1 knot2 knot3"
+ 
+logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or // specialization?
+margins, at(female_earn_pct=(0(.1)1) wife_housework_pct=(0(.1)1))
+marginsplot
+margins, at(female_earn_pct=(0(.1)1) wife_housework_pct=(0(.1)1)) saving(college_unpaid, replace)
+use college_unpaid, clear
+twoway contour _margin _at2 _at3, scolor(green) ecolor(red) levels(10)
+
+logit dissolve_lag i.dur i.hh_earn_type##c.wife_housework_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1 & hh_earn_type < 4, or
+margins hh_earn_type, at(wife_housework_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.total_weekly_hrs `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==1, or 
+margins, at(female_earn_pct=(0(.25)1) total_weekly_hrs=(0(20)80))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.weekly_hrs_head `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==0 & couple_educ_gp==1, or 
+margins, at(female_earn_pct=(0(.25)1) weekly_hrs_head=(0(10)80))
+marginsplot
+
+** Earnings / Cost variables
+
+logit dissolve_lag i.dur i.hh_earn_type##c.earnings_1000s i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+margins hh_earn_type, at(earnings_1000s=(0(10)150))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.earnings_1000s i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4, or
+margins hh_earn_type, at(earnings_1000s=(0(10)150)) // this is interesting, but not significant I don't think - but does support the mutual dependence sort of model?
+marginsplot
+
+// No College
+
+ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children i.HOUSE_STATUS_"
+ 
+logit dissolve_lag i.dur i.hh_earn_type##c.earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==0, or
+margins hh_earn_type, at(earnings_1000s=(0(10)150))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(earnings_1000s=(0(50)150) female_earn_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.CHILDCARE_COSTS_ `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==0, or
+margins hh_earn_type, at(CHILDCARE_COSTS_=(0(1000)10000)) 
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.CHILDCARE_COSTS_ `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==0 & CHILDCARE_COSTS!=0, or
+margins hh_earn_type, at(CHILDCARE_COSTS_=(100(1000)10000)) 
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.CHILDCARE_COSTS_ `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(CHILDCARE_COSTS_=(0(5000)10000) female_earn_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.housing_costs_use `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==0, or
+margins hh_earn_type, at(housing_costs_use=(-.2(.1).2)) 
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.total_annual_rent `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==0 & HOUSE_STATUS_==5, or
+margins hh_earn_type, at(total_annual_rent=(500(500)10000)) 
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.HOUSE_VALUE_ `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==0 & HOUSE_STATUS_==1, or
+margins hh_earn_type, at(HOUSE_VALUE_=(10000(5000)40000)) 
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.MORTGAGE_COST_  `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==0 & HOUSE_STATUS_==1, or
+margins hh_earn_type, at(MORTGAGE_COST_ =(1000(1000)15000)) 
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.MORTGAGE_COST_ `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0 & HOUSE_STATUS_==1, or
+margins, at(MORTGAGE_COST_=(1000(5000)16000) female_earn_pct=(0(.25)1))
+marginsplot
+
+// College
+ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children i.HOUSE_STATUS_"
+ 
+logit dissolve_lag i.dur i.hh_earn_type##c.earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==1, or
+margins hh_earn_type, at(earnings_1000s=(0(10)150))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, at(earnings_1000s=(0(50)150) female_earn_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.CHILDCARE_COSTS_ `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==1, or
+margins hh_earn_type, at(CHILDCARE_COSTS_=(0(1000)10000)) 
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.housing_costs_use `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==1, or
+margins hh_earn_type, at(housing_costs_use=(-.2(.1).2)) 
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.total_annual_rent `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==1 & HOUSE_STATUS_==5, or
+margins hh_earn_type, at(total_annual_rent=(500(500)10000)) 
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.HOUSE_VALUE_ `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==1 & HOUSE_STATUS_==1, or
+margins hh_earn_type, at(HOUSE_VALUE_=(10000(5000)40000)) 
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##c.MORTGAGE_COST_  `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & hh_earn_type!=4 & couple_educ_gp==1 & HOUSE_STATUS_==1, or
+margins hh_earn_type, at(MORTGAGE_COST_ =(1000(1000)15000)) 
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##c.MORTGAGE_COST_ `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1 & HOUSE_STATUS_==1, or
+margins, at(MORTGAGE_COST_=(1000(5000)16000) female_earn_pct=(0(.25)1))
+marginsplot
+
+/// Splines instead? or alternate functional forms. I think Schwartz and GP might have used continous bucket? i am not sure
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children age_mar_head_sq age_mar_wife_sq knot1 knot2 knot3"
+
+logit dissolve_lag i.dur i.hh_earn_type `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur earn_pct1 earn_pct2 earn_pct3 `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+
+logit dissolve_lag i.dur female_earn_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(female_earn_pct=(0(.25)1))
+
+logit dissolve_lag i.dur female_earn_pct earn_pct_sq `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(female_earn_pct=(0(.1)1))
+
+logit dissolve_lag i.dur c.female_earn_pct##c.female_earn_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(female_earn_pct=(0(.1)1))
+
+logit dissolve_lag i.dur i.hh_earn_type `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur earn_pct1 earn_pct2 earn_pct3 `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+
+logit dissolve_lag i.dur female_earn_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, at(female_earn_pct=(0(.25)1))
+
+logit dissolve_lag i.dur female_earn_pct earn_pct_sq `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, at(female_earn_pct=(0(.25)1))
+
+logit dissolve_lag i.dur c.female_earn_pct##c.female_earn_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, at(female_earn_pct=(0(.1)1))
+
+logit dissolve_lag i.dur i.couple_educ_gp##c.female_earn_pct##c.female_earn_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1, or
+margins couple_educ_gp, at(female_earn_pct=(0(.1)1))
+
+/// what is TEMPORAL turning point
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children age_mar_head_sq age_mar_wife_sq knot1 knot2 knot3"
+
+logit dissolve_lag i.dur c.female_earn_pct##i.cohort_alt `controls' if inlist(IN_UNIT,0,1,2) & cohort_alt<5, or
+margins cohort_alt, at(female_earn_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##i.cohort_alt `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0, or
+margins cohort_alt, at(female_earn_pct=(0(.25)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##i.cohort_alt `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1, or
+margins cohort_alt, at(female_earn_pct=(0(.25)1))
+marginsplot
+
+********************************************************************************
+**# For memo for Kelly?
+********************************************************************************
+
+/// do my findings match Schwartz and GP? okay yes.
+local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children age_mar_head_sq age_mar_wife_sq knot1 knot2 knot3"
+logit dissolve_lag i.dur c.female_earn_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or // no association, so this matches
+margins, at(female_earn_pct=(0(.1)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##i.cohort_v2 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0, or // cohort change is sig.
+margins cohort_v2, at(female_earn_pct=(0(.1)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or // positive, but not significant, which also matches
+margins, at(female_earn_pct=(0(.1)1))
+marginsplot
+
+logit dissolve_lag i.dur c.female_earn_pct##i.cohort_v2 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1, or // pos in cohort 1 and no sig cohort change - so this matches
+margins cohort_v2, at(female_earn_pct=(0(.1)1))
+marginsplot
+
+
+// Unpaid labor interactions
+ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children knot1 knot2 knot3"
+ 
+logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(female_earn_pct=(0(.25)1) wife_housework_pct=(0(.25)1))
+margins, at(wife_housework_pct=(0(.25)1) female_earn_pct=(0(.25)1))
+marginsplot
+margins, at(female_earn_pct=(0(.1)1) wife_housework_pct=(0(.1)1)) saving(nocollege_unpaid, replace)
+// use nocollege_unpaid, clear
+// twoway contour _margin _at2 _at3, scolor(green) ecolor(red) levels(10)
+// twoway contour _margin _at3 _at2, scolor(green) ecolor(red) levels(10)
+ 
+logit dissolve_lag i.dur c.female_earn_pct##c.wife_housework_pct `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, at(female_earn_pct=(0(.1)1) wife_housework_pct=(0(.1)1))
+marginsplot
+margins, at(female_earn_pct=(0(.1)1) wife_housework_pct=(0(.1)1)) saving(college_unpaid, replace)
+// use college_unpaid, clear
+// twoway contour _margin _at2 _at3, scolor(green) ecolor(red) levels(10)
+
+// Interactions with total earnings
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children" // have to remove earnings from controls if I do this?
+
+logit dissolve_lag i.dur c.female_earn_pct##c.earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(earnings_1000s=(0(10)150) female_earn_pct=(0(.1)1)) saving(nocollege_earn, replace)
+marginsplot
+// use nocollege_earn, clear
+// twoway contour _margin _at2 _at3, scolor(green) ecolor(red) levels(10)
+
+logit dissolve_lag i.dur c.female_earn_pct##c.earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, at(earnings_1000s=(0(10)150) female_earn_pct=(0(.1)1)) saving(college_earn, replace)
+marginsplot
+// use college_earn, clear
+// twoway contour _margin _at2 _at3, scolor(green) ecolor(red) levels(10)
+
+
+// Interactions with childcare costs
+ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children knot1 knot2 knot3"
+logit dissolve_lag i.dur c.female_earn_pct##c.CHILDCARE_COSTS_ `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==0, or
+margins, at(CHILDCARE_COSTS_=(0(500)10000) female_earn_pct=(0(.1)1)) saving(nocollege_cc, replace)
+marginsplot
+// use nocollege_cc, clear
+// twoway contour _margin _at2 _at3, scolor(green) ecolor(red) levels(10)
+
+logit dissolve_lag i.dur c.female_earn_pct##c.CHILDCARE_COSTS_ `controls'  if inlist(IN_UNIT,0,1,2) & cohort_v2==1 & couple_educ_gp==1, or
+margins, at(CHILDCARE_COSTS_=(0(500)10000) female_earn_pct=(0(.1)1)) saving(college_cc, replace)
+marginsplot
+// use college_cc, clear
+// twoway contour _margin _at2 _at3, scolor(green) ecolor(red) levels(10)
+

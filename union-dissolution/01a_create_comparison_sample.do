@@ -193,8 +193,8 @@ browse relationship dissolve MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_ COUPLE_STA
 browse id survey_yr relationship dissolve MARITAL_STATUS_REF_
 
 gen relationship_type=0
-replace relationship_type=1 if NUM_MARRIED==0
-replace relationship_type=2 if NUM_MARRIED>=1
+replace relationship_type=1 if NUM_MARRIED_2019==0
+replace relationship_type=2 if NUM_MARRIED_2019>=1
 replace relationship_type=1 if either_cohab==22
 replace relationship_type=1 if inrange(MARITAL_STATUS_REF_,2,9)
 sort id survey_yr
@@ -742,6 +742,27 @@ recode RELIGION_WIFE_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_wife)
 	   
 label values religion_head religion_wife update_religion
 */
+
+// figuring out costs
+browse id survey_yr HOUSE_STATUS_ RENT_COST_V1_ RENT_COST_V2_ TOTAL_HOUSING_ MORTGAGE_COST_ HOUSE_VALUE_  CHILDCARE_COSTS_
+
+gen total_annual_rent=.
+replace total_annual_rent = RENT_COST_V1_ if survey_yr <=1993
+replace total_annual_rent = RENT_COST_V2_ * 12 if survey_yr > 1994
+
+browse id survey_yr total_annual_rent RENT_COST_V1_ RENT_COST_V2_ if HOUSE_STATUS_==5
+
+browse id survey_yr  TOTAL_HOUSING_ MORTGAGE_COST_ HOUSE_VALUE_  if HOUSE_STATUS_==1
+
+egen total_annual_rent_std = std(total_annual_rent) if HOUSE_STATUS_==5
+egen HOUSE_VALUE_std = std(HOUSE_VALUE_) if HOUSE_STATUS_==1
+// browse total_annual_rent total_annual_rent_std HOUSE_VALUE_ HOUSE_VALUE_std
+
+gen housing_costs_use=.
+replace housing_costs_use = total_annual_rent_std if HOUSE_STATUS_==5
+replace housing_costs_use = HOUSE_VALUE_std if HOUSE_STATUS_==1
+
+replace CHILDCARE_COSTS_=. if inlist(CHILDCARE_COSTS_,99998,99999,999998,999999)
 
 // also age at relationship start
 browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
