@@ -1260,6 +1260,7 @@ logit dissolve_lag i.dur i.employ_type i.couple_educ_gp `controls' if inlist(IN_
 margins, dydx(*) post
 outreg2 using "$results/dissolution_new_v2.xls", sideway stats(coef se pval) ctitle(Earn3+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+
 // Men's earnings tertile - add educ as control instead of earnings. also control for total earnings??
 // logit dissolve_lag i.dur i.employ_type i.couple_educ_gp `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==1, or
 
@@ -1273,19 +1274,19 @@ outreg2 using "$results/dissolution_new_v2.xls", sideway stats(coef se pval) cti
 
 logit dissolve_lag i.dur i.employ_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==2, or
 margins, dydx(*) post
-outreg2 using "$results/dissolution_new_v2.xls", sideway stats(coef se pval) ctitle(His2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/dissolution.xls", sideway stats(coef se pval) ctitle(His2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur i.employ_type i.couple_educ_gp earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==2, or
 margins, dydx(*) post
-outreg2 using "$results/dissolution_new_v2.xls", sideway stats(coef se pval) ctitle(His2+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(His2+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur i.employ_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==3, or
 margins, dydx(*) post
-outreg2 using "$results/dissolution_new_v2.xls", sideway stats(coef se pval) ctitle(His3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(His3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur i.employ_type i.couple_educ_gp earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==3, or
 margins, dydx(*) post
-outreg2 using "$results/dissolution_new_v2.xls", sideway stats(coef se pval) ctitle(His3+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(His3+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 *************** Same as above, now with weights
 
