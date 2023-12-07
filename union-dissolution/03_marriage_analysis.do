@@ -79,13 +79,19 @@ label values region region
 
 // splitting the college group into who has a degree. also considering advanced degree as higher than college -- this currently only works for cohort 3. I think for college - the specific years matter to split advanced, but for no college - distinguishing between grades less relevant?
 gen college_bkd=.
-replace college_bkd=1 if (EDUC_WIFE_==16 & EDUC_HEAD_==16) | (EDUC_WIFE_==17 & EDUC_HEAD_==17)
-replace college_bkd=2 if (EDUC_WIFE_==17 & EDUC_HEAD_ <= 16) | (EDUC_WIFE_==16 & EDUC_HEAD_ <= 15) 
-replace college_bkd=3 if (EDUC_HEAD_==17 & EDUC_WIFE_ <= 16) | (EDUC_HEAD_==16 & EDUC_WIFE_ <= 15)
+replace college_bkd=1 if college_complete_head==1 & college_complete_wife==1
+replace college_bkd=2 if college_complete_head==0 & college_complete_wife==1
+replace college_bkd=3 if college_complete_head==1 & college_complete_wife==0
 replace college_bkd=0 if couple_educ_gp==0
 
 label define college_bkd 1 "Both" 2 "Wife" 3 "Husband"
 label values college_bkd college_bkd
+
+/*
+replace college_bkd=1 if (EDUC_WIFE_==16 & EDUC_HEAD_==16) | (EDUC_WIFE_==17 & EDUC_HEAD_==17)
+replace college_bkd=2 if (EDUC_WIFE_==17 & EDUC_HEAD_ <= 16) | (EDUC_WIFE_==16 & EDUC_HEAD_ <= 15) 
+replace college_bkd=3 if (EDUC_HEAD_==17 & EDUC_WIFE_ <= 16) | (EDUC_HEAD_==16 & EDUC_WIFE_ <= 15)
+*/
 
 gen no_college_bkd=.
 replace no_college_bkd=1 if couple_educ_gp==0 & educ_wife==educ_head
@@ -1112,6 +1118,13 @@ logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(I
 margins, dydx(*) post
 outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(Coll+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+	// housework
+	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+	margins, dydx(housework_bkt)
+
+	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+	margins, dydx(housework_bkt)
+
 // Alt education - just men's, hourglass argument
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & inlist(educ_head,1,2), or
 margins, dydx(*) post
@@ -1129,6 +1142,9 @@ logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(I
 margins, dydx(*) post
 outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(MidEduc+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & inlist(educ_head,1,2,3), or
+margins, dydx(hh_earn_type)
+
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & educ_head==4, or
 margins, dydx(*) post
 outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(HighEduc) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -1145,6 +1161,9 @@ outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle
 logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & earnings_tertile==1, or
 margins, dydx(*) post
 outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(Earn1+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & earnings_tertile==1 & earnings_1000s!=0, or
+margins, dydx(hh_earn_type)
 
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & earnings_tertile==2, or
 margins, dydx(*) post
@@ -1182,6 +1201,9 @@ logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp earnings_1000s `control
 margins, dydx(*) post
 outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(His2+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==2, or
+logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & inlist(head_tertile,1,2), or
+
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==3, or
 margins, dydx(*) post
 outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(His3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -1189,6 +1211,43 @@ outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle
 logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==3, or
 margins, dydx(*) post
 outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(His3+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+	// housework
+	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==1, or
+	margins, dydx(housework_bkt)
+	
+	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==2, or
+	margins, dydx(housework_bkt)
+	
+	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==3, or
+	margins, dydx(housework_bkt)
+	
+/// for figures - margins (not AME)
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+margins hh_earn_type
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+margins, dydx(hh_earn_type)
+margins hh_earn_type
+
+logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==1, or
+margins, dydx(hh_earn_type)
+margins hh_earn_type
+
+logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==2, or
+margins, dydx(hh_earn_type)
+margins hh_earn_type
+
+logit dissolve_lag i.dur i.hh_earn_type i.couple_educ_gp earnings_1000s `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & head_tertile==3, or
+margins, dydx(hh_earn_type)
+margins hh_earn_type
+
+unique id if inrange(rel_start_all,1995,2014) & inlist(IN_UNIT,0,1,2)
+tab in_marital_history if inrange(rel_start_all,1995,2014) & inlist(IN_UNIT,0,1,2) // okay so all of these couples have history
 
 *************** Diff indicator
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval"
