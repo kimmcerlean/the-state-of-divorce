@@ -257,6 +257,20 @@ browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
 gen ever_cohab=0
 replace ever_cohab=1 if cohab_with_wife==1 | cohab_with_other==1
 
+// categorical for number of children
+recode NUM_CHILDREN_ (0=0)(1=1)(2=2)(3/13=3), gen(num_children)
+label define num_children 0 "None" 1 "1 Child" 2 "2 Children" 3 "3+ Children"
+label values num_children num_children
+
+// square age of marriage
+gen age_mar_head_sq = age_mar_head * age_mar_head
+gen age_mar_wife_sq = age_mar_wife * age_mar_wife
+
+// create dummy variable for interval length
+gen interval=.
+replace interval=1 if inrange(survey_yr,1968,1997)
+replace interval=2 if inrange(survey_yr,1999,2019)
+
 // missing value inspect
 inspect age_mar_wife // 0
 inspect age_mar_head // 0
@@ -286,8 +300,9 @@ replace time_leave=1 if STATE_==44 & survey_yr >= 2018
 gen min_wage=0
 replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29,30,31,34,35,36,39,41,44,46,50,53,54)
 
-keep if cohort==3
-keep if inlist(IN_UNIT,1,2)
+// keep if cohort==3 - temp removing this, want to try some things
+keep if inrange(rel_start_all,1995,2014)
+keep if inlist(IN_UNIT,0,1,2)
 drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
 
 ********************************************************************************
@@ -429,6 +444,10 @@ tab ft_wife
 tab ft_wife if dissolve_lag==1
 tab ft_head
 tab ft_head if dissolve_lag==1
+
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st earn_ratio_neg_st // structural familism. 0.70
+alpha unemployment_st child_pov_st gini_st // economic uncertainty. 0.54
+alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st // structural sexism. 0.61
 
 ********************************************************************************
 ********************************************************************************
@@ -1109,7 +1128,9 @@ marginsplot, xtitle("Economic Inequality") yline(0,lcolor(gs3)) yscale(range(-.1
 // *Paid Work: All variables in scale individually *//
 	// egen structural_familism= rowtotal(min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st earn_ratio_neg_st)
 	
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3 c.gender_mood"
+// old controls: local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3 c.gender_mood"
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.num_children i.interval knot1 knot2 knot3 c.gender_mood"
 
 /* No College */
 * Structural familism - to test
@@ -1179,7 +1200,7 @@ logit dissolve_lag i.dur c.gini i.hh_earn_type c.gini#i.hh_earn_type `controls' 
 margins, dydx(hh_earn_type) at(gini=(.55(.05).70)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no gini) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-* Both in model
+/* Both in model
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3 c.gender_mood"
 logit dissolve_lag i.dur c.economic_challenges structural_familism i.hh_earn_type c.economic_challenges#i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
 sum structural_familism, detail
@@ -1191,6 +1212,7 @@ margins, dydx(hh_earn_type) at(economic_challenges=(`r(p25)' `r(p75)'))
 margins hh_earn_type, at(economic_challenges=(`r(p25)' `r(p75)'))
 margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10))
 margins, dydx(hh_earn_type) at(economic_challenges=(-3(1)5))
+*/
 
 /* College */
 * Structural familism - to test
@@ -1260,7 +1282,7 @@ logit dissolve_lag i.dur c.gini i.hh_earn_type c.gini#i.hh_earn_type `controls' 
 margins, dydx(hh_earn_type) at(gini=(.55(.05).70)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(coll gini) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-* Both in model
+/* Both in model
 local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3 c.gender_mood"
 logit dissolve_lag i.dur c.economic_challenges structural_familism i.hh_earn_type c.economic_challenges#i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
 sum structural_familism, detail
@@ -1269,6 +1291,7 @@ sum economic_challenges, detail
 margins hh_earn_type, at(economic_challenges=(`r(p25)' `r(p75)'))
 margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10))
 margins, dydx(hh_earn_type) at(economic_challenges=(-3(1)5))
+*/
 
 ********************************************************************************
 **# Does structural familism OR attitudes predict DoL?
