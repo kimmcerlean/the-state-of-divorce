@@ -1293,6 +1293,34 @@ margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10))
 margins, dydx(hh_earn_type) at(economic_challenges=(-3(1)5))
 */
 
+/* Margins: using percentiles for "high" and "low"*/
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.num_children i.interval knot1 knot2 knot3 c.gender_mood"
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10))
+sum structural_familism, detail
+margins hh_earn_type, at(structural_familism=(`r(p25)' `r(p75)'))
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p25)' `r(p75)'))
+
+logit dissolve_lag i.dur c.economic_challenges i.hh_earn_type c.economic_challenges#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+sum economic_challenges, detail
+margins hh_earn_type, at(economic_challenges=(`r(p25)' `r(p75)'))
+sum economic_challenges, detail
+margins, dydx(hh_earn_type) at(economic_challenges=(`r(p25)' `r(p75)'))
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+sum structural_familism, detail
+margins hh_earn_type, at(structural_familism=(`r(p25)' `r(p75)'))
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p25)' `r(p75)'))
+
+logit dissolve_lag i.dur c.economic_challenges i.hh_earn_type c.economic_challenges#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+sum economic_challenges, detail
+margins hh_earn_type, at(economic_challenges=(`r(p25)' `r(p75)'))
+sum economic_challenges, detail
+margins, dydx(hh_earn_type) at(economic_challenges=(`r(p25)' `r(p75)'))
+
 ********************************************************************************
 **# Does structural familism OR attitudes predict DoL?
 ********************************************************************************
@@ -1301,30 +1329,29 @@ margins couple_educ_gp
 
 mlogit hh_earn_type i.dur i.couple_educ_gp if hh_earn_type < 4 & state_fips!=11, rrr baseoutcome(1)
 
-
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.REGION_ cohab_with_wife cohab_with_other pre_marital_birth knot1 knot2 knot3 c.gender_mood"
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.num_children i.interval knot1 knot2 knot3 c.gender_mood"
 
 // Familism
 mlogit hh_earn_type i.dur structural_familism i.children if hh_earn_type < 4 & state_fips!=11, rrr // when higher, more likely to be dual / female BW than male BW
-margins, at(structural_familism=(-5(5)10)) post
-outreg2 using "$results/policy_DOL.xls", ctitle(total) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+margins, at(structural_familism=(-5(5)10)) // post
+outreg2 using "$results/policy_DOL.xls", ctitle(total) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
 mlogit hh_earn_type i.dur structural_familism i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==0, rrr // no diffs
-margins, at(structural_familism=(-5(5)10)) post
-outreg2 using "$results/policy_DOL.xls", ctitle(no) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+margins, at(structural_familism=(-5(5)10)) // post
+outreg2 using "$results/policy_DOL.xls", ctitle(no) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 mlogit hh_earn_type i.dur structural_familism i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==1, rrr // really the trends here
-margins, at(structural_familism=(-5(5)10)) post
-outreg2 using "$results/policy_DOL.xls", ctitle(coll) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+margins, at(structural_familism=(-5(5)10)) // post
+outreg2 using "$results/policy_DOL.xls", ctitle(coll) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 mlogit hh_earn_type i.dur structural_familism i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==0, rrr // no association
 margins, at(structural_familism=(-5(5)10))
-marginsplot, xtitle("Structural Familism Scale") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
+marginsplot, xtitle("Structural Familism Scale") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) // plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
 // plot1opts(lcolor("248 151 31") mcolor("248 151 31")) ci1opts(color("248 151 31")) 
 
 mlogit hh_earn_type i.dur structural_familism i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==1, rrr // really the trends here
 margins, at(structural_familism=(-5(5)10))
-marginsplot, xtitle("Structural Familism Scale") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
+marginsplot, xtitle("Structural Familism Scale") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) // plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
 
 // Sexism
 mlogit hh_earn_type i.dur structural_sexism i.children if hh_earn_type < 4 & state_fips!=11, rrr // makes sense - when higher, more likely to be male BW and less likely to be others
@@ -1374,24 +1401,24 @@ marginsplot, xtitle("Gender Equality Mood") xlabel(55(10)75, format(%15.0gc)) yl
 // Economic challenges
 mlogit hh_earn_type i.dur economic_challenges i.children if hh_earn_type < 4 & state_fips!=11, rrr // when higher, more likely female BW than male BW, but dual = no change
 margins, at(economic_challenges=(-3(1)5))
-outreg2 using "$results/policy_DOL.xls", ctitle(total) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+outreg2 using "$results/policy_DOL.xls", ctitle(total) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 mlogit hh_earn_type i.dur economic_challenges i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==0, rrr // more likely to be female BW, but it comes from DUAL not male?! this is the eemrgency BW story?!
 margins, at(economic_challenges=(-3(1)5))
-outreg2 using "$results/policy_DOL.xls", ctitle(no) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+outreg2 using "$results/policy_DOL.xls", ctitle(no) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 mlogit hh_earn_type i.dur economic_challenges i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==1, rrr // no diffs
 margins, at(economic_challenges=(-3(1)5))
-outreg2 using "$results/policy_DOL.xls", ctitle(coll) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+outreg2 using "$results/policy_DOL.xls", ctitle(coll) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 mlogit hh_earn_type i.dur economic_challenges i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==0, rrr // counterintuive - female BW more likely when more challenges
 margins, at(economic_challenges=(-3(2)5))
-marginsplot, xtitle("Economic Uncertainty") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
+marginsplot, xtitle("Economic Uncertainty") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) // plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
 // plot1opts(lcolor("248 151 31") mcolor("248 151 31")) ci1opts(color("248 151 31")) 
 
 mlogit hh_earn_type i.dur economic_challenges i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==1, rrr // no real association here
 margins, at(economic_challenges=(-3(2)5))
-marginsplot, xtitle("Economic Uncertainty") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
+marginsplot, xtitle("Economic Uncertainty") ylabel(, angle(0))  ytitle("Probability of Given Division of Labor") title("") legend(position(6) ring(3) order(1 "Dual Earner" 2 "Male BW" 3 "Female BW") rows(1)) //  plot2opts(lcolor("191 87 0") mcolor("191 87 0")) ci2opts(color("191 87 0")) plot3opts(lcolor("0 95 134") mcolor("0 95 134")) ci3opts(color("0 95 134")) plot1opts(lcolor(gray) mcolor(gray)) ci1opts(color(gray)) 
 
 // Structural familism and economic in same model
 mlogit hh_earn_type i.dur economic_challenges structural_familism i.children if hh_earn_type < 4 & state_fips!=11 & couple_educ_gp==0, rrr // here, only economic challenges sig, and the effect is w female BW
