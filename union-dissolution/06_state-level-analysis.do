@@ -1321,6 +1321,19 @@ margins hh_earn_type, at(economic_challenges=(`r(p25)' `r(p75)'))
 sum economic_challenges, detail
 margins, dydx(hh_earn_type) at(economic_challenges=(`r(p25)' `r(p75)'))
 
+/* Just the measures*/
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.num_children i.interval knot1 knot2 knot3 c.gender_mood"
+
+logit dissolve_lag i.dur c.structural_familism `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+logit dissolve_lag i.dur c.economic_challenges `controls' if couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+logit dissolve_lag i.dur c.structural_familism `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+logit dissolve_lag i.dur c.economic_challenges `controls' if couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+
+logit dissolve_lag i.dur c.structural_familism `controls' if couple_educ_gp==0 & state_fips!=11, or
+logit dissolve_lag i.dur c.economic_challenges `controls' if couple_educ_gp==0 & state_fips!=11, or
+logit dissolve_lag i.dur c.structural_familism `controls' if couple_educ_gp==1 & state_fips!=11, or
+logit dissolve_lag i.dur c.economic_challenges `controls' if couple_educ_gp==1 & state_fips!=11, or
+
 ********************************************************************************
 **# Does structural familism OR attitudes predict DoL?
 ********************************************************************************
