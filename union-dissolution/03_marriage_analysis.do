@@ -3340,7 +3340,42 @@ logit dissolve_lag i.dur i.dual_hw if inlist(IN_UNIT,1,2) & cohort==3 & couple_e
 ********************************************************************************
 
 ********************************************************************************
-* These are the same models from the main paper
+* These are models updated based on ASR reviews
+********************************************************************************
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval"
+
+// Education
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_hist.xls", sideway stats(coef se pval) ctitle(NoColl) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_hist.xls", sideway stats(coef se pval) ctitle(NoColl+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_hist.xls", sideway stats(coef se pval) ctitle(Coll) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_hist.xls", sideway stats(coef se pval) ctitle(Coll+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+	// housework
+	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+	margins, dydx(housework_bkt)
+	margins, dydx(*) post
+	outreg2 using "$results/dissolution_hist.xls", sideway stats(coef se pval) ctitle(No HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+
+	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+	margins, dydx(housework_bkt)
+	margins, dydx(*) post
+	outreg2 using "$results/dissolution_hist.xls", sideway stats(coef se pval) ctitle(Coll HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+********************************************************************************
+* These are the models that were in the ASR paper
 ********************************************************************************
 
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.num_children knot1 knot2 knot3"
