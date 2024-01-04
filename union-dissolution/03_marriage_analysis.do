@@ -30,6 +30,10 @@ gen cohort_v2=.
 replace cohort_v2=0 if inrange(rel_start_all,1969,1989)
 replace cohort_v2=1 if inrange(rel_start_all,1990,2014)
 
+gen cohort_v3=.
+replace cohort_v3=0 if inrange(rel_start_all,1970,1994)
+replace cohort_v3=1 if inrange(rel_start_all,1995,2014)
+
 // keep if cohort==3, need to just use filters so I don't have to keep using and updating the data
 // need to decide - ALL MARRIAGES or just first? - killewald restricts to just first, so does cooke. My validation is MUCH BETTER against those with first marraiges only...
 keep if marriage_order_real==1
@@ -1121,9 +1125,13 @@ outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle
 	// housework
 	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 	margins, dydx(housework_bkt)
+	margins, dydx(*) post
+	outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(NoColl HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 	logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 	margins, dydx(housework_bkt)
+	margins, dydx(*) post
+	outreg2 using "$results/dissolution_new.xls", sideway stats(coef se pval) ctitle(Coll HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 // Alt education - just men's, hourglass argument
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & inlist(educ_head,1,2), or
@@ -3339,6 +3347,18 @@ logit dissolve_lag i.dur i.dual_hw if inlist(IN_UNIT,1,2) & cohort==3 & couple_e
 ********************************************************************************
 ********************************************************************************
 
+tab cohort_v2 couple_educ_gp, row
+tab cohort_v2 hh_earn_type, row
+tab couple_educ_gp hh_earn_type, row
+tab couple_educ_gp hh_earn_type if cohort_v2==0, row
+tab couple_educ_gp hh_earn_type if cohort_v2==1, row
+
+tab couple_educ_gp hh_earn_type if inrange(rel_start_all,1970,1994), row
+tab couple_educ_gp hh_earn_type if inrange(rel_start_all,1995,2014), row
+
+
+// other thought - is it RELATIONSHIP time period or BIRTH cohort? especially as college-educated marry later - but using time, are you conflating cohort effects? like are the college-educated even MORE over-represented in later time periods?
+
 ********************************************************************************
 * These are models updated based on ASR reviews
 ********************************************************************************
@@ -3373,7 +3393,44 @@ outreg2 using "$results/dissolution_hist.xls", sideway stats(coef se pval) ctitl
 	margins, dydx(housework_bkt)
 	margins, dydx(*) post
 	outreg2 using "$results/dissolution_hist.xls", sideway stats(coef se pval) ctitle(Coll HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	
+// Split time periods: 1969-1979, 1980-1994
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval"
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+	margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1969,1979) & couple_educ_gp==0, or
+	margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1980,1994) & couple_educ_gp==0, or
+	margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+	margins, dydx(hh_earn_type)
 
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or
+	margins cohort_v3#hh_earn_type
+	marginsplot // interesting - no change dual / male - and male always lowest only decline in female - so dual + female get more similar, but male BW still lowest
+	
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_alt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or
+	margins cohort_alt#hh_earn_type // more granular time
+	marginsplot
+	
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval"
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+	margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1969,1979) & couple_educ_gp==1, or
+	margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1980,1994) & couple_educ_gp==1, or
+	margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+	margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or
+	margins cohort_v3#hh_earn_type // decline in all. female BW consistently has highest risk. v. small crossover between male BW and dual, but seems negligible
+	marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_alt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or
+	margins cohort_alt#hh_earn_type
+	marginsplot
+	
 ********************************************************************************
 * These are the models that were in the ASR paper
 ********************************************************************************
