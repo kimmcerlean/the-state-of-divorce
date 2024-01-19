@@ -29,6 +29,10 @@ gen cohort_v2=.
 replace cohort_v2=0 if inrange(rel_start_all,1969,1989)
 replace cohort_v2=1 if inrange(rel_start_all,1990,2014)
 
+gen cohort_v3=.
+replace cohort_v3=0 if inrange(rel_start_all,1970,1994)
+replace cohort_v3=1 if inrange(rel_start_all,1995,2014)
+
 // keep if cohort==3, need to just use filters so I don't have to keep using and updating the data
 // need to decide - ALL MARRIAGES or just first? - killewald restricts to just first, so does cooke. My validation is MUCH BETTER against those with first marraiges only...
 keep if marriage_order_real==1
@@ -340,9 +344,118 @@ label define race_x_educ 1 "White No" 2 "White Coll" 3 "Black No" 4 "Black Coll"
 label values race_x_educ_head race_x_educ
 
 ********************************************************************************
-**# Table starts here
+**# Table starts here: over time
 ********************************************************************************
-keep if cohort==3 & inlist(IN_UNIT,1,2) // for ease just remove those not in sample
+keep if inlist(cohort_v3,0,1) & inlist(IN_UNIT,0,1,2)
+tab hh_earn_type, gen(earn_type)
+tab housework_bkt, gen(hw_type)
+tab couple_educ_gp, gen(couple_educ)
+
+putexcel set "$results/Table1_Descriptives_time", replace
+putexcel B1:C1 = "Total", merge border(bottom)
+putexcel D1:E1 = "No College", merge border(bottom)
+putexcel F1:G1 = "College-Educated", merge border(bottom)
+putexcel B2 = ("Early") C2 = ("Late") D2 = ("Early") E2 = ("Late") F2 = ("Early") G2 = ("Late") , border(bottom)
+putexcel A3 = "Unique Couples"
+putexcel A4 = "% Dissolved"
+
+// Means
+putexcel A5 = "Wife's share of earnings"
+putexcel A6 = "Dual Earning HH"
+putexcel A7 = "Male Breadwinner"
+putexcel A8 = "Female Breadwinner"
+putexcel A9 = "Wife's share of unpaid hours"
+putexcel A10 = "Equal"
+putexcel A11 = "Female Primary"
+putexcel A12 = "Male Primary"
+putexcel A13 = "No College Degree"
+putexcel A14 = "College Degree"
+
+local meanvars_ovrl "female_earn_pct earn_type1 earn_type2 earn_type3 wife_housework_pct hw_type1 hw_type2 hw_type3 couple_educ1 couple_educ2"
+local meanvars "female_earn_pct earn_type1 earn_type2 earn_type3 wife_housework_pct hw_type1 hw_type2 hw_type3"
+
+// Overall: early
+forvalues w=1/10{
+	local row=`w'+4
+	local var: word `w' of `meanvars_ovrl'
+	mean `var' if cohort_v3==0
+	matrix t`var'= e(b)
+	putexcel B`row' = matrix(t`var'), nformat(#.#%)
+}
+
+
+// Overall: late
+forvalues w=1/10{
+	local row=`w'+4
+	local var: word `w' of `meanvars_ovrl'
+	mean `var' if cohort_v3==1
+	matrix t`var'= e(b)
+	putexcel C`row' = matrix(t`var'), nformat(#.#%)
+}
+
+
+**By education:
+
+
+// No college degree: early
+forvalues w=1/8{
+	local row=`w'+4
+	local var: word `w' of `meanvars'
+	mean `var' if couple_educ_gp==0 & cohort_v3==0
+	matrix t`var'= e(b)
+	putexcel D`row' = matrix(t`var'), nformat(#.#%)
+}
+
+// No college degree: late
+forvalues w=1/8{
+	local row=`w'+4
+	local var: word `w' of `meanvars'
+	mean `var' if couple_educ_gp==0 & cohort_v3==1
+	matrix t`var'= e(b)
+	putexcel E`row' = matrix(t`var'), nformat(#.#%)
+}
+
+// College degree: early
+forvalues w=1/8{
+	local row=`w'+4
+	local var: word `w' of `meanvars'
+	mean `var' if couple_educ_gp==1 & cohort_v3==0
+	matrix t`var'= e(b)
+	putexcel F`row' = matrix(t`var'), nformat(#.#%)
+}
+
+// College degree: late
+forvalues w=1/8{
+	local row=`w'+4
+	local var: word `w' of `meanvars'
+	mean `var' if couple_educ_gp==1 & cohort_v3==1
+	matrix t`var'= e(b)
+	putexcel G`row' = matrix(t`var'), nformat(#.#%)
+}
+
+// uniques
+*Overall
+unique id if cohort_v3==0
+unique id if cohort_v3==0 & dissolve_lag==1
+unique id if cohort_v3==1
+unique id if cohort_v3==1 & dissolve_lag==1
+
+*No College
+unique id if cohort_v3==0 & couple_educ_gp==0
+unique id if cohort_v3==0 & dissolve_lag==1 & couple_educ_gp==0
+unique id if cohort_v3==1 & couple_educ_gp==0
+unique id if cohort_v3==1 & dissolve_lag==1 & couple_educ_gp==0
+
+*College
+unique id if cohort_v3==0 & couple_educ_gp==1
+unique id if cohort_v3==0 & dissolve_lag==1 & couple_educ_gp==1
+unique id if cohort_v3==1 & couple_educ_gp==1
+unique id if cohort_v3==1 & dissolve_lag==1 & couple_educ_gp==1
+
+********************************************************************************
+**# Table starts here: when just focused on contemporary marriages
+********************************************************************************
+keep if cohort==3 & inlist(IN_UNIT,0,1,2) // for ease just remove those not in sample
 
 tab hh_earn_type, gen(earn_type)
 tab housework_bkt, gen(hw_type)

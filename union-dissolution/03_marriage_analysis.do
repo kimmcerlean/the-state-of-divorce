@@ -349,6 +349,10 @@ label values num_children num_children
 gen age_mar_head_sq = age_mar_head * age_mar_head
 gen age_mar_wife_sq = age_mar_wife * age_mar_wife
 
+// create binary home ownership variable
+gen home_owner=0
+replace home_owner=1 if HOUSE_STATUS_==1
+
 // create dummy variable for interval length
 gen interval=.
 replace interval=1 if inrange(survey_yr,1968,1997)
@@ -431,14 +435,194 @@ replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29
 // both pre and post marital birth should NOT be in model because they are essentially inverse. do I want to add if they have a child together as new flag?
 // taking out religion for now because not asked in 1968 / 1968
 
-local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
+// original: local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 **# Analysis starts
 
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
-* For PAA Final Paper: main analysis
+**# Final analysis for Sociological Science attempt
+** Divorce over time
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+** College-educated
+// 1970-1994
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll HW1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// 1995-2014
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** Non-college-educated
+// 1970-1994
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoColl1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(No HW1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	
+// 1995-2014
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoColl2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoColl HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** Interactions
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & hh_earn_type!=4, or // overall
+	margins cohort_v3#hh_earn_type
+	marginsplot
+
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & housework_bkt!=4, or // overall
+	margins cohort_v3#housework_bkt
+	marginsplot
+	
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or
+	margins cohort_v3#hh_earn_type
+	marginsplot // interesting - no change dual / male - and male always lowest only decline in female - so dual + female get more similar, but male BW still lowest
+
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or
+	margins cohort_v3#housework_bkt
+	marginsplot 
+
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or
+	margins cohort_v3#hh_earn_type // decline in all. female BW consistently has highest risk. v. small crossover between male BW and dual, but seems negligible
+	marginsplot
+
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or
+	margins cohort_v3#housework_bkt
+	marginsplot 
+
+********************************************************************************
+* Robustness: other time cutoffs: 1990
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+** College-educated
+// 1970-1994
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1989) & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r1990.xls", sideway stats(coef se pval) ctitle(Coll1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1989) & couple_educ_gp==1, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r1990.xls", sideway stats(coef se pval) ctitle(Coll HW1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// 1995-2014
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r1990.xls", sideway stats(coef se pval) ctitle(Coll2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r1990.xls", sideway stats(coef se pval) ctitle(Coll HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** Non-college-educated
+// 1970-1994
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1989) & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r1990.xls", sideway stats(coef se pval) ctitle(NoColl1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1989) & couple_educ_gp==0, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r1990.xls", sideway stats(coef se pval) ctitle(No HW1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	
+// 1995-2014
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r1990.xls", sideway stats(coef se pval) ctitle(NoColl2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r1990.xls", sideway stats(coef se pval) ctitle(NoColl HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+
+********************************************************************************
+* Robustness: other time cutoffs: 2000
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+** College-educated
+// 1970-1994
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1999) & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r2000.xls", sideway stats(coef se pval) ctitle(Coll1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1999) & couple_educ_gp==1, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r2000.xls", sideway stats(coef se pval) ctitle(Coll HW1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// 1995-2014
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,2000,2014) & couple_educ_gp==1, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r2000.xls", sideway stats(coef se pval) ctitle(Coll2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,2000,2014) & couple_educ_gp==1, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r2000.xls", sideway stats(coef se pval) ctitle(Coll HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** Non-college-educated
+// 1970-1994
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1999) & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r2000.xls", sideway stats(coef se pval) ctitle(NoColl1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1999) & couple_educ_gp==0, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r2000.xls", sideway stats(coef se pval) ctitle(No HW1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+	
+// 1995-2014
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,2000,2014) & couple_educ_gp==0, or
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r2000.xls", sideway stats(coef se pval) ctitle(NoColl2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,2000,2014) & couple_educ_gp==0, or
+margins, dydx(housework_bkt)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends_r2000.xls", sideway stats(coef se pval) ctitle(NoColl HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+
+********************************************************************************
+**********************************OLD ANALYSES**********************************
+********************************************************************************
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# For PAA Final Paper: main analysis
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
@@ -898,7 +1082,7 @@ margins, dydx(*) post
 outreg2 using "$results/dissolution_AMES_final.xls", ctitle(margins) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
-**# USE (actually) - this is in existing ASR paper
+**# USE (actually) - this was in ASR submission
 * Spline earnings
 ********************************************************************************
 /* help
@@ -3347,15 +3531,16 @@ logit dissolve_lag i.dur i.dual_hw if inlist(IN_UNIT,1,2) & cohort==3 & couple_e
 ********************************************************************************
 ********************************************************************************
 
-tab cohort_v2 couple_educ_gp, row
-tab cohort_v2 hh_earn_type, row
-tab couple_educ_gp hh_earn_type, row
-tab couple_educ_gp hh_earn_type if cohort_v2==0, row
-tab couple_educ_gp hh_earn_type if cohort_v2==1, row
+tab cohort_v3 couple_educ_gp if inlist(IN_UNIT,0,1,2), row
+tab cohort_v3 hh_earn_type if inlist(IN_UNIT,0,1,2), row
+tab couple_educ_gp hh_earn_type if inlist(IN_UNIT,0,1,2), row
 
-tab couple_educ_gp hh_earn_type if inrange(rel_start_all,1970,1994), row
-tab couple_educ_gp hh_earn_type if inrange(rel_start_all,1995,2014), row
+tab couple_educ_gp hh_earn_type if inrange(rel_start_all,1970,1994) & inlist(IN_UNIT,0,1,2), row
+tab couple_educ_gp hh_earn_type if inrange(rel_start_all,1995,2014) & inlist(IN_UNIT,0,1,2), row
 
+unique id if cohort_v3==0  & inlist(IN_UNIT,0,1,2)
+unique id if cohort_v3==1 & inlist(IN_UNIT,0,1,2)
+unique id if (cohort_v3==0 | cohort_v3==1)  & inlist(IN_UNIT,0,1,2)
 
 // other thought - is it RELATIONSHIP time period or BIRTH cohort? especially as college-educated marry later - but using time, are you conflating cohort effects? like are the college-educated even MORE over-represented in later time periods?
 
@@ -3404,10 +3589,6 @@ logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(I
 	margins, dydx(hh_earn_type)
 logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 	margins, dydx(hh_earn_type)
-
-logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or
-	margins cohort_v3#hh_earn_type
-	marginsplot // interesting - no change dual / male - and male always lowest only decline in female - so dual + female get more similar, but male BW still lowest
 	
 logit dissolve_lag i.dur i.hh_earn_type##i.cohort_alt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or
 	margins cohort_alt#hh_earn_type // more granular time
@@ -3423,14 +3604,8 @@ logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(I
 logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 	margins, dydx(hh_earn_type)
 
-logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or
-	margins cohort_v3#hh_earn_type // decline in all. female BW consistently has highest risk. v. small crossover between male BW and dual, but seems negligible
-	marginsplot
-
-logit dissolve_lag i.dur i.hh_earn_type##i.cohort_alt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or
-	margins cohort_alt#hh_earn_type
-	marginsplot
 	
+
 ********************************************************************************
 * These are the models that were in the ASR paper
 ********************************************************************************
