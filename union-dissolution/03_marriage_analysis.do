@@ -546,18 +546,61 @@ marginsplot, xtitle("Marital Cohort") ylabel(, angle(0))  ytitle("Predicted Prob
 logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
 margins cohort_v3#hh_earn_type // decline in all. female BW consistently has highest risk. v. small crossover between male BW and dual, but seems negligible
 marginsplot, xtitle("Marital Cohort") ylabel(0(.01).05, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot3opts(lcolor("cranberry") mcolor("cranberry")) ci3opts(color("cranberry")) 
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(CollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
 margins cohort_v3#housework_bkt
 marginsplot, xtitle("Marital Cohort") ylabel(0(.01).05, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot3opts(lcolor("cranberry") mcolor("cranberry")) ci3opts(color("cranberry")) 
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(CollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
 margins cohort_v3#hh_earn_type
 marginsplot, xtitle("Marital Cohort") ylabel(0(.02).1, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot3opts(lcolor("cranberry") mcolor("cranberry")) ci3opts(color("cranberry")) // interesting - no change dual / male - and male always lowest only decline in female - so dual + female get more similar, but male BW still lowest
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoCollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
 margins cohort_v3#housework_bkt
 marginsplot, xtitle("Marital Cohort") ylabel(0(.02).1, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot3opts(lcolor("cranberry") mcolor("cranberry")) ci3opts(color("cranberry")) 
+margins, dydx(*) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoCollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// okay the interactions aren't posting with above code, so have to do separately
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
+margins cohort_v3, dydx(hh_earn_type) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(CollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
+margins cohort_v3, dydx(housework_bkt) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(CollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
+margins cohort_v3, dydx(hh_earn_type) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoCollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
+margins cohort_v3, dydx(housework_bkt) post
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoCollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// are odds ratios better?
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(CollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
+
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(CollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
+
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(NoCollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
+
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
+outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(NoCollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
+
 
 ********************************************************************************
 * Robustness: other time cutoffs: 1990
