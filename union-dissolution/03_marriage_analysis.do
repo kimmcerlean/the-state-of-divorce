@@ -500,16 +500,20 @@ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race
 logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
 margins, dydx(hh_earn_type)
 margins hh_earn_type
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
 margins housework_bkt
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 // 1995-2014
 logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 margins hh_earn_type
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 margins housework_bkt
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
 
@@ -518,16 +522,20 @@ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race
 logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
 margins, dydx(hh_earn_type)
 margins hh_earn_type
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
 margins housework_bkt
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 // 1995-2014
 logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 margins hh_earn_type
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 margins housework_bkt
+margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 set scheme cleanplots
 graph query colorstyle
@@ -746,6 +754,38 @@ svy: logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if in
 margins, dydx(housework_bkt)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends_rWeights.xls", sideway stats(coef se pval) ctitle(NoColl HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Weight comparison for sensitivity check
+// No college
+tabstat weight if couple_educ_gp==0 & cohort_v3==0, by(hh_earn_type)
+tabstat weight if couple_educ_gp==0 & cohort_v3==0 & dissolve_lag==0, by(hh_earn_type)
+tabstat weight if couple_educ_gp==0 & cohort_v3==0 & dissolve_lag==1, by(hh_earn_type)
+tabstat weight if couple_educ_gp==0 & cohort_v3==0, by(housework_bkt)
+tabstat weight if couple_educ_gp==0 & cohort_v3==0 & dissolve_lag==0, by(housework_bkt)
+tabstat weight if couple_educ_gp==0 & cohort_v3==0 & dissolve_lag==1, by(housework_bkt)
+
+tabstat weight if couple_educ_gp==0 & cohort_v3==1, by(hh_earn_type)
+tabstat weight if couple_educ_gp==0 & cohort_v3==1 & dissolve_lag==0, by(hh_earn_type)
+tabstat weight if couple_educ_gp==0 & cohort_v3==1 & dissolve_lag==1, by(hh_earn_type)
+tabstat weight if couple_educ_gp==0 & cohort_v3==1, by(housework_bkt)
+tabstat weight if couple_educ_gp==0 & cohort_v3==1 & dissolve_lag==0, by(housework_bkt)
+tabstat weight if couple_educ_gp==0 & cohort_v3==1 & dissolve_lag==1, by(housework_bkt)
+
+// College
+tabstat weight if couple_educ_gp==1 & cohort_v3==0, by(hh_earn_type)
+tabstat weight if couple_educ_gp==1 & cohort_v3==0 & dissolve_lag==0, by(hh_earn_type)
+tabstat weight if couple_educ_gp==1 & cohort_v3==0 & dissolve_lag==1, by(hh_earn_type)
+tabstat weight if couple_educ_gp==1 & cohort_v3==0, by(housework_bkt)
+tabstat weight if couple_educ_gp==1 & cohort_v3==0 & dissolve_lag==0, by(housework_bkt)
+tabstat weight if couple_educ_gp==1 & cohort_v3==0 & dissolve_lag==1, by(housework_bkt)
+
+tabstat weight if couple_educ_gp==1 & cohort_v3==1, by(hh_earn_type)
+tabstat weight if couple_educ_gp==1 & cohort_v3==1 & dissolve_lag==0, by(hh_earn_type)
+tabstat weight if couple_educ_gp==1 & cohort_v3==1 & dissolve_lag==1, by(hh_earn_type)
+tabstat weight if couple_educ_gp==1 & cohort_v3==1, by(housework_bkt)
+tabstat weight if couple_educ_gp==1 & cohort_v3==1 & dissolve_lag==0, by(housework_bkt)
+tabstat weight if couple_educ_gp==1 & cohort_v3==1 & dissolve_lag==1, by(housework_bkt)
+
 
 ********************************************************************************
 **********************************OLD ANALYSES**********************************
