@@ -331,7 +331,7 @@ gen gdp_percap_neg = 0 - gdp_per_cap
 
 // earn_ratio lfp_ratio pov_ratio pctfemaleleg paid_leave senate_dems house_dems dv_guns gender_mood pctmaleleg no_paid_leave no_dv_gun_law senate_rep house_rep gender_mood_neg
 
-foreach var in unemployment_neg min_above_fed paid_leave cc_pct_income_neg earn_ratio_neg cc_subsidies unemployment cc_pct_income min_below_fed child_pov child_pov_neg min_wage welfare_all welfare_cash_asst welfare_neg welfare_cash_neg ccdf_direct ccdf_per_cap cc_served_percap cc_pct_served educ_spend educ_spend_percap parent_earn_ratio parent_earn_ratio_neg maternal_employment gdp gdp_neg gdp_per_cap gdp_percap_neg gini{
+foreach var in unemployment_neg min_above_fed paid_leave cc_pct_income_neg earn_ratio_neg cc_subsidies unemployment cc_pct_income min_below_fed child_pov child_pov_neg min_wage welfare_all welfare_cash_asst welfare_neg welfare_cash_neg ccdf_direct ccdf_per_cap cc_served_percap cc_pct_served educ_spend educ_spend_percap parent_earn_ratio parent_earn_ratio_neg maternal_employment gdp gdp_neg gdp_per_cap gdp_percap_neg gini gender_discrimin_ban equalpay contraceptive_coverage abortion_protected{
 	sum `var'
 	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
 }
@@ -401,6 +401,30 @@ alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_pe
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st parent_earn_ratio_neg_st  // 0.65
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st maternal_employment_st parent_earn_ratio_neg_st // 0.62
 
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st parent_earn_ratio_neg_st // 0.65
+alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st // 0.64
+alpha paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st // 0.52 - this is without minimum wage
+
+// take 2
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st // 0.33 without new variables
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st gender_discrimin_ban_st equalpay_st contraceptive_coverage_st abortion_protected_st // 0.54 adding all now
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st // 0.55 
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st if year>=1999 & year<=2010 // 0.52 - only data for years where all variables there
+
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st min_above_fed_st // 0.64 so min wage does make a difference
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st welfare_all_st // 0.66 as does welfare spending
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st min_above_fed_st welfare_all_st // 0.72 - so both is really good. but is that too many?
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st min_above_fed_st welfare_all_st, std // matters less bc already standardized
+alpha senate_dems paid_leave ccdf_per_cap educ_spend_percap equalpay contraceptive_coverage abortion_protected min_above_fed welfare_all
+alpha senate_dems paid_leave ccdf_per_cap educ_spend_percap equalpay contraceptive_coverage abortion_protected min_above_fed welfare_all, std // oh so I don't actually need to standardize, could just specify here?
+
+// adding item tells you what alpha will be if that item is removed - so can try to improve. might also want to remove those with low "item-rest" correlation meaning that variable doesn't correlate well with the scale if that item isn't in there
+alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st min_above_fed_st welfare_all_st, item // remove senate dems? would improve alpha and is the most generic, so probably less tied to my goals?
+alpha paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st min_above_fed_st welfare_all_st, item  // 0.75
+alpha paid_leave_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st min_above_fed_st welfare_all_st, item  // 0.76
+
+/// you can also just create a scale using alpha - see help alpha, instead of creating like I do below?
+
 // using: economic
 alpha unemployment_st child_pov_st // 0.59
 alpha unemployment_st child_pov_st min_below_fed_st // 0.35
@@ -409,6 +433,9 @@ alpha unemployment_st child_pov_st cc_pct_income_st // 0.38
 alpha unemployment_st child_pov_st cc_pct_income_st gdp_percap_neg_st // 0.46
 alpha unemployment_st child_pov_st gini_st // 0.46
 alpha unemployment_st child_pov_st gini_st gdp_percap_neg_st // 0.43
+alpha unemployment_st child_pov_st gini_st parent_earn_ratio_neg_st // 0.41 - okay so the economic ones have generally low reliably
+
+alpha unemployment_st child_pov_st cc_pct_income_st, std item
 
 **ORIGINAL
 egen structural_familism_v0 = rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
