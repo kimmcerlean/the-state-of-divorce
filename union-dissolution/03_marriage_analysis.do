@@ -353,6 +353,10 @@ gen age_mar_wife_sq = age_mar_wife * age_mar_wife
 gen home_owner=0
 replace home_owner=1 if HOUSE_STATUS_==1
 
+// create new variable for having kids under 6 in household
+gen children_under6=0
+replace children_under6=1 if children==1 & AGE_YOUNG_CHILD_ < 6
+
 // create dummy variable for interval length
 gen interval=.
 replace interval=1 if inrange(survey_yr,1968,1997)
@@ -785,6 +789,238 @@ tabstat weight if couple_educ_gp==1 & cohort_v3==1 & dissolve_lag==1, by(hh_earn
 tabstat weight if couple_educ_gp==1 & cohort_v3==1, by(housework_bkt)
 tabstat weight if couple_educ_gp==1 & cohort_v3==1 & dissolve_lag==0, by(housework_bkt)
 tabstat weight if couple_educ_gp==1 & cohort_v3==1 & dissolve_lag==1, by(housework_bkt)
+
+********************************************************************************
+**# Is it actually PARENTHOOD?
+* okay seems like not lol
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+// i.num_children -- remove?
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014), or // no association
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014), or // male primary raises risk
+margins, dydx(housework_bkt)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & children==0, or // no association
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & children==0, or // male primary raises risk
+margins, dydx(housework_bkt)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & children==1, or // lol okay no association
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & children==1, or // no association
+margins, dydx(housework_bkt)
+
+/// No College
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0, or 
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0, or // 
+margins, dydx(housework_bkt)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0 & children==0, or // dual earners have higher risk of divorce but not sig
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0 & children==0, or // male primary have highest risk but not sig
+margins, dydx(housework_bkt)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0 & children==1, or // still nothing sig, feels less strong than above
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0 & children==1, or // nothing sig
+margins, dydx(housework_bkt)
+
+/// College
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1, or 
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1, or // 
+margins, dydx(housework_bkt)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & children==0, or // dual-earners have lowest risk, but only marginally sig for female BWs (not sig for male)
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & children==0, or // dual-housework have lowest risk, but only marginally sig for female HW
+margins, dydx(housework_bkt)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & children==1, or // no differences
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & children==1, or // female HW has lowest risk but not sig
+margins, dydx(housework_bkt)
+
+logit dissolve_lag i.dur i.children##i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & hh_earn_type!=4, or
+margins children#hh_earn_type
+marginsplot
+
+logit dissolve_lag i.dur i.children##i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1  & housework_bkt!=4, or
+margins children#housework_bkt
+marginsplot
+
+/// ooh is children UNDER 6 the move?!
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.children_under6##i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & hh_earn_type!=4, or
+margins children_under6#hh_earn_type
+margins children_under6, dydx(hh_earn_type)
+marginsplot
+
+logit dissolve_lag i.dur i.children_under6##i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1  & housework_bkt!=4, or
+margins children_under6#housework_bkt
+margins children_under6, dydx(housework_bkt)
+marginsplot
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.children_under6##i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0 & hh_earn_type!=4, or
+margins children_under6#hh_earn_type
+margins children_under6, dydx(hh_earn_type)
+marginsplot
+
+logit dissolve_lag i.dur i.children_under6##i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0  & housework_bkt!=4, or
+margins children_under6#housework_bkt
+margins children_under6, dydx(housework_bkt)
+marginsplot
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & children_under6==0, or // no association
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & children_under6==0, or // male primary raises risk
+margins, dydx(housework_bkt)
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & children_under6==1, or // lol okay no association - male BW lowest risk, but not sig
+margins, dydx(hh_earn_type)
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' i.couple_educ_gp if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & children_under6==1, or // female HW does have lowest risk...
+margins, dydx(housework_bkt)
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.children_under6##i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & hh_earn_type!=4, or
+margins children_under6#hh_earn_type
+margins children_under6, dydx(hh_earn_type)
+marginsplot
+
+logit dissolve_lag i.dur i.children_under6##i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014)  & housework_bkt!=4, or
+margins children_under6#housework_bkt
+margins children_under6, dydx(housework_bkt)
+marginsplot
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+logit dissolve_lag i.dur i.couple_educ_gp##i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & hh_earn_type!=4 & children_under6==0, or
+margins couple_educ_gp#hh_earn_type
+marginsplot
+
+logit dissolve_lag i.dur i.couple_educ_gp##i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & hh_earn_type!=4 & children_under6==1, or
+margins couple_educ_gp#hh_earn_type
+marginsplot
+
+logit dissolve_lag i.dur i.couple_educ_gp##i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014)  & housework_bkt!=4 & children_under6==0, or
+margins couple_educ_gp#housework_bkt
+marginsplot
+
+logit dissolve_lag i.dur i.couple_educ_gp##i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014)  & housework_bkt!=4 & children_under6==1, or
+margins couple_educ_gp#housework_bkt
+marginsplot
+
+//// attempting figures
+// set scheme cleanplots
+
+* College-educated: paid labor
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.children_under6##ib2.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & hh_earn_type!=4, or
+margins children_under6, dydx(1.hh_earn_type) post
+estimates store est1
+
+logit dissolve_lag i.dur i.children_under6##ib2.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & hh_earn_type!=4, or
+margins children_under6, dydx(3.hh_earn_type) post
+estimates store est2
+
+* College-educated: unpaid labor
+logit dissolve_lag i.dur i.children_under6##ib2.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1  & housework_bkt!=4, or
+margins children_under6, dydx(1.housework_bkt) post
+estimates store est3
+
+logit dissolve_lag i.dur i.children_under6##ib2.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1  & housework_bkt!=4, or
+margins children_under6, dydx(3.housework_bkt) post
+estimates store est4
+
+coefplot (est1, label(Dual-Earner)) (est2, label(Female BW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Male BW) ///
+coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
+
+coefplot (est3, label(Dual-HW)) (est4, label(Male HW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Female HW) ///
+coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
+
+
+*Non-college-educated: paid labor
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.children_under6##ib2.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0 & hh_earn_type!=4, or
+margins children_under6, dydx(1.hh_earn_type) post
+estimates store est5
+
+logit dissolve_lag i.dur i.children_under6##ib2.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0 & hh_earn_type!=4, or
+margins children_under6, dydx(3.hh_earn_type) post
+estimates store est6
+
+*Non-college-educated: unpaid labor
+logit dissolve_lag i.dur i.children_under6##ib2.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0  & housework_bkt!=4, or
+margins children_under6, dydx(1.housework_bkt) post
+estimates store est7
+
+logit dissolve_lag i.dur i.children_under6##ib2.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==0  & housework_bkt!=4, or
+margins children_under6, dydx(3.housework_bkt) post
+estimates store est8
+
+coefplot (est5, label(Dual-Earner)) (est6, label(Female BW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Male BW) ///
+coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
+
+coefplot (est7, label(Dual-HW)) (est8, label(Male HW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Female HW) ///
+coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
+
+*Total Sample: paid labor
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner i.couple_educ_gp"
+
+logit dissolve_lag i.dur i.children_under6##ib2.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & hh_earn_type!=4, or
+margins children_under6, dydx(1.hh_earn_type) post
+estimates store est9
+
+logit dissolve_lag i.dur i.children_under6##ib2.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & hh_earn_type!=4, or
+margins children_under6, dydx(3.hh_earn_type) post
+estimates store est10
+
+*Total Sample: unpaid labor
+logit dissolve_lag i.dur i.children_under6##ib2.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & housework_bkt!=4, or
+margins children_under6, dydx(1.housework_bkt) post
+estimates store est11
+
+logit dissolve_lag i.dur i.children_under6##ib2.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & housework_bkt!=4, or
+margins children_under6, dydx(3.housework_bkt) post
+estimates store est12
+
+coefplot (est9, label(Dual-Earner)) (est10, label(Female BW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Male BW) ///
+coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
+
+coefplot (est11, label(Dual-HW)) (est12, label(Male HW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Female HW) ///
+coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
+
+
+/*
+coefplot (est3, offset(.20) label(No College)) (est4, offset(.20) nokey) (est5, offset(-.20) label(College)) (est6, offset(-.20) nokey) (est1, offset(.20) nokey) (est2, offset(-.20) nokey) (est7, offset(.20) nokey) (est8, offset(-.20) nokey), drop(_cons 0.ft_head) xline(0) levels(90) 
+coeflabels(1.hh_earn_type = "Dual-Earner" 2.hh_earn_type = "Male-Breadwinner" 3.hh_earn_type = "Female-Breadwinner" 1.ft_head = "Husband Employed FT" 1.ft_wife = "Wife Employed FT" 1.housework_bkt = "Dual-Housework" 2.housework_bkt = "Female-Housework" 3.housework_bkt = "Male-Housework") ///
+ headings(1.ft_head= "{bf:Employment Status (M1)}"   1.hh_earn_type = "{bf:Paid Work Arrangement (M2)}"   1.housework_bkt = "{bf:Unpaid Work Arrangement (M4)}")
+*/ 
 
 
 ********************************************************************************

@@ -437,6 +437,10 @@ alpha unemployment_st child_pov_st gini_st parent_earn_ratio_neg_st // 0.41 - ok
 
 alpha unemployment_st child_pov_st cc_pct_income_st, std item
 
+// just childcare
+alpha ccdf_per_cap_st cc_pct_served_st paid_leave_st educ_spend_percap_st, item
+alpha cc_pct_served_st paid_leave_st, item
+
 **ORIGINAL
 egen structural_familism_v0 = rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
 
