@@ -331,7 +331,7 @@ gen gdp_percap_neg = 0 - gdp_per_cap
 
 // earn_ratio lfp_ratio pov_ratio pctfemaleleg paid_leave senate_dems house_dems dv_guns gender_mood pctmaleleg no_paid_leave no_dv_gun_law senate_rep house_rep gender_mood_neg
 
-foreach var in unemployment_neg min_above_fed paid_leave cc_pct_income_neg earn_ratio_neg cc_subsidies unemployment cc_pct_income min_below_fed child_pov child_pov_neg min_wage welfare_all welfare_cash_asst welfare_neg welfare_cash_neg ccdf_direct ccdf_per_cap cc_served_percap cc_pct_served educ_spend educ_spend_percap parent_earn_ratio parent_earn_ratio_neg maternal_employment gdp gdp_neg gdp_per_cap gdp_percap_neg gini gender_discrimin_ban equalpay contraceptive_coverage abortion_protected{
+foreach var in unemployment_neg min_above_fed paid_leave cc_pct_income_neg earn_ratio_neg cc_subsidies unemployment cc_pct_income min_below_fed child_pov child_pov_neg min_wage welfare_all welfare_cash_asst welfare_neg welfare_cash_neg ccdf_direct ccdf_per_cap cc_served_percap cc_pct_served educ_spend educ_spend_percap parent_earn_ratio parent_earn_ratio_neg maternal_employment gdp gdp_neg gdp_per_cap gdp_percap_neg gini gender_discrimin_ban equalpay contraceptive_coverage abortion_protected unemployment_percap prek_enrolled prek_enrolled_public{
 	sum `var'
 	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
 }
@@ -423,6 +423,15 @@ alpha senate_dems_st paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay
 alpha paid_leave_st ccdf_per_cap_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st min_above_fed_st welfare_all_st, item  // 0.75
 alpha paid_leave_st educ_spend_percap_st equalpay_st contraceptive_coverage_st abortion_protected_st min_above_fed_st welfare_all_st, item  // 0.76
 
+// okay maybe actually final?! (3/15/24)
+alpha paid_leave_st prek_enrolled_public_st abortion_protected_st welfare_all_st // family vars
+alpha min_above_fed_st parent_earn_ratio_neg_st unemployment_percap_st // work vars
+alpha min_above_fed_st earn_ratio_neg_st unemployment_percap_st // work vars
+
+alpha paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st, item // now 0.61
+alpha paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st, item // 0.71
+alpha paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st contraceptive_coverage_st abortion_protected_st welfare_all_st, item // 0.75
+
 /// you can also just create a scale using alpha - see help alpha, instead of creating like I do below?
 
 // using: economic
@@ -441,26 +450,29 @@ alpha unemployment_st child_pov_st cc_pct_income_st, std item
 alpha ccdf_per_cap_st cc_pct_served_st paid_leave_st educ_spend_percap_st, item
 alpha cc_pct_served_st paid_leave_st, item
 
-**ORIGINAL
-egen structural_familism_v0 = rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
+**USE
+egen structural_familism = rowtotal(paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st)
 
-**NEW
+/*
+**OLD
+egen structural_familism_v0 = rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
 egen structural_familism = rowtotal(min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st parent_earn_ratio_neg_st)
 egen structural_familism_alt = rowtotal(min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st)
+*/
 
 egen economic_challenges = rowtotal(unemployment_st child_pov_st gini_st)
 egen economic_challenges_alt = rowtotal(unemployment_st child_pov_st)
 
-tabstat structural_familism_v0 structural_familism, by(state)
+// tabstat structural_familism_v0 structural_familism, by(state)
+tabstat structural_familism, by(state)
 browse state year structural_familism unemployment child_pov min_above_fed paid_leave senate_dems welfare_cash_asst
-pwcorr structural_familism_v0 structural_familism
-pwcorr structural_familism structural_sexism
+// pwcorr structural_familism_v0 structural_familism
+pwcorr structural_familism structural_sexism // negative correlated which makes sense - sexism = bad, familism = good
 pwcorr structural_familism economic_challenges // hmm positively correlated
 pwcorr structural_familism economic_challenges_alt // no correlation
 
 **Second approach: Factor-based
-factor unemployment_st child_pov_st min_below_fed_st no_paid_leave_st senate_rep_st welfare_cash_neg_st, ipf // Only 1 factor (factor 1) has eigenvalue greater than 1
-factor min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st parent_earn_ratio_neg_st, ipf  // ccdf_per_cap_st
+factor paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st, ipf  // ccdf_per_cap_st
 predict f1
 pwcorr f1 structural_familism // so if I make a factor variable, VERY correlated
 

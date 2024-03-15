@@ -939,6 +939,18 @@ marginsplot
 * College-educated: paid labor
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
 
+logit dissolve_lag i.dur ib2.hh_earn_type knot1 knot2 knot3 `controls' i.children_under6 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & hh_earn_type!=4, or
+margins, dydx(1.hh_earn_type) post
+estimates store est1a
+
+logit dissolve_lag i.dur ib2.hh_earn_type knot1 knot2 knot3 `controls' i.children_under6 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & hh_earn_type!=4, or
+margins, dydx(3.hh_earn_type) post
+estimates store est2a
+
+logit dissolve_lag i.dur ib2.hh_earn_type knot1 knot2 knot3 `controls' i.children_under6 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & hh_earn_type!=4, or
+margins, dydx(hh_earn_type) post
+estimates store est3a
+
 logit dissolve_lag i.dur i.children_under6##ib2.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1990,2014) & couple_educ_gp==1 & hh_earn_type!=4, or
 margins children_under6, dydx(1.hh_earn_type) post
 estimates store est1
@@ -956,11 +968,16 @@ logit dissolve_lag i.dur i.children_under6##ib2.housework_bkt knot1 knot2 knot3 
 margins children_under6, dydx(3.housework_bkt) post
 estimates store est4
 
+coefplot (est1a, label(Dual-Earner)) (est2a, label(Female BW)) (est1, label(Dual-Earner)) (est2, label(Female BW)),  drop(_cons 2.hh_earn_type) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Male BW) ///
+coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
+
 coefplot (est1, label(Dual-Earner)) (est2, label(Female BW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Male BW) ///
 coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
 
 coefplot (est3, label(Dual-HW)) (est4, label(Male HW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Female HW) ///
 coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
+
+// graph combine all parents, col(1) xcommon fxsize(105)
 
 
 *Non-college-educated: paid labor
