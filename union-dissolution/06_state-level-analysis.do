@@ -330,7 +330,7 @@ new policy file: "T:\Research Projects\State data\data_keep\final_measures.dta"
 
 rename STATE_ state_fips
 rename survey_yr year
-merge m:1 state_fips year using "T:\Research Projects\State data\data_keep\cspp_data_1985_2019.dta", keepusing(statemin masssociallib_est policysociallib_est policyeconlib_est unemployment state_cpi_bfh_est)
+merge m:1 state_fips year using "T:\Research Projects\State data\data_keep\cspp_data_1985_2019.dta", keepusing(statemin masssociallib_est policysociallib_est policyeconlib_est unemployment state_cpi_bfh_est pollib_median)
 
 drop if _merge==2
 drop _merge
@@ -621,6 +621,11 @@ logit dissolve_lag i.dur c.welfare_all i.hh_earn_type c.welfare_all#i.hh_earn_ty
 margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
+* General State Policy Liberalism (from CSPP - use to compare to familism results)
+logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if hh_earn_type < 4, or
+margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3"
 
 /* No College */
@@ -665,6 +670,11 @@ logit dissolve_lag i.dur c.welfare_all i.hh_earn_type c.welfare_all#i.hh_earn_ty
 margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
+* General State Policy Liberalism (from CSPP - use to compare to familism results)
+logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
 
 /* College */
 * Structural familism - to test
@@ -708,6 +718,10 @@ logit dissolve_lag i.dur c.welfare_all i.hh_earn_type c.welfare_all#i.hh_earn_ty
 margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
+* General State Policy Liberalism (from CSPP - use to compare to familism results)
+logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3)) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
 * Margins: using percentiles for "high" and "low" to get figures
