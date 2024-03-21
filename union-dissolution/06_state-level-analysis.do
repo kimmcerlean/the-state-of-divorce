@@ -724,7 +724,107 @@ margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3)) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
-* Margins: using percentiles for "high" and "low" to get figures
+**# Results by parental status (restricted to parents of young children)
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children
+
+/* Parents */
+* Structural familism
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Paid Leave
+logit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type) at(paid_leave=(0 1)) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* PreK Enrollment
+logit dissolve_lag i.dur c.prek_enrolled_public i.hh_earn_type c.prek_enrolled_public#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+sum prek_enrolled_public, detail
+margins, dydx(hh_earn_type) at(prek_enrolled_public=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Min Wage
+logit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type) at(min_above_fed=(0 1)) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Earnings Ratio
+logit dissolve_lag i.dur c.earn_ratio i.hh_earn_type c.earn_ratio#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+sum earn_ratio, detail
+margins, dydx(hh_earn_type) at(earn_ratio=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Unemployment Compensation
+logit dissolve_lag i.dur c.unemployment_percap i.hh_earn_type c.unemployment_percap#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+sum unemployment_percap, detail
+margins, dydx(hh_earn_type) at(unemployment_percap=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Abortion protected
+logit dissolve_lag i.dur i.abortion_protected i.hh_earn_type i.abortion_protected#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+margins, dydx(2.hh_earn_type) at(abortion_protected=(0 1)) post // had to update bc #3 is collinnear
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent abortion) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Welfare Expenditures
+logit dissolve_lag i.dur c.welfare_all i.hh_earn_type c.welfare_all#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+sum welfare_all, detail
+margins, dydx(hh_earn_type) at(welfare_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* NOT Parents */
+* Structural familism
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(nos 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Paid Leave
+logit dissolve_lag i.dur i.paid_leave i.hh_earn_type i.paid_leave#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type) at(paid_leave=(0 1)) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* PreK Enrollment
+logit dissolve_lag i.dur c.prek_enrolled_public i.hh_earn_type c.prek_enrolled_public#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
+sum prek_enrolled_public, detail
+margins, dydx(hh_earn_type) at(prek_enrolled_public=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Min Wage
+logit dissolve_lag i.dur i.min_above_fed i.hh_earn_type i.min_above_fed#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
+margins, dydx(hh_earn_type) at(min_above_fed=(0 1)) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Earnings Ratio
+logit dissolve_lag i.dur c.earn_ratio i.hh_earn_type c.earn_ratio#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
+sum earn_ratio, detail
+margins, dydx(hh_earn_type) at(earn_ratio=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Unemployment Compensation
+logit dissolve_lag i.dur c.unemployment_percap i.hh_earn_type c.unemployment_percap#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
+sum unemployment_percap, detail
+margins, dydx(hh_earn_type) at(unemployment_percap=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Abortion protected
+logit dissolve_lag i.dur i.abortion_protected i.hh_earn_type i.abortion_protected#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
+margins, dydx(2.hh_earn_type) at(abortion_protected=(0 1)) post // had to update bc #3 is collinnear
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no abortion) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Welfare Expenditures
+logit dissolve_lag i.dur c.welfare_all i.hh_earn_type c.welfare_all#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
+sum welfare_all, detail
+margins, dydx(hh_earn_type) at(welfare_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+
+********************************************************************************
+**# Margins: using percentiles for "high" and "low" to get figures
 ********************************************************************************
 
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3"
@@ -764,6 +864,46 @@ sum structural_familism, detail
 margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 marginsplot, xtitle("Structural Familism Scale: percentiles") yline(0,lcolor(gs3))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
 
+
+// Parents
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4 & state_fips!=11, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot, xtitle("Structural Familism Scale: percentiles") yline(0,lcolor(gs3))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) // yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+
+// NOT Parents
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4 & state_fips!=11, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot, xtitle("Structural Familism Scale: percentiles") yline(0,lcolor(gs3))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) // yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+
+// Parents + college
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3"
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot, xtitle("Structural Familism Scale: percentiles") yline(0,lcolor(gs3))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) // yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot, xtitle("Structural Familism Scale: percentiles") yline(0,lcolor(gs3))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) // yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+
+// NOT parents + college
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3"
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==0 & couple_educ_gp==0 & hh_earn_type < 4 & state_fips!=11, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot, xtitle("Structural Familism Scale: percentiles") yline(0,lcolor(gs3))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) // yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==0 & couple_educ_gp==1 & hh_earn_type < 4 & state_fips!=11, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot, xtitle("Structural Familism Scale: percentiles") yline(0,lcolor(gs3))  ytitle("Average Marginal Effects: Marital Dissolution") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) // yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
 
 ********************************************************************************
 ********************************************************************************
