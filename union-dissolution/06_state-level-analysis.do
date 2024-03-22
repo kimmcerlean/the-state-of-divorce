@@ -580,10 +580,12 @@ marginsplot, xtitle("Structural Familism Scale") yline(0,lcolor(gs3)) yscale(ran
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"
 
 /* Total Sample*/
-* Structural familism - to test
+* Structural familism
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if hh_earn_type < 4, or
 outreg2 using "$results/dissolution_AMES_familism.xls", sideway stats(coef pval) label ctitle(1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10)) post
+margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10))
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Paid Leave
@@ -593,7 +595,9 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(paidleave) dec(4)
 
 * PreK Enrollment
 logit dissolve_lag i.dur c.prek_enrolled_public i.hh_earn_type c.prek_enrolled_public#i.hh_earn_type `controls' if hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(prek_enrolled_public=(.10(.10).50)) post
+margins, dydx(hh_earn_type) at(prek_enrolled_public=(.10(.10).50))
+sum prek_enrolled_public, detail
+margins, dydx(hh_earn_type) at(prek_enrolled_public=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Min Wage
@@ -603,12 +607,16 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(minwage) dec(4) a
 
 * Earnings Ratio
 logit dissolve_lag i.dur c.earn_ratio i.hh_earn_type c.earn_ratio#i.hh_earn_type `controls' if hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(earn_ratio=(1(.1)1.5)) post
+margins, dydx(hh_earn_type) at(earn_ratio=(1(.1)1.5))
+sum earn_ratio, detail
+margins, dydx(hh_earn_type) at(earn_ratio=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Unemployment Compensation
 logit dissolve_lag i.dur c.unemployment_percap i.hh_earn_type c.unemployment_percap#i.hh_earn_type `controls' if hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(unemployment_percap=(50(50)500)) post
+margins, dydx(hh_earn_type) at(unemployment_percap=(50(50)500))
+sum unemployment_percap, detail
+margins, dydx(hh_earn_type) at(unemployment_percap=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Abortion protected
@@ -618,12 +626,16 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(abortion) dec(4) 
 
 * Welfare Expenditures
 logit dissolve_lag i.dur c.welfare_all i.hh_earn_type c.welfare_all#i.hh_earn_type `controls' if hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500)) post
+margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500))
+sum welfare_all, detail
+margins, dydx(hh_earn_type) at(welfare_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * General State Policy Liberalism (from CSPP - use to compare to familism results)
 logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3)) post
+margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3))
+sum pollib_median, detail
+margins, dydx(hh_earn_type) at(pollib_median=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3"
@@ -632,7 +644,9 @@ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race
 * Structural familism - to test
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
 outreg2 using "$results/dissolution_AMES_familism.xls", sideway stats(coef pval) label ctitle(No 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10)) post
+margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10))
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Paid Leave
@@ -642,7 +656,9 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no paidleave) dec
 
 * PreK Enrollment
 logit dissolve_lag i.dur c.prek_enrolled_public i.hh_earn_type c.prek_enrolled_public#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(prek_enrolled_public=(.10(.10).50)) post
+margins, dydx(hh_earn_type) at(prek_enrolled_public=(.10(.10).50))
+sum prek_enrolled_public, detail
+margins, dydx(hh_earn_type) at(prek_enrolled_public=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Min Wage
@@ -652,12 +668,16 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no minwage) dec(4
 
 * Earnings Ratio
 logit dissolve_lag i.dur c.earn_ratio i.hh_earn_type c.earn_ratio#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(earn_ratio=(1(.1)1.5)) post
+margins, dydx(hh_earn_type) at(earn_ratio=(1(.1)1.5))
+sum earn_ratio, detail
+margins, dydx(hh_earn_type) at(earn_ratio=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Unemployment Compensation
 logit dissolve_lag i.dur c.unemployment_percap i.hh_earn_type c.unemployment_percap#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(unemployment_percap=(50(50)500)) post
+margins, dydx(hh_earn_type) at(unemployment_percap=(50(50)500))
+sum unemployment_percap, detail
+margins, dydx(hh_earn_type) at(unemployment_percap=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Abortion protected
@@ -667,12 +687,16 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no abortion) dec(
 
 * Welfare Expenditures
 logit dissolve_lag i.dur c.welfare_all i.hh_earn_type c.welfare_all#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500)) post
+margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500))
+sum welfare_all, detail
+margins, dydx(hh_earn_type) at(welfare_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * General State Policy Liberalism (from CSPP - use to compare to familism results)
 logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if couple_educ_gp==0 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3)) post
+margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3))
+sum pollib_median, detail
+margins, dydx(hh_earn_type) at(pollib_median=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 
@@ -680,7 +704,9 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(no liberalism) de
 * Structural familism - to test
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
 outreg2 using "$results/dissolution_AMES_familism.xls", sideway stats(coef pval) label ctitle(Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10)) post
+margins, dydx(hh_earn_type) at(structural_familism=(-5(1)10))
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Paid Leave
@@ -690,7 +716,9 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col paidleave) de
 
 * PreK Enrollment
 logit dissolve_lag i.dur c.prek_enrolled_public i.hh_earn_type c.prek_enrolled_public#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(prek_enrolled_public=(.10(.10).50)) post
+margins, dydx(hh_earn_type) at(prek_enrolled_public=(.10(.10).50))
+sum prek_enrolled_public, detail
+margins, dydx(hh_earn_type) at(prek_enrolled_public=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Min Wage
@@ -700,12 +728,16 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col minwage) dec(
 
 * Earnings Ratio
 logit dissolve_lag i.dur c.earn_ratio i.hh_earn_type c.earn_ratio#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(earn_ratio=(1(.1)1.5)) post
+margins, dydx(hh_earn_type) at(earn_ratio=(1(.1)1.5))
+sum earn_ratio, detail
+margins, dydx(hh_earn_type) at(earn_ratio=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Unemployment Compensation
 logit dissolve_lag i.dur c.unemployment_percap i.hh_earn_type c.unemployment_percap#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(unemployment_percap=(50(50)500)) post
+margins, dydx(hh_earn_type) at(unemployment_percap=(50(50)500))
+sum unemployment_percap, detail
+margins, dydx(hh_earn_type) at(unemployment_percap=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * Abortion protected
@@ -715,12 +747,16 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col abortion) dec
 
 * Welfare Expenditures
 logit dissolve_lag i.dur c.welfare_all i.hh_earn_type c.welfare_all#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500)) post
+margins, dydx(hh_earn_type) at(welfare_all=(500(500)2500))
+sum welfare_all, detail
+margins, dydx(hh_earn_type) at(welfare_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 * General State Policy Liberalism (from CSPP - use to compare to familism results)
 logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if couple_educ_gp==1 & hh_earn_type < 4, or
-margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3)) post
+margins, dydx(hh_earn_type) at(pollib_median=(-2(1)3))
+sum pollib_median, detail
+margins, dydx(hh_earn_type) at(pollib_median=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
