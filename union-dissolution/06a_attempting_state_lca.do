@@ -465,6 +465,7 @@ egen economic_challenges_alt = rowtotal(unemployment_st child_pov_st)
 
 // tabstat structural_familism_v0 structural_familism, by(state)
 tabstat structural_familism, by(state)
+tabstat structural_familism paid_leave prek_enrolled_public min_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all, by(state)
 browse state year structural_familism unemployment child_pov min_above_fed paid_leave senate_dems welfare_cash_asst
 // pwcorr structural_familism_v0 structural_familism
 pwcorr structural_familism structural_sexism // negative correlated which makes sense - sexism = bad, familism = good
