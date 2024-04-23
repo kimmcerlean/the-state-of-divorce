@@ -302,6 +302,22 @@ mkspline knotx1 20 knotx2 = earnings_1000s
 xtile earnings_tertile = earnings_1000s, nquantiles(3)
 xtile head_tertile = earnings_head, nquantiles(3)
 
+// alternate wealth measures
+*Convert to 1000s
+gen wealth_no_1000s = WEALTH_NO_EQUITY_i / 1000
+gen wealth_eq_1000s = WEALTH_EQUITY_i / 1000
+
+*log
+gen wealth_no_ln = ln(WEALTH_NO_EQUITY_i+.01) // oh wait, this is less good for wealth, because you can't log negatives gah
+gen wealth_eq_ln = ln(WEALTH_EQUITY_i+.01) // oh wait, this is less good for wealth, because you can't log negatives gah
+gen house_value_ln = ln(HOUSE_VALUE_+.01)
+gen vehicle_value_ln = ln(VEHICLE_VALUE_i+.01)
+
+*splines at different values?
+sum wealth_eq_1000s, detail
+mkspline wealth1 0 wealth2 `r(p25)' wealth3 `r(p50)' wealth4 `r(p75)' wealth5 = wealth_eq_1000s
+browse wealth_eq_1000s wealth1 wealth2 wealth3 wealth4 wealth5
+
 * Employment 
 gen couple_work=.
 replace couple_work=1 if ft_head==1 & ft_wife==1
@@ -349,9 +365,14 @@ label values num_children num_children
 gen age_mar_head_sq = age_mar_head * age_mar_head
 gen age_mar_wife_sq = age_mar_wife * age_mar_wife
 
-// create binary home ownership variable
+// create binary ownership variables
 gen home_owner=0
 replace home_owner=1 if HOUSE_STATUS_==1
+
+gen vehicle_owner=.
+replace vehicle_owner=0 if VEHICLE_OWN_e==5
+replace vehicle_owner=1 if VEHICLE_OWN_e==1
+
 
 // create new variable for having kids under 6 in household
 gen children_under6=0
@@ -442,6 +463,348 @@ replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29
 // original: local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 **# Analysis starts
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# Updated analysis for Chapter 2 (post SS rejection)
+********************************************************************************
+********************************************************************************
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+margins, dydx(hh_earn_type)
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+margins, dydx(hh_earn_type)
+
+*|*|*|*|*|*|*|*|* models with no controls, key independent variables *|*|*|*|*|*|*|*|*
+// let's just explore basic relationships and decide on variables, then go from there.
+
+**College-educated
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.housework_bkt if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.earn_type_hw if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol interaction
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // income
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll4) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_no_1000s if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - no equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll5) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_eq_1000s if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll6) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth1 wealth2 wealth3 wealth4 wealth5 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - splines
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll7) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.home_owner if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // home owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll8) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.vehicle_owner if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // vehicle owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll9) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur house_value_ln if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // house value
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll10) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur vehicle_value_ln if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // vehicle value (interpolated)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll11) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.receive_transfers if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // receive public / private transfers
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll12) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.children if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // has children (joint investment)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll13) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Non-college-educated
+logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.earn_type_hw if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol interaction
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // income
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No4) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_no_1000s if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - no equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No5) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_eq_1000s if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No6) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth1 wealth2 wealth3 wealth4 wealth5 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - splines
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No7) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.home_owner if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // home owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No8) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.vehicle_owner if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // vehicle owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No9) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur house_value_ln if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // house value
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No10) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur vehicle_value_ln if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // vehicle value (interpolated)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No11) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.receive_transfers if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // receive public / private transfers
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No12) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.children if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // has children (joint investment)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No13) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+*|*|*|*|*|*|*|*|* just add income as one key confounder *|*|*|*|*|*|*|*|*
+
+**College-educated
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol interaction
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // income
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll4) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_no_1000s knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - no equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll5) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_eq_1000s knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll6) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth1 wealth2 wealth3 wealth4 wealth5 knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - splines
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll7) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.home_owner knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // home owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll8) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.vehicle_owner knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // vehicle owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll9) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur house_value_ln knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // house value
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll10) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur vehicle_value_ln knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // vehicle value (interpolated)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll11) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.receive_transfers knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // receive public / private transfers
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll12) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.children knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // has children (joint investment)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(Coll13) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Non-college-educated
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol interaction
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // income
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No4) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_no_1000s knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - no equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No5) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_eq_1000s knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No6) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth1 wealth2 wealth3 wealth4 wealth5 knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - splines
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No7) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.home_owner knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // home owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No8) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.vehicle_owner knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // vehicle owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No9) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur house_value_ln knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // house value
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No10) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur vehicle_value_ln knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // vehicle value (interpolated)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No11) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.receive_transfers knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // receive public / private transfers
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No12) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.children knot1 knot2 knot3 if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // has children (joint investment)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_inc.xls", sideway stats(coef se pval) ctitle(No13) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+*|*|*|*|*|*|*|*|* all controls *|*|*|*|*|*|*|*|*
+// eventually figure out if I need a different wealth indicator?
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+**College-educated
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // dol interaction
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // income
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll4) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_no_1000s knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - no equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll5) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_eq_1000s knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll6) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth1 wealth2 wealth3 wealth4 wealth5 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // wealth - splines
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll7) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.home_owner knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // home owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll8) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.vehicle_owner knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // vehicle owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll9) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur house_value_ln knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // house value
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll10) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur vehicle_value_ln knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // vehicle value (interpolated)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll11) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.receive_transfers knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // receive public / private transfers
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll12) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.children knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or // has children (joint investment)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(Coll13) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**Non-college-educated
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol interaction
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // income
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No4) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_no_1000s knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - no equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No5) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth_eq_1000s knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - equity
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No6) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur wealth1 wealth2 wealth3 wealth4 wealth5 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // wealth - splines
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No7) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.home_owner knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // home owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No8) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.vehicle_owner knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // vehicle owner
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No9) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur house_value_ln knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // house value
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No10) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur vehicle_value_ln knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // vehicle value (interpolated)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No11) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.receive_transfers knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // receive public / private transfers
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No12) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur i.children knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // has children (joint investment)
+margins, dydx(*) post
+outreg2 using "$results/dissolution_chapter2_controls.xls", sideway stats(coef se pval) ctitle(No13) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 ********************************************************************************
 ********************************************************************************
@@ -792,7 +1155,7 @@ tabstat weight if couple_educ_gp==1 & cohort_v3==1 & dissolve_lag==1, by(housewo
 
 ********************************************************************************
 **# Is it actually PARENTHOOD?
-* okay seems like not lol
+* okay seems like not lol - though maybe kids UNDER 6??
 ********************************************************************************
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth   i.interval i.home_owner"
 // i.num_children -- remove?

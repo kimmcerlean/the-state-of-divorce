@@ -193,8 +193,8 @@ browse relationship dissolve MARITAL_STATUS_REF_ MARITAL_STATUS_HEAD_ COUPLE_STA
 browse id survey_yr relationship dissolve MARITAL_STATUS_REF_
 
 gen relationship_type=0
-replace relationship_type=1 if NUM_MARRIED_2019==0
-replace relationship_type=2 if NUM_MARRIED_2019>=1
+replace relationship_type=1 if NUM_MARRIED==0
+replace relationship_type=2 if NUM_MARRIED>=1
 replace relationship_type=1 if either_cohab==22
 replace relationship_type=1 if inrange(MARITAL_STATUS_REF_,2,9)
 sort id survey_yr
@@ -763,6 +763,51 @@ replace housing_costs_use = total_annual_rent_std if HOUSE_STATUS_==5
 replace housing_costs_use = HOUSE_VALUE_std if HOUSE_STATUS_==1
 
 replace CHILDCARE_COSTS_=. if inlist(CHILDCARE_COSTS_,99998,99999,999998,999999)
+
+// other joint investments
+* wealth - can I interpolate in between the years I don't have?
+browse id survey_yr WEALTH_NO_EQUITY_ WEALTH_EQUITY_
+
+by id: ipolate WEALTH_NO_EQUITY_ survey_yr if survey_yr>=1984 & survey_yr<=2019, gen(WEALTH_NO_EQUITY_i)
+by id: ipolate WEALTH_EQUITY_ survey_yr if survey_yr>=1984 & survey_yr<=2019, gen(WEALTH_EQUITY_i)
+
+* same with vehicle ownership and value
+browse id survey_yr VEHICLE_OWN_ VEHICLE_VALUE_
+by id: ipolate VEHICLE_OWN_ survey_yr, gen(VEHICLE_OWN_i) // so this only works if there is another observed value. so, for some, there is just a last value, so it doesn't carry that through. can I add tht in? oh is that where ipolate works?
+by id: ipolate VEHICLE_OWN_ survey_yr, gen(VEHICLE_OWN_e) epolate
+browse id survey_yr VEHICLE_OWN_*
+
+replace VEHICLE_OWN_e=1 if VEHICLE_OWN_e>=1 & VEHICLE_OWN_e<5 // so if changes from 1 to 5, fills in, let's set all to 1
+replace VEHICLE_OWN_e=1 if VEHICLE_OWN_e<=1 // negatives also seem to be because blanks turn to 1
+replace VEHICLE_OWN_e=5 if VEHICLE_OWN_e>=5 & VEHICLE_OWN_e<100  // make these nos - if no, or dk, or anything in between
+
+	// bysort id: egen vehicle_own_last = mode(VEHICLE_OWN_)
+	// browse id survey_yr VEHICLE_OWN_ vehicle_own_last VEHICLE_OWN_i
+	// replace VEHICLE_OWN_i = vehicle_own_last if VEHICLE_OWN_i==.
+
+by id: ipolate VEHICLE_VALUE_ survey_yr if survey_yr>=1984 & survey_yr<=2019, gen(VEHICLE_VALUE_i)
+
+* other assets - okay let's just use wealth
+tabstat DIVIDENDS_JOINT_ DIVIDENDS_HEAD_ DIVIDENDS_SPOUSE_, by(survey_yr)
+browse id survey_yr DIVIDENDS_JOINT_ DIVIDENDS_HEAD_ DIVIDENDS_SPOUSE_ // okay joint not that useful - not many say yes and only since 2003. very few spouses also have dividends... okay let's not use these
+
+tabstat INTEREST_JOINT_ BANK_ASSETS_ OTHER_ASSETS_ STOCKS_MF_, by(survey_yr)
+
+// indicators of hardship
+tabstat WELFARE_HEAD_1_  WELFARE_HEAD_2_ WELFARE_SPOUSE_1_ WELFARE_SPOUSE_2_ WELFARE_JOINT_, by(survey_yr) // 1 and 2 have overlapping years, see if they match, then decide which to use - these feel very not matched?!
+browse id survey_yr WELFARE_HEAD_1_  WELFARE_HEAD_2_ WELFARE_SPOUSE_1_ WELFARE_SPOUSE_2_ WELFARE_JOINT_ // 1 and 2 have overlapping years, see if they match, then decide which to use - okay incidence is SO LOW. this also doesn't feel right??
+
+gen receive_welfare=.
+replace receive_welfare=0 if WELFARE_JOINT_==0 & survey_yr <=1985 // only indicator at this time
+replace receive_welfare=0 if WELFARE_HEAD_1_==0 & WELFARE_SPOUSE_1_==0 & survey_yr >1985 & survey_yr < 1993
+replace receive_welfare=0 if WELFARE_HEAD_2_==0 & WELFARE_SPOUSE_2_==0 & survey_yr >1985 & survey_yr >=1993
+replace receive_welfare=1 if WELFARE_JOINT_>0 & WELFARE_JOINT_!=. & survey_yr <=1985 // only indicator at this time
+replace receive_welfare=1 if ((WELFARE_HEAD_1_>0 & WELFARE_HEAD_1_!=.) | (WELFARE_SPOUSE_1_>0 & WELFARE_SPOUSE_1_!=.)) & survey_yr >1985 & survey_yr < 1993
+replace receive_welfare=1 if ((WELFARE_HEAD_2_>0 & WELFARE_HEAD_2_!=.) | (WELFARE_SPOUSE_2_>0 & WELFARE_SPOUSE_2_!=.))  & survey_yr >1985 & survey_yr >=1993
+
+gen receive_transfers=.
+replace receive_transfers=0 if TRANSFER_INCOME_==0
+replace receive_transfers=1 if TRANSFER_INCOME_>0 &TRANSFER_INCOME_!=.
 
 // also age at relationship start
 browse id survey_yr rel_start_all FIRST_MARRIAGE_YR_START BIRTH_YR_ AGE_REF_ AGE_SPOUSE_
