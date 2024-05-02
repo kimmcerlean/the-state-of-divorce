@@ -81,6 +81,15 @@ replace no_college_bkd=3 if couple_educ_gp==0 & educ_wife<educ_head & educ_head!
 replace no_college_bkd=0 if couple_educ_gp==1
 label values no_college_bkd college_bkd
 
+gen couple_educ_detail=.
+replace couple_educ_detail=0 if educ_wife!=4 & educ_head!=4
+replace couple_educ_detail=1 if educ_wife==4 & educ_head==4
+replace couple_educ_detail=2 if educ_wife==4 & inlist(educ_head,1,2,3)
+replace couple_educ_detail=3 if educ_head==4 & inlist(educ_wife,1,2,3)
+
+label define couple_educ_detail 0 "Neither" 1 "Both" 2 "Wife" 3 "Husband"
+label values couple_educ_detail couple_educ_detail
+
 // more discrete measures of work contributions
 input group
 .10
@@ -160,7 +169,7 @@ replace division_bucket = 2 if hh_earn_type== 2 & housework_bkt== 2 // male bw, 
 replace division_bucket = 3 if hh_earn_type== 3 & housework_bkt== 3 // female bw, male hw
 replace division_bucket = 4 if hh_earn_type== 1 & housework_bkt== 2 // dual, female hw
 
-label define division_bucket 1 "Dual" 2 "Male BW" 3 "Female BW" 4 "Necessity" 5 "All Other"
+label define division_bucket 1 "Dual" 2 "Traditional" 3 "Counter-traditional" 4 "Second shift" 5 "All Other"
 label values division_bucket division_bucket
 
 // this doesn't capture OVERWORK
@@ -759,6 +768,42 @@ sum pollib_median, detail
 margins, dydx(hh_earn_type) at(pollib_median=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(col liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
+/* College Breakdowns */
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3"
+
+* Structural familism
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_detail==1 & hh_earn_type < 4, or // both college
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(both familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_detail==2 & hh_earn_type < 4, or // her college college
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(her familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if couple_educ_detail==3 & hh_earn_type < 4, or // him college college
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(him familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* General State Policy Liberalism (from CSPP - use to compare to familism results)
+logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if couple_educ_detail==1 & hh_earn_type < 4, or // both college
+sum pollib_median, detail
+margins, dydx(hh_earn_type) at(pollib_median=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(both liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if couple_educ_detail==2 & hh_earn_type < 4, or // her college college
+sum pollib_median, detail
+margins, dydx(hh_earn_type) at(pollib_median=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(her liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.pollib_median i.hh_earn_type c.pollib_median#i.hh_earn_type `controls' if couple_educ_detail==3 & hh_earn_type < 4, or // him college college
+sum pollib_median, detail
+margins, dydx(hh_earn_type) at(pollib_median=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(him liberalism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+
 ********************************************************************************
 **# Results by parental status (restricted to parents of young children)
 ********************************************************************************
@@ -858,6 +903,184 @@ sum welfare_all, detail
 margins, dydx(hh_earn_type) at(welfare_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3"
+
+/* College x Parental Status */
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & couple_educ_gp==1 & hh_earn_type < 4, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(col parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==0 & couple_educ_gp==1 & hh_earn_type < 4, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(col no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* No College x Parental Status */
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & couple_educ_gp==0 & hh_earn_type < 4, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==0 & couple_educ_gp==0 & hh_earn_type < 4, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+
+********************************************************************************
+**# Unpaid Labor
+* Just doing key IV across groups of interest (aka structural familism)
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3"
+
+/* No College */
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if couple_educ_gp==0 & housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(no familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+/* College */
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if couple_educ_gp==1 & housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(col familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* College Breakdowns */
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if couple_educ_detail==1 & housework_bkt < 4, or // both college
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(both familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if couple_educ_detail==2 & housework_bkt < 4, or // her college
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(her familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if couple_educ_detail==3 & housework_bkt < 4, or // him college
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(him familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* College x Parental Status */
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if children_under6==1 & couple_educ_gp==1 & housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(col parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if children_under6==0 & couple_educ_gp==1 & housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(col no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* No College x Parental Status */
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if children_under6==1 & couple_educ_gp==0 & housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' if children_under6==0 & couple_educ_gp==0 & housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(no no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* Overall */
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' i.couple_educ_gp if housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(ovrl familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* Overall x Parental Status */
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' i.couple_educ_gp if children_under6==1 & housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(ovrl par familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.housework_bkt c.structural_familism#i.housework_bkt `controls' i.couple_educ_gp if children_under6==0 & housework_bkt < 4, or
+sum structural_familism, detail
+margins, dydx(housework_bkt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_unpaid.xls", ctitle(ovrl not familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+********************************************************************************
+**# Combined paid and unpaid labor
+* Just doing key IV across groups of interest (aka structural familism)
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3"
+
+/* No College */
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if couple_educ_gp==0, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(no familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve_lag i.dur c.structural_familism ib2.division_bucket c.structural_familism#ib2.division_bucket `controls' if couple_educ_gp==0, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+/* College */
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if couple_educ_gp==1, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(col familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism ib2.division_bucket c.structural_familism#ib2.division_bucket `controls' if couple_educ_gp==1, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+/* College Breakdowns */
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if couple_educ_detail==1, or // both college
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(both familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if couple_educ_detail==2, or // her college
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(her familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if couple_educ_detail==3, or // him college
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(him familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* College x Parental Status */
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if children_under6==1 & couple_educ_gp==1, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(col parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if children_under6==0 & couple_educ_gp==1, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(col no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* No College x Parental Status */
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if children_under6==1 & couple_educ_gp==0, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' if children_under6==0 & couple_educ_gp==0, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(no no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* Overall */
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' i.couple_educ_gp, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(ovrl familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+/* Overall x Parental Status */
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' i.couple_educ_gp if children_under6==1, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(ovrl par familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+logit dissolve_lag i.dur c.structural_familism i.division_bucket c.structural_familism#i.division_bucket `controls' i.couple_educ_gp if children_under6==0, or
+sum structural_familism, detail
+margins, dydx(division_bucket) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/AMES_familism_combined.xls", ctitle(ovrl not familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
 **# Margins: using percentiles for "high" and "low" to get figures

@@ -303,6 +303,9 @@ xtile earnings_tertile = earnings_1000s, nquantiles(3)
 xtile head_tertile = earnings_head, nquantiles(3)
 
 // alternate wealth measures
+replace HOUSE_VALUE_ = 0 if inlist(HOUSE_VALUE_,9999998,9999999)
+replace VEHICLE_VALUE_i = 0 if inlist(VEHICLE_VALUE_i,9999998,9999999)
+
 *Convert to 1000s
 gen wealth_no_1000s = WEALTH_NO_EQUITY_i / 1000
 gen wealth_eq_1000s = WEALTH_EQUITY_i / 1000
@@ -310,11 +313,12 @@ gen wealth_eq_1000s = WEALTH_EQUITY_i / 1000
 *log
 gen wealth_no_ln = ln(WEALTH_NO_EQUITY_i+.01) // oh wait, this is less good for wealth, because you can't log negatives gah
 gen wealth_eq_ln = ln(WEALTH_EQUITY_i+.01) // oh wait, this is less good for wealth, because you can't log negatives gah
-gen house_value_ln = ln(HOUSE_VALUE_+.01)
-gen vehicle_value_ln = ln(VEHICLE_VALUE_i+.01)
+gen house_value_ln = ln(HOUSE_VALUE_+.01) // just a note - Killewald 2023 uses linear
+gen vehicle_value_ln = ln(VEHICLE_VALUE_i+.01) // just a note - Killewald 2023 uses linear
 
 *splines at different values?
 sum wealth_eq_1000s, detail
+sum wealth_eq_1000s if survey_yr>=1990, detail
 mkspline wealth1 0 wealth2 `r(p25)' wealth3 `r(p50)' wealth4 `r(p75)' wealth5 = wealth_eq_1000s
 browse wealth_eq_1000s wealth1 wealth2 wealth3 wealth4 wealth5
 
@@ -534,6 +538,8 @@ logit dissolve_lag i.dur i.children if inlist(IN_UNIT,0,1,2) & inrange(rel_start
 margins, dydx(*) post
 outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(Coll13) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+logit dissolve_lag i.dur CHILDCARE_COSTS_ i.children if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+
 **Non-college-educated
 logit dissolve_lag i.dur i.hh_earn_type if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // dol
 margins, dydx(*) post
@@ -586,6 +592,9 @@ outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) c
 logit dissolve_lag i.dur i.children if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or // has children (joint investment)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_chapter2.xls", sideway stats(coef se pval) ctitle(No13) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve_lag i.dur CHILDCARE_COSTS_ i.children if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.children##c.CHILDCARE_COSTS_  if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 
 *|*|*|*|*|*|*|*|* just add income as one key confounder *|*|*|*|*|*|*|*|*
 
