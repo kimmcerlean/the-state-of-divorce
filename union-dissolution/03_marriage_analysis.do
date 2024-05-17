@@ -1398,12 +1398,43 @@ logit dissolve_lag i.dur i.children_under6##ib2.housework_bkt knot1 knot2 knot3 
 margins children_under6, dydx(3.housework_bkt) post
 estimates store est12
 
+// split by type of labor
 coefplot (est9, label(Dual-Earner)) (est10, label(Female BW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Male BW) ///
 coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
 
 coefplot (est11, label(Dual-HW)) (est12, label(Male HW)),  drop(_cons) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Female HW) ///
 coeflabels(0.children_under6 = "No Children under 6" 1.children_under6 = "Has Children under 6")
 
+// split by parental status
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children  i.interval i.home_owner i.couple_educ_gp"
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & hh_earn_type!=4 & children_under6==1, or
+margins, dydx(hh_earn_type) post
+estimates store esta
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & housework_bkt!=4 & children_under6==1, or
+margins, dydx(housework_bkt) post
+estimates store estb
+
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & hh_earn_type!=4 & children_under6==0, or
+margins, dydx(hh_earn_type) post
+estimates store estc
+
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & housework_bkt!=4 & children_under6==0, or
+margins, dydx(housework_bkt) post
+estimates store estd
+
+set scheme white_tableau
+set scheme white_hue
+set scheme stsj
+
+coefplot (esta, label(Paid Labor)) (estb, label(Unpaid Labor)),  drop(_cons 1.hh_earn_type 1.housework_bkt) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Dual) ///
+coeflabels(2.hh_earn_type= "Male Breadwinner" 3.hh_earn_type= "Female Breadwinner" 2.housework_bkt= "Female Housework" 3.housework_bkt= "Male Housework") ///
+groups(?.hh_earn_type = "{bf:Paid Labor}" ?.housework_bkt = "{bf:Unpaid Labor}", angle(vertical) nogap) legend(off) // headings(2.hh_earn_type= "{bf:Paid Labor}"   2.housework_bkt = "{bf:Unpaid Labor}") 
+
+coefplot (estc, label(Paid Labor)) (estd, label(Unpaid Labor)),  drop(_cons 1.hh_earn_type 1.housework_bkt) nolabel xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Dual) ///
+coeflabels(2.hh_earn_type= "Male Breadwinner" 3.hh_earn_type= "Female Breadwinner" 2.housework_bkt= "Female Housework" 3.housework_bkt= "Male Housework") ///
+groups(?.hh_earn_type = "{bf:Paid Labor}" ?.housework_bkt = "{bf:Unpaid Labor}", angle(vertical) nogap) legend(off) // headings(2.hh_earn_type= "{bf:Paid Labor}"   2.housework_bkt = "{bf:Unpaid Labor}") 
 
 /*
 coefplot (est3, offset(.20) label(No College)) (est4, offset(.20) nokey) (est5, offset(-.20) label(College)) (est6, offset(-.20) nokey) (est1, offset(.20) nokey) (est2, offset(-.20) nokey) (est7, offset(.20) nokey) (est8, offset(-.20) nokey), drop(_cons 0.ft_head) xline(0) levels(90) 

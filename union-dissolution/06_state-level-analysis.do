@@ -134,6 +134,24 @@ replace bw_type=5 if ft_pt_head==0 & inlist(ft_pt_wife,1,2)
 label define bw_type 1 "Male BW" 2 "Male and a half" 3 "Dual" 4 "Female and a half" 5 "Female BW"
 label values bw_type bw_type
 
+gen bw_type_gp=.
+replace bw_type_gp=1 if ft_head==1 & ft_wife==1
+replace bw_type_gp=2 if ft_head==1 & ft_wife==0
+replace bw_type_gp=3 if ft_head==0 & ft_wife==1
+replace bw_type_gp=4 if ft_head==0 & ft_wife==0
+
+label define bw_type_gp 1 "Both FT" 2 "Male FT" 3 "Female FT"  4 "Neither FT"
+label values bw_type_gp bw_type_gp
+
+gen bw_type_gp_alt=.
+replace bw_type_gp_alt=1 if bw_type==3
+replace bw_type_gp_alt=2 if inlist(bw_type,1,2)
+replace bw_type_gp_alt=3 if inlist(bw_type,4,5)
+replace bw_type_gp_alt=4 if ft_pt_wife==0 & ft_pt_head==0
+
+label define bw_type_gp_alt 1 "Dual" 2 "Male BW" 3 "Female BW"  4 "Neither works"
+label values bw_type_gp_alt bw_type_gp_alt
+
 gen hours_type_hw=.
 replace hours_type_hw=1 if bw_type==3 & housework_bkt==1
 replace hours_type_hw=2 if bw_type==3 & housework_bkt==2
@@ -856,6 +874,14 @@ sum welfare_all, detail
 margins, dydx(hh_earn_type) at(welfare_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
+* All parents (robustness)
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children==1 & hh_earn_type < 4, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+sum structural_familism, detail
+margins hh_earn_type, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot
+
 /* NOT Parents */
 * Structural familism
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==0 & hh_earn_type < 4, or
@@ -927,6 +953,64 @@ sum structural_familism, detail
 margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
+********************************************************************************
+* Does it matter "male-BW" and "dual-earning" are operationalized?
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children
+
+* current def
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+sum structural_familism, detail
+margins hh_earn_type, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot
+
+* alt type
+logit dissolve_lag i.dur c.structural_familism i.bw_type_gp c.structural_familism#i.bw_type_gp `controls' if children_under6==1, or
+sum structural_familism, detail
+margins, dydx(bw_type_gp) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+sum structural_familism, detail
+margins bw_type_gp, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot
+
+* alt type
+logit dissolve_lag i.dur c.structural_familism i.bw_type_gp_alt c.structural_familism#i.bw_type_gp_alt `controls' if children_under6==1, or
+sum structural_familism, detail
+margins, dydx(bw_type_gp_alt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+sum structural_familism, detail
+margins bw_type_gp_alt, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot
+
+* alt type 2
+logit dissolve_lag i.dur c.structural_familism ib3.bw_type c.structural_familism#ib3.bw_type `controls' if children_under6==1, or
+sum structural_familism, detail
+margins, dydx(bw_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+* just men's FT employment
+logit dissolve_lag i.dur c.structural_familism i.ft_head c.structural_familism#i.ft_head `controls' if children_under6==1, or
+sum structural_familism, detail
+margins, dydx(ft_head) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+sum structural_familism, detail
+margins ft_head, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot
+
+* just women's FT employment
+logit dissolve_lag i.dur c.structural_familism i.ft_wife c.structural_familism#i.ft_wife `controls' if children_under6==1, or
+sum structural_familism, detail
+margins, dydx(ft_wife) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+sum structural_familism, detail
+margins ft_wife, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+marginsplot
+
+tab ft_head hh_earn_type, row
+tab ft_head hh_earn_type, col // see, this is the problem - 93% of dual-earning couples have a husband working FT. and 95% of male BW do. so yes, obviously less male BW within FT head being 0 but FT employment of the head tells us v. little about whether or not they are male BW or dual-earning, which is why i don't like this definition. it's like his employment is a given - but whose employment is bringing home the most money - aka perhaps being prioritized? because if we say both employed FT - it's v. likely her work is not comparable to his, so it's like hard to say if ideologically they are seen as equal. whereas money might tell us that? use the motherhood wage penalty as motivation? both FT masks the actual dynamics of types of employment and earnings and flex work and such. also like Phil Cohen's argument - men are usually SOLE provider while women aren't.
+
+tab ft_wife hh_earn_type, row
+tab ft_wife hh_earn_type, col // okay so in "female BW" households - men are still 50% likely to work FT. but in male BW households, women are only 35% likely to work FT. This is really Phil Cohen's article I think. so if we assume both partners are working - money is a better distinguisher? (to Oppenheimer's point). and that is the GENDER nuance too. like it isn't just WORK but the resources provided from work. Also Gupta and such has some of this. like the gendered meaning of earnings. I tihnk this relates to Gerson / Pedulla as well - equity.
+
+tab bw_type_gp hh_earn_type, row // like only 50% of "both FT" are considered dual-earning. 36% are male BW in terms of money
+tab bw_type_gp hh_earn_type, col
 
 ********************************************************************************
 **# Unpaid Labor
