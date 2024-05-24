@@ -1025,6 +1025,94 @@ tab bw_type_gp hh_earn_type, row // like only 50% of "both FT" are considered du
 tab bw_type_gp hh_earn_type, col
 
 ********************************************************************************
+********************************************************************************
+**# Descriptive statistics
+********************************************************************************
+********************************************************************************
+// for ref: local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children
+
+tab hh_earn_type, gen(earn_type)
+tab race_head, gen(race_head)
+tab region, gen(region)
+
+putexcel set "$results/Table1_Descriptives_chapter3", replace
+putexcel B1:C1 = "Parents of children under 6", merge border(bottom)
+putexcel D1:E1 = "Total Sample", merge border(bottom)
+putexcel B2 = ("All") C2 = ("Dissolved") D2 = ("All") E2 = ("Dissolved")
+putexcel A3 = "Unique Couples"
+
+putexcel A4 = "Dual Earning HH"
+putexcel A5 = "Male Breadwinner"
+putexcel A6 = "Female Breadwinner"
+putexcel A7 = "Structural Support for Working Families"
+putexcel A8 = "Total Couple Earnings"
+putexcel A9 = "At least one partner has college degree"
+putexcel A10 = "Couple owns home"
+putexcel A11 = "Husband's age at marriage"
+putexcel A12 = "Wife's age at marriage"
+putexcel A13 = "Husband's Race: White"
+putexcel A14 = "Husband's Race: Black"
+putexcel A15 = "Husband's Race: Indian"
+putexcel A16 = "Husband's Race: Asian"
+putexcel A17 = "Husband's Race: Latino"
+putexcel A18 = "Husband's Race: Other"
+putexcel A19 = "Husband's Race: Multiracial"
+putexcel A20 = "Husband and wife same race"
+putexcel A21 = "Either partner enrolled in school"
+putexcel A22 = "Region: Northeast"
+putexcel A23 = "Region: North Central"
+putexcel A24 = "Region: South"
+putexcel A25 = "Region: West"
+putexcel A26 = "Region: Alaska, Hawaii"
+putexcel A27 = "Husband Wife Cohabit"
+putexcel A28 = "Other Premarital Cohabit"
+putexcel A29 = "First Birth Premarital"
+
+local meanvars "earn_type1 earn_type2 earn_type3 structural_familism couple_earnings couple_educ_gp home_owner age_mar_head age_mar_wife race_head1 race_head2 race_head3 race_head4 race_head5 race_head6 race_head7 same_race either_enrolled region1 region2 region3 region4 region5 cohab_with_wife cohab_with_other pre_marital_birth"
+
+// Parents
+forvalues w=1/26{
+	local row=`w'+3
+	local var: word `w' of `meanvars'
+	mean `var' if children_under6==1
+	matrix t`var'= e(b)
+	putexcel B`row' = matrix(t`var'), nformat(#.#%)
+}
+
+// those who dissolved; value when dissolve_lag==1
+forvalues w=1/26{
+	local row=`w'+3
+	local var: word `w' of `meanvars' 
+	mean `var' if dissolve_lag==1 & children_under6==1
+	matrix t`var'= e(b)
+	putexcel C`row' = matrix(t`var'), nformat(#.#%)
+}
+
+
+// All couples
+forvalues w=1/26{
+	local row=`w'+3
+	local var: word `w' of `meanvars'
+	mean `var'
+	matrix t`var'= e(b)
+	putexcel D`row' = matrix(t`var'), nformat(#.#%)
+}
+
+// those who dissolved; value when dissolve_lag==1
+forvalues w=1/26{
+	local row=`w'+3
+	local var: word `w' of `meanvars'
+	mean `var' if dissolve_lag==1
+	matrix t`var'= e(b)
+	putexcel E`row' = matrix(t`var'), nformat(#.#%)
+}
+
+mean dur if children_under6==1
+mean dur if children_under6==1 & dissolve_lag==1
+mean dur
+mean dur if dissolve_lag==1
+
+********************************************************************************
 **# Unpaid Labor
 * Just doing key IV across groups of interest (aka structural familism)
 ********************************************************************************
