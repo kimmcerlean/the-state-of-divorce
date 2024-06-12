@@ -1112,6 +1112,11 @@ mean dur if children_under6==1 & dissolve_lag==1
 mean dur
 mean dur if dissolve_lag==1
 
+unique id if children_under6==1
+unique id if children_under6==1 & dissolve_lag==1
+unique id 
+unique id if dissolve_lag==1
+
 ********************************************************************************
 **# Unpaid Labor
 * Just doing key IV across groups of interest (aka structural familism)
@@ -1359,13 +1364,13 @@ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4 & state_fips!=11, or
 sum structural_familism, detail
 margins hh_earn_type, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
-marginsplot, xtitle("Structural Familism Scale: Percentiles") ytitle("Predicted Probability of Marital Dissolution") title("") xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") legend(position(6) ring(3) rows(1))  // plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+marginsplot, xtitle("Structural Support for Dual-Earning: Percentiles") ytitle("Predicted Probability of Marital Dissolution") title("") xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") legend(position(6) ring(3) rows(1))  // plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
 
 * All parents
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children==1 & hh_earn_type < 4, or
 sum structural_familism, detail
 margins hh_earn_type, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
-marginsplot, xtitle("Structural Familism Scale: Percentiles") ytitle("Predicted Probability of Marital Dissolution") title("") xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") legend(position(6) ring(3) rows(1))  // plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+marginsplot, xtitle("Structural Support for Dual-Earning: Percentiles") ytitle("Predicted Probability of Marital Dissolution") title("") xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") legend(position(6) ring(3) rows(1))  // plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
 
 * Total sample
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp i.num_children" 
@@ -1373,7 +1378,7 @@ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if hh_earn_type < 4, or
 sum structural_familism, detail
 margins hh_earn_type, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
-marginsplot, xtitle("Structural Familism Scale: Percentiles") ytitle("Predicted Probability of Marital Dissolution") title("") xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") legend(position(6) ring(3) rows(1))  // plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+marginsplot, xtitle("Structural Support for Dual-Earning: Percentiles") ytitle("Predicted Probability of Marital Dissolution") title("") xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") legend(position(6) ring(3) rows(1))  // plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color("navy")) plot2opts(lcolor("ltblue") mcolor("ltblue")) ci2opts(color("ltblue")) yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
 
 ********************************************************************************
 ********************************************************************************
