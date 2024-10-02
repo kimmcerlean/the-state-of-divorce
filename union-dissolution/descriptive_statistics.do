@@ -372,22 +372,23 @@ putexcel A9 = "Wife's share of unpaid hours"
 putexcel A10 = "Equal"
 putexcel A11 = "Female Primary"
 putexcel A12 = "Male Primary"
-putexcel A13 = "Age at marriage (wife)"
-putexcel A14 = "Age at marriage (husband)"
-putexcel A15 = "Couple owns home"
-putexcel A16 = "Couple has children"
-putexcel A17 = "Average number of children"
-putexcel A18 = "Cohabited prior to marriage"
-putexcel A19 = "Had premarital birth"
-putexcel A20 = "No College Degree"
-putexcel A21 = "College Degree"
+putexcel A13 = "Average marital duration"
+putexcel A14 = "Age at marriage (wife)"
+putexcel A15 = "Age at marriage (husband)"
+putexcel A16 = "Couple owns home"
+putexcel A17 = "Couple has children"
+putexcel A18 = "Average number of children"
+putexcel A19 = "Cohabited prior to marriage"
+putexcel A20 = "Had premarital birth"
+putexcel A21 = "No College Degree"
+putexcel A22 = "College Degree"
 
-local meanvars_ovrl "female_earn_pct earn_type1 earn_type2 earn_type3 wife_housework_pct hw_type1 hw_type2 hw_type3 age_mar_wife age_mar_head home_owner  children NUM_CHILDREN_  cohab_with_wife pre_marital_birth couple_educ1 couple_educ2 "
-local meanvars "female_earn_pct earn_type1 earn_type2 earn_type3 wife_housework_pct hw_type1 hw_type2 hw_type3 age_mar_wife age_mar_head home_owner  children NUM_CHILDREN_ cohab_with_wife pre_marital_birth"
+local meanvars_ovrl "female_earn_pct earn_type1 earn_type2 earn_type3 wife_housework_pct hw_type1 hw_type2 hw_type3 dur age_mar_wife age_mar_head home_owner  children NUM_CHILDREN_  cohab_with_wife pre_marital_birth couple_educ1 couple_educ2 "
+local meanvars "female_earn_pct earn_type1 earn_type2 earn_type3 wife_housework_pct hw_type1 hw_type2 hw_type3 dur age_mar_wife age_mar_head home_owner  children NUM_CHILDREN_ cohab_with_wife pre_marital_birth"
 
 
 // Overall: early
-forvalues w=1/17{
+forvalues w=1/18{
 	local row=`w'+4
 	local var: word `w' of `meanvars_ovrl'
 	mean `var' if cohort_v3==0
@@ -397,7 +398,7 @@ forvalues w=1/17{
 
 
 // Overall: late
-forvalues w=1/17{
+forvalues w=1/18{
 	local row=`w'+4
 	local var: word `w' of `meanvars_ovrl'
 	mean `var' if cohort_v3==1
@@ -410,7 +411,7 @@ forvalues w=1/17{
 
 
 // No college degree: early
-forvalues w=1/15{
+forvalues w=1/16{
 	local row=`w'+4
 	local var: word `w' of `meanvars'
 	mean `var' if couple_educ_gp==0 & cohort_v3==0
@@ -419,7 +420,7 @@ forvalues w=1/15{
 }
 
 // No college degree: late
-forvalues w=1/15{
+forvalues w=1/16{
 	local row=`w'+4
 	local var: word `w' of `meanvars'
 	mean `var' if couple_educ_gp==0 & cohort_v3==1
@@ -428,7 +429,7 @@ forvalues w=1/15{
 }
 
 // College degree: early
-forvalues w=1/15{
+forvalues w=1/16{
 	local row=`w'+4
 	local var: word `w' of `meanvars'
 	mean `var' if couple_educ_gp==1 & cohort_v3==0
@@ -437,7 +438,7 @@ forvalues w=1/15{
 }
 
 // College degree: late
-forvalues w=1/15{
+forvalues w=1/16{
 	local row=`w'+4
 	local var: word `w' of `meanvars'
 	mean `var' if couple_educ_gp==1 & cohort_v3==1
