@@ -90,6 +90,7 @@ replace couple_educ_detail=3 if educ_head==4 & inlist(educ_wife,1,2,3)
 label define couple_educ_detail 0 "Neither" 1 "Both" 2 "Wife" 3 "Husband"
 label values couple_educ_detail couple_educ_detail
 
+// alternative DoL measures
 // more discrete measures of work contributions
 input group
 .10
@@ -189,6 +190,11 @@ replace division_bucket = 4 if hh_earn_type== 1 & housework_bkt== 2 // dual, fem
 
 label define division_bucket 1 "Dual" 2 "Traditional" 3 "Counter-traditional" 4 "Second shift" 5 "All Other"
 label values division_bucket division_bucket
+
+gen hh_earn_type_alt=.
+replace hh_earn_type_alt=hh_earn_type
+replace hh_earn_type_alt=4 if inlist(ft_pt_head,0,1) & inlist(ft_pt_wife,0,1) // neither works FT
+label define hh_earn_type_alt 1 "Dual" 2 "Male BW" 3 "Female BW" 4 "Neither FT"
 
 // this doesn't capture OVERWORK
 sum weekly_hrs_head if ft_pt_head==2, detail
@@ -339,6 +345,8 @@ replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29
 keep if inrange(rel_start_all,1995,2014)
 keep if inlist(IN_UNIT,0,1,2)
 drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
+drop if STATE_==0
+drop if STATE_==99
 
 ********************************************************************************
 **# Bookmark #1
@@ -380,6 +388,13 @@ drop _merge
 
 // I need to remember - not all variables have data past 2010 - should I just extend forward. I could definitely add in the min wage and unemployment
 browse year state_fips state_cpi_bfh_est
+
+// do I center the main data or here?
+gen sf_centered_alt=.
+sum structural_familism, detail
+replace sf_centered_alt = structural_familism - `r(p50)'
+
+browse structural_familism sf_centered sf_centered_alt
 
 
 // also want to test some binary variables
@@ -825,7 +840,7 @@ outreg2 using "$results/dissolution_AMES_familism.xls", ctitle(him liberalism) d
 ********************************************************************************
 **# Results by parental status (restricted to parents of young children)
 ********************************************************************************
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children i.region
 
 /* Parents */
 *Baseline model
@@ -834,7 +849,7 @@ outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(co
 
 * Structural familism
 logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 sum structural_familism, detail
 margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
@@ -889,6 +904,21 @@ logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_famil
 sum structural_familism, detail
 margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(all familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* First 10 years of marriage (robustness)
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_familism#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4 & dur<=10, or
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(dur) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+sum structural_familism, detail
+margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(dur) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Alt DoL (robustness)
+logit dissolve_lag i.dur c.structural_familism i.hh_earn_type_alt c.structural_familism#i.hh_earn_type_alt `controls' if children_under6==1, or
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+sum structural_familism, detail
+margins, dydx(hh_earn_type_alt) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(alt dol) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
 
 /* NOT Parents */
 * Structural familism
@@ -960,6 +990,35 @@ logit dissolve_lag i.dur c.structural_familism i.hh_earn_type c.structural_famil
 sum structural_familism, detail
 margins, dydx(hh_earn_type) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(no no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+********************************************************************************
+**# Median-centered (just parental status)
+********************************************************************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children i.region
+
+/* Parents */
+*Baseline model
+logit dissolve_lag i.dur c.sf_centered_alt i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+outreg2 using "$results/dissolution_AMES_familism_centered.xls", sideway stats(coef pval) label ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+* Structural familism
+logit dissolve_lag i.dur c.sf_centered_alt i.hh_earn_type c.sf_centered_alt#i.hh_earn_type `controls' if children_under6==1 & hh_earn_type < 4, or
+outreg2 using "$results/dissolution_AMES_familism_centered.xls", sideway stats(coef pval) label ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+sum sf_centered_alt, detail
+margins, dydx(hh_earn_type) at(sf_centered_alt=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_centered.xls", ctitle(parent familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* All parents (robustness)
+logit dissolve_lag i.dur c.sf_centered_alt i.hh_earn_type c.sf_centered_alt#i.hh_earn_type `controls' if children==1 & hh_earn_type < 4, or
+sum sf_centered_alt, detail
+margins, dydx(hh_earn_type) at(sf_centered_alt=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_centered.xls", ctitle(allparent familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+* Full sample (robustness)
+logit dissolve_lag i.dur c.sf_centered_alt i.hh_earn_type c.sf_centered_alt#i.hh_earn_type i.num_children `controls' if hh_earn_type < 4, or
+sum sf_centered_alt, detail
+margins, dydx(hh_earn_type) at(sf_centered_alt=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_centered.xls", ctitle(all familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
 ********************************************************************************
 **# * Does it matter how "male-BW" and "dual-earning" are operationalized?

@@ -453,6 +453,13 @@ alpha cc_pct_served_st paid_leave_st, item
 **USE
 egen structural_familism = rowtotal(paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st)
 
+// test centering the variable as well
+gen sf_centered=.
+sum structural_familism, detail
+replace sf_centered = structural_familism - `r(p50)'
+
+browse structural_familism sf_centered
+
 /*
 **OLD
 egen structural_familism_v0 = rowtotal(unemployment_neg_st child_pov_neg_st min_above_fed_st paid_leave_st senate_dems_st welfare_cash_asst_st)
