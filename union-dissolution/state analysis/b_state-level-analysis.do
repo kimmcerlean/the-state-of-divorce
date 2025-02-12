@@ -17,6 +17,8 @@ replace cohort=2 if inrange(rel_start_all,1980,1989)
 replace cohort=3 if inrange(rel_start_all,1990,2010)
 replace cohort=4 if inrange(rel_start_all,2011,2021)
 
+
+// Final sample restrictions
 // keep if cohort==3, need to just use filters so I don't have to keep using and updating the data
 // need to decide - ALL MARRIAGES or just first? - killewald restricts to just first, so does cooke. My validation is MUCH BETTER against those with first marraiges only...
 tab matrix_marr_num, m
@@ -24,6 +26,13 @@ tab matrix_rel_num, m
 
 keep if matrix_marr_num==1
 keep if (AGE_HEAD_>=18 & AGE_HEAD_<=55) &  (AGE_WIFE_>=18 & AGE_WIFE_<=55)
+
+keep if inrange(rel_start_all,1995,2014)
+keep if inlist(IN_UNIT,0,1,2)
+drop if survey_yr==2021 // until I figure out what to do about covid year
+drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
+drop if STATE_==0
+drop if STATE_==99
 
 // drop those with no earnings or housework hours the whole time
 bysort unique_id: egen min_type = min(hh_earn_type_t1) // since no earners is 4, if the minimum is 4, means that was it the whole time
@@ -67,6 +76,42 @@ gen region = REGION_
 replace region = . if inlist(REGION_,0,9)
 label define region 1 "Northeast" 2 "North Central" 3 "South" 4 "West" 5 "Alaska,Hawaii" 6 "Foreign"
 label values region region
+
+// Migration status - either control or actually remove
+label values STATE_ MOVED_ .
+quietly unique STATE_ if STATE_!=., by(unique_id) gen(state_change)
+bysort unique_id (state_change): replace state_change=state_change[1]
+tab state_change, m
+
+sort unique_id survey_yr 
+browse unique_id partner_unique_id survey_yr STATE_ state_change MOVED_ MOVED_YEAR_
+
+gen moved_states = .
+replace moved_states = 0 if STATE_==STATE_[_n-1] & unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
+replace moved_states = 0 if state_change==1
+replace moved_states = 1 if STATE_!=STATE_[_n-1] & unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
+replace moved_states = 0 if moved_states==. & state_change!=0 // remaining are first observations
+tab moved_states, m
+
+browse unique_id partner_unique_id survey_yr STATE_ state_change moved_states rel_start_all MOVED_ MOVED_YEAR_
+tab state_change moved_states, m
+
+gen moved_states_lag = .
+replace moved_states_lag = 0 if STATE_==STATE_[_n+1] & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1
+replace moved_states_lag = 0 if state_change==1
+replace moved_states_lag = 1 if STATE_!=STATE_[_n+1] & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1
+replace moved_states_lag = 0 if moved_states_lag==. & STATE_==STATE_[_n-1] & unique_id==unique_id[_n-1] & wave==wave[_n-1]+1 // last survey waves
+replace moved_states_lag = 0 if moved_states_lag==. & state_change!=0 // remaining are last observations
+
+tab moved_states_lag, m
+tab moved_states moved_states_lag, m
+tab state_change moved_states_lag, m
+
+browse unique_id partner_unique_id survey_yr STATE_ state_change moved_states moved_states_lag rel_start_all dissolve_lag MOVED_ MOVED_YEAR_
+
+gen moved_last2=.
+replace moved_last2 = 0 if moved_states_lag==0 & moved_states==0
+replace moved_last2 = 1 if moved_states_lag==1 | moved_states==1
 
 // splitting the college group into who has a degree. also considering advanced degree as higher than college -- this currently only works for cohort 3. I think for college - the specific years matter to split advanced, but for no college - distinguishing between grades less relevant?
 // moved this to earlier step
@@ -342,13 +387,6 @@ replace time_leave=1 if STATE_==44 & survey_yr >= 2018
 gen min_wage=0
 replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29,30,31,34,35,36,39,41,44,46,50,53,54)
 
-// keep if cohort==3 - temp removing this, want to try some things
-keep if inrange(rel_start_all,1995,2014)
-keep if inlist(IN_UNIT,0,1,2)
-drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
-drop if STATE_==0
-drop if STATE_==99
-
 ********************************************************************************
 **# Merge onto policy data
 ********************************************************************************
@@ -402,11 +440,15 @@ browse unique_id year state_fips structural_familism_t structural_familism_t1
 browse year state_fips state_cpi_bfh_est
 
 // do I center the main data or here?
-gen sf_centered_alt=.
-sum structural_familism, detail
-replace sf_centered_alt = structural_familism - `r(p50)'
+gen sf_centered_alt_t=.
+sum structural_familism_t, detail
+replace sf_centered_alt_t = structural_familism_t - `r(p50)'
 
-browse structural_familism sf_centered sf_centered_alt
+gen sf_centered_alt_t1=.
+sum structural_familism_t1, detail
+replace sf_centered_alt_t1 = structural_familism_t1 - `r(p50)'
+
+browse structural_familism_t sf_centered sf_centered_alt_t
 
 // various variables I tested and am not using
 /*
@@ -495,15 +537,6 @@ sum regional_attitudes_scaled
 
 set scheme cleanplots
 
-**Quick descriptives needed
-tab dissolve_lag couple_educ_gp, row
-tab dissolve_lag predclass, row
-tabstat structural_familism gender_mood, by(dissolve_lag)
-tab ft_wife
-tab ft_wife if dissolve_lag==1
-tab ft_head
-tab ft_head if dissolve_lag==1
-
 alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st earn_ratio_neg_st // structural familism. 0.70
 alpha unemployment_st child_pov_st gini_st // economic uncertainty. 0.54
 alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st // structural sexism. 0.61
@@ -542,13 +575,54 @@ logit dissolve_lag i.dur i.couple_educ_gp if STATE_==4, or // will estimate
 logit dissolve_lag i.dur i.couple_educ_gp if STATE_==5, or // also will estimate
 */
 
+// Got some questions about earnings, revisit this
+* Parents
+logit dissolve_lag i.dur i.hh_earn_type_t1 knot1 knot2 knot3 if children_under6==1 & hh_earn_type_t1 <4 , or
+logit dissolve_lag i.dur i.hh_earn_type_t1 earnings_ln if children_under6==1 & hh_earn_type_t1 <4 , or
+margins, at(earnings_ln=(0(1)12))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type_t1 earnings_1000s if children_under6==1 & hh_earn_type_t1 <4 , or
+margins, at(earnings_1000s=(0(10)200))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type_t1 earnings_1000s c.earnings_1000s#c.earnings_1000s if children_under6==1 & hh_earn_type_t1 <4 , or
+margins, at(earnings_1000s=(0(10)200))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type_t1 i.earnings_bucket_t1 if children_under6==1 & hh_earn_type_t1 <4 , or
+margins i.earnings_bucket_t1
+marginsplot
+
+* All
+logit dissolve_lag i.dur i.hh_earn_type_t1 knot1 knot2 knot3 if hh_earn_type_t1 <4 , or
+logit dissolve_lag i.dur i.hh_earn_type_t1 earnings_ln if hh_earn_type_t1 <4 , or
+margins, at(earnings_ln=(0(1)12))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type_t1 earnings_1000s if hh_earn_type_t1 <4 , or
+margins, at(earnings_1000s=(0(10)200))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type_t1 earnings_1000s c.earnings_1000s#c.earnings_1000s if hh_earn_type_t1 <4 , or
+margins, at(earnings_1000s=(0(10)200))
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type_t1 i.earnings_bucket_t1 if hh_earn_type_t1 <4 , or
+margins i.earnings_bucket_t1
+marginsplot
+
+logit dissolve_lag i.dur i.hh_earn_type_t1 earnings_1000s c.earnings_1000s#c.earnings_1000s c.earnings_1000s#c.earnings_1000s#c.earnings_1000s  if hh_earn_type_t1 <4 , or
+margins, at(earnings_1000s=(0(10)200))
+marginsplot
+
 ********************************************************************************
 ********************************************************************************
 **# MAIN MODELS
 ** Results by parental status (restricted to parents of young children)
 ********************************************************************************
 ********************************************************************************
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children i.region
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp i.moved_last2 i.couple_joint_religion"  // i.num_children i.region
 
 /* Parents */
 *Baseline model
@@ -798,10 +872,9 @@ outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(no no parent
 **# * Figures to use (ASR submission)
 ********************************************************************************
 ********************************************************************************
-
 // parents of kids under 6
 *Predicted Probabilities (no CI)
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" // i.num_children 
 
 logit dissolve_lag i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==1 & hh_earn_type_t1 < 4 & state_fips!=11, or
 sum structural_familism_t1, detail
@@ -809,7 +882,8 @@ margins hh_earn_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
 marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue"))   // plot1opts(lcolor("gray") mcolor("gray")) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") ci1opts(color("navy")) ci2opts(color("ltblue")) yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
 
 * AMEs with CI
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" // i.num_children 
+
 
 logit dissolve_lag i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==1 & hh_earn_type_t1 < 4 & state_fips!=11, or
 sum structural_familism_t1, detail
