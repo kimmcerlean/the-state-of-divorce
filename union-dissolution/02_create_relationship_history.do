@@ -8,7 +8,7 @@
 * Just cohabitation
 ********************************************************************************
 
-use "$PSID\family_matrix_68_19.dta", clear // relationship matrix downloaded from PSID site
+use "$PSID/family_matrix_68_21.dta", clear // relationship matrix downloaded from PSID site
 
 unique MX5 MX6 // should match the 82000 in other file? -- okay so it does. I am dumb because I restricted to only partners. omg this explains evertything
 
@@ -39,25 +39,27 @@ keep MX2 ego_1968_id ego_per_num unique_id partner_1968_id partner_per_num partn
 reshape wide partner_1968_id partner_per_num partner_unique_id MX8, i(ego_1968_id ego_per_num unique_id) j(MX2)
 
 // for ego - will match on unique_id? need to figure out how to match partner, keep separate?
-rename ego_1968_id main_per_id
-rename ego_per_num INTERVIEW_NUM_
+rename ego_1968_id main_fam_id
+rename ego_per_num main_per_id
 
-gen spouse_per_num_all = INTERVIEW_NUM_
-gen spouse_id_all = main_per_id
-gen INTERVIEW_NUM_1968 = INTERVIEW_NUM_
+// browse main_fam_id main_per_id unique_id
+
+gen spouse_fam_id = main_fam_id
+gen spouse_per_id = main_per_id
+// gen INTERVIEW_NUM_1968 = INTERVIEW_NUM_
 
 // okay so not JUST the ids, but also YEAR?!  unique MX2 main_per_id INTERVIEW_NUM_
 // rename MX2 survey_yr
 
-unique main_per_id INTERVIEW_NUM_1968
+unique main_per_id main_fam_id
 
-save "$data_tmp\PSID_partner_history.dta", replace // really this is just cohabitation NOT marriages.
+save "$temp/PSID_partner_history.dta", replace // really this is just cohabitation NOT marriages.
 
 ********************************************************************************
 * All relationships
 ********************************************************************************
 
-use "$PSID\family_matrix_68_19.dta", clear // relationship matrix downloaded from PSID site
+use "$PSID/family_matrix_68_21.dta", clear // relationship matrix downloaded from PSID site
 
 unique MX5 MX6 // should match the 82000 in other file? -- okay so it does. I am dumb because I restricted to only partners. omg this explains evertything
 
@@ -88,7 +90,7 @@ gen partner_unique_id = (partner_1968_id*1000) + partner_per_num
 
 // try making specific variable to match E30002 that is 1968 id? but what if not in 1968??
 
-keep if MX8==22 | MX8==20
+keep if MX8==22 | MX8==20 // spouses or partners
 
 browse MX2 ego_1968_id ego_per_num ego_rel unique_id cohab_1968_id cohab_per_num cohab_unique_id spouse_1968_id spouse_per_num spouse_unique_id partner_1968_id partner_per_num partner_unique_id alter_rel MX8 // does unique_id track over years? or just 1 record per year? might this be wrong?
 
@@ -101,9 +103,9 @@ drop if ego_1968_id == 1821 & ego_per_num == 170 & MX2==1977 & partner_unique_id
 reshape wide ego_rel cohab_1968_id cohab_per_num cohab_unique_id spouse_1968_id spouse_per_num spouse_unique_id partner_1968_id partner_per_num partner_unique_id alter_rel MX8, i(ego_1968_id ego_per_num unique_id) j(MX2)
 
 // for ego - will match on unique_id? need to figure out how to match partner, keep separate? what is happening here? I think it's because in other file, I have matched husband and wife so want to be able to first match on husband, then match on wife, so need two ids. Same id, but one name for use for husband and one for wife. don't think I need this for current purposes, but might need to rename the ego ones to match back to individual file.
-rename ego_1968_id main_per_id
-rename ego_per_num INTERVIEW_NUM_
-gen INTERVIEW_NUM_1968 = INTERVIEW_NUM_
+rename ego_1968_id main_fam_id
+rename ego_per_num main_per_id
+// gen INTERVIEW_NUM_1968 = INTERVIEW_NUM_
 
 /*
 gen spouse_per_num_all = INTERVIEW_NUM_
@@ -114,17 +116,17 @@ gen INTERVIEW_NUM_1968 = INTERVIEW_NUM_
 // okay so not JUST the ids, but also YEAR?!  unique MX2 main_per_id INTERVIEW_NUM_
 // rename MX2 survey_yr
 
-unique main_per_id INTERVIEW_NUM_1968
+unique main_per_id main_fam_id
 
-save "$data_tmp\PSID_union_history.dta", replace
+save "$temp/PSID_union_history.dta", replace
 
-browse main_per_id INTERVIEW_NUM_ unique_id MX8* partner_1968_id* partner_per_num* partner_unique_id*
+browse main_per_id main_fam_id unique_id MX8* partner_1968_id* partner_per_num* partner_unique_id*
 // compare to this:  "$data_keep\PSID_union_history_created.dta"
 
 * Now want to reshape back to long so I can merge info on
 drop cohab_1968_id* cohab_per_num* cohab_unique_id* spouse_1968_id* spouse_per_num* spouse_unique_id*
 
-reshape long MX8 ego_rel alter_rel partner_1968_id partner_per_num partner_unique_id, i(main_per_id INTERVIEW_NUM_ unique_id) j(year)
+reshape long MX8 ego_rel alter_rel partner_1968_id partner_per_num partner_unique_id, i(main_per_id main_fam_id unique_id) j(year)
 
 // want to get relationship order
 unique partner_unique_id, by(unique_id) gen(rel_num)
@@ -148,4 +150,6 @@ bysort unique_id (marr_rank): gen marr_num = sum(marr_rank != marr_rank[_n-1]) i
 
 drop rank help_var marr_rank marr_help_var
 
-save "$data_tmp\PSID_relationship_list_tomatch.dta", replace
+rename year survey_yr // to match to later files
+
+save "$temp/PSID_relationship_list_tomatch.dta", replace

@@ -35,7 +35,8 @@ global logdate = string( d(`c(current_date)'), "%dCY.N.D" ) 		// create a macro 
 1. download data from PSID and run through PSID-generated .do files. Will name those "PSID-full"
 2. In this github folder, run x_rename_variables, which you will get frm Excel sheet. This creates "PSID-full-renamed"
 3. Then, go into step 1, need to add any new variables to the reshape (see Excel) and run through step 1 to get new long data file.
-4. Then, run through step 1a - this is where most recodes happen
-5. Then, turn to step 3 - analysis
+4. Then run step 2 - need that relationship history
+4. Then, run through step 3 - this is where most recodes happen
+5. Then, go into marital dissolution specific folder for analysis and descriptives
 
 ********************************************************************************/
