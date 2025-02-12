@@ -16,6 +16,7 @@ global CPS "/data/CPS"
 
 * created data files
 global created_data "$homedir/Research Projects/Dissertation - Union Dissolution/data_keep"
+global state_data "$homedir/Research Projects/State data/data_keep"
 
 * results
 global results "$homedir/Research Projects/Dissertation - Union Dissolution/results"

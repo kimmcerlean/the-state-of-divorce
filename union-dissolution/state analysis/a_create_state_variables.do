@@ -11,7 +11,7 @@ https://www.statalist.org/forums/forum/general-stata-discussion/general/1629031-
 ********************************************************************************
 
 **Import state data:
-use "T:\Research Projects\State data\data_keep\final_measures.dta", clear
+use "$state_data/final_measures.dta", clear
 
 keep if year >=1997
 drop if state_fips==11
@@ -175,7 +175,7 @@ tab predclass policy_group, row
 
 browse state_name year predclass policy_group egal_attitudes min_above_fed liberal paid_leave high_educ_spend good_unemployment
 
-save "T:\Research Projects\State data\data_keep\state_lca.dta", replace
+save "$state_data/state_lca.dta", replace
 
 ********************************************************************************
 **# Quick models - eventually merge with other file and make sure accurage but this is back of the envelope
@@ -235,7 +235,7 @@ log close
 ********************************************************************************
 // "T:\Research Projects\State data\data_keep\structural_sexism_raw.dta"
 
-use  "T:\Research Projects\State data\data_keep\structural_sexism_raw.dta", clear
+use  "$state_data/structural_sexism_raw.dta", clear
 drop if statefip==11 // drop earlier so doesn't affect variable creation below
 
 	sum earn_ratio
@@ -304,11 +304,11 @@ estat lcmean // values by groups*/
 
 /* scale instead, to match structural sexism people?*/
 // First recode so all are in the same direction (higher = more support)
-use "T:\Research Projects\State data\data_keep\final_measures.dta", clear
-merge 1:1 year state_fips using "T:\Research Projects\State data\data_keep\structural_sexism.dta"
+use "$state_data/final_measures.dta", clear
+merge 1:1 year state_fips using "$state_data/structural_sexism.dta"
 drop _merge
 
-merge 1:1 year state_fips using "T:\Research Projects\State data\data_keep/sexism_measures_1990_2019.dta", keepusing(maternal_employment parent_earn_ratio)
+merge 1:1 year state_fips using "$state_data/sexism_measures_1990_2019.dta", keepusing(maternal_employment parent_earn_ratio)
 drop if _merge==2
 drop _merge
 drop paid_leave_st
@@ -489,7 +489,9 @@ factor unemployment_st child_pov_st min_above_fed_st paid_leave_st senate_dems_s
 factor unemployment_st child_pov_st gini_st, ipf 
 rotate, varimax
 
-save "T:\Research Projects\State data\data_keep\structural_familism.dta", replace
+gen year_t1 = year // to get t-1 measures
+
+save "$state_data/structural_familism.dta", replace
 /*
 ** LCA
 gsem (paid_leave_st min_above_fed_st <-  , logit) ///
