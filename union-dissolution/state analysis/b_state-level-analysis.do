@@ -45,8 +45,8 @@ drop if min_type ==4
 
 bysort id: egen min_hw_type = min(housework_bkt_t) // since no earners is 4, if the minimum is 4, means that was it the whole time
 label values min_hw_type housework_bkt
-sort id survey_yr
-browse id survey_yr min_hw_type housework_bkt_t
+sort unique_id survey_yr
+browse unique_id survey_yr min_hw_type housework_bkt_t
 
 tab min_hw_type // same here
 drop if min_hw_type ==4
@@ -54,22 +54,91 @@ drop if min_hw_type ==4
 ********************************************************************************
 * Some variables that should be created
 ********************************************************************************
+// controls for ref so I know they are lagged. most of these are fixed anyway
+// local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
 
-// create joint religion indicator - STOPPED HERE 02/12/25
+// indicator if we observed at start of marriage - might want to use some measures in marriage year, but want to see how much that reduces sample
+bysort unique_id partner_unique_id: egen min_dur = min(dur)
+browse unique_id partner_unique_id survey_yr rel_start_all dur min_dur total_dur
+
+// create joint religion indicator
 tab religion_head religion_wife
 
 gen couple_joint_religion=.
 replace couple_joint_religion = 0 if religion_head==0 & religion_wife==0
 replace couple_joint_religion = 1 if religion_head==1 & religion_wife==1
 replace couple_joint_religion = 2 if inlist(religion_head,3,4,5,6) & inlist(religion_wife,3,4,5,6)
-replace couple_joint_religion = 3 if (religion_head==1 & religion_wife!=1 & religion_wife!=.) | (religion_head!=1 & religion_head!=. & religion_wife==1)
-replace couple_joint_religion = 4 if ((religion_head==0 & religion_wife!=0 & religion_wife!=.) | (religion_head!=0 & religion_head!=. & religion_wife==0)) & couple_joint_religion==.
+// replace couple_joint_religion = 3 if (religion_head==1 & religion_wife!=1 & religion_wife!=.) | (religion_head!=1 & religion_head!=. & religion_wife==1)
+replace couple_joint_religion = 3 if (religion_head==1 & religion_wife!=1) | (religion_head!=1 & religion_wife==1)
+replace couple_joint_religion = 4 if ((religion_head==0 & religion_wife!=0) | (religion_head!=0 & religion_wife==0)) & couple_joint_religion==.
 replace couple_joint_religion = 5 if inlist(religion_head,2,7,8,9,10) & inlist(religion_wife,2,7,8,9,10)
 replace couple_joint_religion = 5 if couple_joint_religion==. & religion_head!=. & religion_wife!=. 
 // tab religion_head religion_wife if couple_joint_religion==.
 
 label define couple_joint_religion 0 "Both None" 1 "Both Catholic" 2 "Both Protestant" 3 "One Catholic" 4 "One No Religion" 5 "Other"
 label values couple_joint_religion couple_joint_religion
+
+quietly unique couple_joint_religion if couple_joint_religion!=., by(unique_id) gen(relig_change)
+bysort unique_id (relig_change): replace relig_change=relig_change[1]
+tab relig_change, m
+
+browse unique_id survey_yr rel_start_all couple_joint_religion religion_head religion_wife relig_change
+
+* create t-1 version
+sort id survey_yr
+gen couple_joint_religion_t1=.
+replace couple_joint_religion_t1=couple_joint_religion[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
+label values couple_joint_religion_t1 couple_joint_religion
+
+replace couple_joint_religion_t1=couple_joint_religion if couple_joint_religion_t1==. & relig_change==1 // if religion same whole time, fill in t-1 with t
+replace couple_joint_religion_t1=couple_joint_religion if couple_joint_religion_t1==. & couple_joint_religion==couple_joint_religion_t1[_n+1] & unique_id==unique_id[_n+1]
+
+browse unique_id survey_yr rel_start_all couple_joint_religion couple_joint_religion_t1
+
+* create start of marriage version
+gen couple_joint_religion_mar = couple_joint_religion if dur==min_dur & inlist(min_dur,0,1,2)
+bysort unique_id (couple_joint_religion_mar): replace couple_joint_religion_mar=couple_joint_religion_mar[1]
+replace couple_joint_religion_mar = couple_joint_religion if couple_joint_religion_mar ==. & relig_change==1
+
+label values couple_joint_religion_mar couple_joint_religion
+
+// browse unique_id survey_yr rel_start_all dur min_dur couple_joint_religion couple_joint_religion_mar
+
+// create lagged education measures
+quietly unique educ_type if educ_type!=., by(unique_id) gen(educ_type_chg)
+bysort unique_id (educ_type_chg): replace educ_type_chg=educ_type_chg[1]
+tab educ_type_chg, m
+
+sort unique_id survey_yr
+browse unique_id survey_yr rel_start_all min_dur couple_educ_gp educ_type educ_type_chg educ_wife_est educ_head_est 
+
+* t-1
+gen couple_educ_gp_t1=.
+replace couple_educ_gp_t1=couple_educ_gp[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
+replace couple_educ_gp_t1=couple_educ_gp if couple_educ_gp_t1==. & educ_type_chg==1 // if same whole time, fill in t-1 with t
+
+label values couple_educ_gp_t1 couple_educ
+
+gen educ_type_t1=.
+replace educ_type_t1=educ_type[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
+replace educ_type_t1=educ_type if educ_type_t1==. & educ_type_chg==1 // if same whole time, fill in t-1 with t
+
+label values educ_type_t1 educ_type
+
+browse unique_id survey_yr rel_start_all couple_educ_gp couple_educ_gp_t1 educ_type educ_type_t1 educ_type_chg educ_wife_est educ_head_est 
+
+* start of marriage
+gen couple_educ_gp_mar = couple_educ_gp if dur==min_dur & inlist(min_dur,0,1,2)
+bysort unique_id (couple_educ_gp_mar): replace couple_educ_gp_mar=couple_educ_gp_mar[1]
+replace couple_educ_gp_mar = couple_educ_gp if couple_educ_gp_mar ==. & educ_type_chg==1
+
+label values couple_educ_gp_t1 couple_educ
+
+gen educ_type_mar = educ_type if dur==min_dur & inlist(min_dur,0,1,2)
+bysort unique_id (educ_type_mar): replace educ_type_mar=educ_type_mar[1]
+replace educ_type_mar = educ_type if educ_type_mar ==. & educ_type_chg==1
+
+label values educ_type_t1 couple_educ
 
 // fix region
 gen region = REGION_
@@ -314,11 +383,11 @@ mkspline knot1 0 knot2 20 knot3 = earnings_1000s
 bysort unique_id (survey_yr): egen yr_rank=rank(survey_yr)
 // browse unique_id survey_yr rel_start_all dur yr_rank hh_earn_type_t1
 
-gen hh_earn_type_mar = hh_earn_type_t if dur==1
+gen hh_earn_type_mar = hh_earn_type_t if dur==min_dur & inlist(min_dur,0,1,2)
 bysort unique_id (hh_earn_type_mar): replace hh_earn_type_mar=hh_earn_type_mar[1]
 label values hh_earn_type_mar hh_earn_type
 
-gen hh_hours_type_mar = hh_hours_type_t if dur==1
+gen hh_hours_type_mar = hh_hours_type_t if dur==min_dur & inlist(min_dur,0,1,2)
 bysort unique_id (hh_hours_type_mar): replace hh_hours_type_mar=hh_hours_type_mar[1]
 label values hh_hours_type_mar hh_hours_type
 
@@ -348,6 +417,24 @@ gen age_mar_wife_sq = age_mar_wife * age_mar_wife
 gen home_owner=0
 replace home_owner=1 if HOUSE_STATUS_==1
 
+* ever home_owner
+bysort unique_id: egen ever_home_owner = max(home_owner)
+tab home_owner, m
+tab ever_home_owner, m
+tab ever_home_owner home_owner, m
+
+* t-1
+gen home_owner_t1=.
+replace home_owner_t1=home_owner[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
+replace home_owner_t1 = 0 if home_owner_t1==. & home_owner==0 // in theory, can only change one direction? well, that is probably not true, but assuming if next observation is a 0, the one prior also is. still quite a lot missing. it is possible there is a change in home ownership status specifically upon the transition to marriage so don't really want to make a lot of assumptions.
+
+// browse unique_id survey_yr home_owner home_owner_t1 ever_home_owner HOUSE_STATUS_
+
+// lag school enrollment
+gen either_enrolled_t1=.
+replace either_enrolled_t1=either_enrolled[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
+replace either_enrolled_t1 = 0 if either_enrolled_t1==. & either_enrolled==0 
+
 // create new variable for having kids under 6 in household
 gen children_under6=0
 replace children_under6=1 if children==1 & AGE_YOUNG_CHILD_ < 6
@@ -368,6 +455,8 @@ inspect region
 inspect cohab_with_wife 
 inspect cohab_with_other
 inspect pre_marital_birth
+inspect home_owner
+inspect couple_joint_religion // this has quite a bit of missing
 
 // indicators of paid leave
 gen paid_leave_state=0
