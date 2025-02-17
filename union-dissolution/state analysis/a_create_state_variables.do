@@ -1,4 +1,69 @@
-/* Resources
+********************************************************************************
+* Create structural support variable
+* create-state-varables.do
+* Kim McErlean
+********************************************************************************
+
+use "$structural/structural_support_2021.dta", clear
+
+drop if state_fips==11 // DC doesn't have a lot of these variables
+
+// first recode so all in the same direction - want higher to be MORE support
+gen earn_ratio_neg = 0-earn_ratio // bc was calculated as men's wages over women's, so currently, above 1 = men higher, want opposite
+gen parent_earn_ratio_neg = 0-parent_earn_ratio
+// gen welfare_neg = 0-welfare_all
+// gen welfare_cash_neg = 0 -welfare_cash_asst
+
+foreach var in min_wage min_above_fed min_amt_above_fed paid_leave paid_leave_length earn_ratio earn_ratio_neg parent_earn_ratio parent_earn_ratio_neg welfare_all welfare_cash_asst abortion_protected unemployment_percap prek_enrolled prek_enrolled_public{
+	sum `var'
+	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
+}
+
+** Current
+alpha paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st
+egen structural_familism_v0 = rowtotal(paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st)
+
+** Explore new measure based on reviewers
+alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st // replace min wage binary with indicator of amount above
+alpha paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st // replace paid leave binary with length
+alpha paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st parent_earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st
+
+egen structural_familism = rowtotal(paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st)
+
+pwcorr structural_familism_v0 structural_familism // 0.975 correlation
+browse state_fips year structural_familism structural_familism_v0 paid_leave_length prek_enrolled_public min_amt_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all
+
+sum structural_familism_v0, detail
+sum structural_familism, detail
+
+** test centering the variable as well
+gen sf_centered=.
+sum structural_familism, detail
+// replace sf_centered = structural_familism - `r(p50)'
+replace sf_centered = structural_familism - `r(mean)'
+
+sum structural_familism sf_centered, detail // okay it is basically already mean centered, so it is fine?
+browse structural_familism sf_centered
+
+tabstat structural_familism paid_leave_length prek_enrolled_public min_amt_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all, by(state_name)
+
+**Second approach: Factor-based
+factor paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st, ipf
+predict f1
+pwcorr f1 structural_familism // so if I make a factor variable, also VERY correlated (~0.95)
+// browse structural_familism f1
+
+save "$state_data/structural_familism.dta", replace
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# Old measures - no longer using
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+/* Resources for LCA
 ** https://www.stata.com/features/overview/latent-class-analysis/
 ** https://www.stata.com/features/latent-class-analysis/
 ** https://www.stata.com/meeting/uk18/slides/uk18_MacDonald.pdf
@@ -6,6 +71,7 @@ Convergence problems
 https://www.statalist.org/forums/forum/general-stata-discussion/general/1629031-not-achieving-convergence-in-latent-class-analysis
 */
 
+/*
 ********************************************************************************
 * Get data and create new variables
 ********************************************************************************
@@ -301,7 +367,7 @@ estat lcmean // values by groups*/
 ********************************************************************************
 **# Structural family measure instead
 ********************************************************************************
-
+/*
 /* scale instead, to match structural sexism people?*/
 // First recode so all are in the same direction (higher = more support)
 use "$state_data/final_measures.dta", clear
@@ -492,6 +558,8 @@ rotate, varimax
 gen year_t1 = year // to get t-1 measures
 
 save "$state_data/structural_familism.dta", replace
+*/
+
 /*
 ** LCA
 gsem (paid_leave_st min_above_fed_st <-  , logit) ///

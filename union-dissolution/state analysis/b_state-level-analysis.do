@@ -27,9 +27,9 @@ tab matrix_rel_num, m
 keep if matrix_marr_num==1
 keep if (AGE_HEAD_>=18 & AGE_HEAD_<=55) &  (AGE_WIFE_>=18 & AGE_WIFE_<=55)
 
-keep if inrange(rel_start_all,1995,2014)
+keep if inrange(rel_start_all,1995,2016) // extend to 2016? if I keep 2021?
 keep if inlist(IN_UNIT,0,1,2)
-drop if survey_yr==2021 // until I figure out what to do about covid year
+// drop if survey_yr==2021 // until I figure out what to do about covid year. I did add the policy measures, now need to figure out if it makes sense to keep for other reasons
 drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
 drop if STATE_==0
 drop if STATE_==99
@@ -403,6 +403,8 @@ new policy file: "T:\Research Projects\State data\data_keep\final_measures.dta"
 
 rename STATE_ state_fips
 rename survey_yr year
+
+/* Not using these measures
 merge m:1 state_fips year using "$state_data/cspp_data_1985_2019.dta", keepusing(statemin masssociallib_est policysociallib_est policyeconlib_est unemployment state_cpi_bfh_est pollib_median)
 
 drop if _merge==2
@@ -419,36 +421,37 @@ drop _merge
 merge m:1 state_fips year using "$state_data/state_lca.dta"
 drop if _merge==2
 drop _merge
+*/
 
 merge m:1 state_fips year using "$state_data/structural_familism.dta"
 drop if _merge==2
 drop _merge
 rename structural_familism structural_familism_t
-drop year_t1
+rename f1 f1_t
+drop year_t1 year_t2
 
 gen year_t1 = year - 1
-merge m:1 year_t1 state_fips using "$state_data/structural_familism.dta", keepusing(structural_familism)
+merge m:1 year_t1 state_fips using "$state_data/structural_familism.dta", keepusing(structural_familism f1)
 drop if _merge==2
 drop _merge
 rename structural_familism structural_familism_t1
+rename f1 f1_t1
 
 label values state_fips .
 sort unique_id year
 browse unique_id year state_fips structural_familism_t structural_familism_t1
 
-// I need to remember - not all variables have data past 2010 - should I just extend forward. I could definitely add in the min wage and unemployment
-browse year state_fips state_cpi_bfh_est
-
-// do I center the main data or here?
+// do I center the main data or here? in main data, no real need to center (already essentially at 0)
 gen sf_centered_alt_t=.
 sum structural_familism_t, detail
-replace sf_centered_alt_t = structural_familism_t - `r(p50)'
+replace sf_centered_alt_t = structural_familism_t - `r(mean)'
 
 gen sf_centered_alt_t1=.
 sum structural_familism_t1, detail
-replace sf_centered_alt_t1 = structural_familism_t1 - `r(p50)'
+replace sf_centered_alt_t1 = structural_familism_t1 - `r(mean)'
 
 browse structural_familism_t sf_centered sf_centered_alt_t
+sum structural_familism_t sf_centered sf_centered_alt_t, detail
 
 // various variables I tested and am not using
 /*
@@ -533,13 +536,15 @@ pwcorr regional_attitudes_pct regional_attitudes_factor // .9680
 sum regional_attitudes_factor
 gen regional_attitudes_scaled=(regional_attitudes_factor - r(min)) /  (r(max) - r(min))
 sum regional_attitudes_scaled
+
+alpha unemployment_st child_pov_st gini_st // economic uncertainty. 0.54
+alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st // structural sexism. 0.61
+
 */
 
 set scheme cleanplots
 
-alpha min_above_fed_st paid_leave_st senate_dems_st welfare_all_st educ_spend_percap_st earn_ratio_neg_st // structural familism. 0.70
-alpha unemployment_st child_pov_st gini_st // economic uncertainty. 0.54
-alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_dv_gun_law_st senate_rep_st // structural sexism. 0.61
+alpha paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st // structural familism. 0.70 0.716 now
 
 ********************************************************************************
 ********************************************************************************
