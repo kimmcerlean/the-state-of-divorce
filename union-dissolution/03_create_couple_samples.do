@@ -217,7 +217,11 @@ forvalues y=1/13{
 
 tab marital_status_updated relationship, m
 
-// indicator if dissolved
+********************************************************************************
+**# Create outcome
+********************************************************************************
+
+** original indicator if dissolved
 gen dissolve_v0=0
 replace dissolve_v0=1 if survey_yr >=rel_end_all & (inrange(status_all,4,7) & in_marital_history==1)
 replace dissolve_v0=1 if exit_rel==1 & inlist(MARST_LEGAL_HEAD_[_n+1],2,4,5) & unique_id == unique_id[_n+1] & in_marital_history==0
@@ -226,21 +230,27 @@ replace dissolve_v0=1 if exit_rel[_n+1]==1 & dissolve_v0[_n+1]==0 & (inrange(sta
 
 tab marital_status_updated exit_rel, m
 
+** new indicator based on improved marital status and end dates
 gen dissolve=.
 replace dissolve=0 if relationship==1
 replace dissolve=1 if marital_status_updated==1 & inlist(marital_status_updated[_n+1],5,6) & unique_id == unique_id[_n+1]  // & wave == wave[_n+1]-1 - okay, if the next time they appear, they are divorced, then this is probably fine?
+// okay, one fundamental problem here is that we don't always observe the marital status as divorced - if the interview happens in that year before the divorce? okay, so this is what the next part of the code is designed to do. BUT, this is then where the biennial years are causin challenges, because we might not have the survey year ever matching the end year if it's an off year.
 
 tab yr_end1 status1, m
 
 forvalues y=1/13{
 	capture replace dissolve=1 if survey_yr == yr_end`y' & inlist(status`y',4,5) // don't want WIDOWHOOD
+	capture replace dissolve=1 if survey_yr == (yr_end`y'-1) & inlist(status`y',4,5) & inlist(yr_end`y',1998,2000,2002,2004,2006,2008,2010,2012,2014,2016,2018,2020) // I think biennial years are causing problems, so update to prior year
 }
+
+// replace dissolve = 0 if dissolve==1 & survey_yr !=rel_end_all & survey_yr!=(rel_end_all-1)
+replace dissolve = 0 if dissolve==1 & dissolve[_n-1]==1 & inlist(marital_status_updated,5,6) & marital_status_updated[_n-1]==1 & unique_id==unique_id[_n-1] // there are people with two diff years recording as dissolved. putting it next to married one so I have both partners' info
 
 tab dissolve dissolve_v0, m
 tab exit_rel dissolve_v0, m
 tab exit_rel dissolve, m
 
-browse unique_id survey_yr relationship partner_unique_id rel_start_all rel_end_all marital_status_updated MX8 exit_rel dissolve dissolve_v0 yr_married1 yr_end1 yr_married2 yr_end2 yr_married3 yr_end3
+browse unique_id partner_unique_id survey_yr marital_status_updated rel_start_all rel_end_all dissolve exit_rel yr_end1 status1 yr_end2 status2 yr_end3 status3
 
 /* exploration
 browse id survey_yr relationship rel_start_all rel_end_all dissolve_v0 exit_rel status_all MARST_LEGAL_HEAD_ if inlist(id,2009,2986,2992) // so the survey yr GREATER than part isn't working for people who dissolve in an off year - like 2008. so 2007 not getting flagged as end? 
@@ -254,13 +264,13 @@ sort id survey_yr
 ********************************************************************************
 
 gen total_relationship=relationship
-replace total_relationship=1 if dissolve==1
+replace total_relationship=1 if dissolve==1 // need to keep year of dissolution
 keep if total_relationship==1 
 browse id survey_yr relationship rel_start_all rel_end_all dissolve dissolve_v0 exit_rel status_all marital_status_updated
 
-unique id if inrange(status_all,4,7) // 6060, this is now higher, but not much (6173)
+unique id if inrange(status_all,4,7) // 6060, this is now higher, but not much (6258)
 unique id if dissolve_v0==1 // 7660, this is now lower...(7182)
-unique id if dissolve==1 // 10149 - new version
+unique id if dissolve==1 // 10385 - new version
 
 // trying to identify if married or cohabiting. .. need relation_?
 // see fAQ, some might be labeled bf / gf in first year coresiding (code 88)
@@ -1212,7 +1222,7 @@ replace receive_transfers=0 if TRANSFER_INCOME_==0
 replace receive_transfers=1 if TRANSFER_INCOME_>0 &TRANSFER_INCOME_!=.
 
 // also age at relationship start
-gen year_birth = survey_yr - AGE_INDV
+replace year_birth = survey_yr - AGE_INDV if year_birth==.
 // browse unique_id survey_yr SEX year_birth  AGE_INDV AGE_HEAD_ AGE_WIFE_
 
 /* let's fill this in later
@@ -1302,6 +1312,19 @@ replace rel_over_flag = 1 if survey_yr > rel_end_all & rel_end_all!=.
 tab rel_over_flag, m // okay there are none here
 
 drop if rel_over_flag==1
+
+// alt way
+gen end_year = survey_yr if dissolve==1
+bysort unique_id partner_unique_id (end_year): replace end_year=end_year[1]
+sort unique_id survey_yr
+
+gen rel_over_flag_alt=0
+replace rel_over_flag_alt = 1 if survey_yr > end_year & end_year!=.
+tab rel_over_flag_alt, m 
+
+browse unique_id partner_unique_id survey_yr marital_status_updated rel_start_all rel_end_all end_year dissolve rel_over_flag_alt
+
+drop if rel_over_flag_alt==1
 	
 // restrict to working age (18-55) - at time of marriage or all? check what others do - Killewald said ages 18-55 - others have different restrictions, table this part for now, also need to figure out the ages a bit more
 /*
@@ -1369,10 +1392,10 @@ tab rel_start_all if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife=
 
 save "$created_data/PSID_marriage_validation_sample.dta", replace
 
-tab MARITAL_PAIRS_ if dissolve==1 // 25% have no spouse in year of dissolution - so all of my partner variables are moot.
-browse id survey_yr earnings_t1_wife earnings_t1_wife female_earn_pct_t1  couple_educ_gp MARITAL_PAIRS_ if dissolve==1 & MARITAL_PAIRS_==0
+tab MARITAL_PAIRS_ if dissolve==1 // 25% have no spouse in year of dissolution - so all of my partner variables are moot. okay, fixed this some
+browse id survey_yr earnings_t1_head earnings_t1_wife female_earn_pct_t1  couple_educ_gp MARITAL_PAIRS_ if dissolve==1 & MARITAL_PAIRS_==0
 
-browse id survey_yr earnings_t1_wife earnings_t1_wife female_earn_pct_t1  couple_educ_gp  MARITAL_PAIRS_
+browse id survey_yr earnings_t1_head earnings_t1_wife female_earn_pct_t1  couple_educ_gp  MARITAL_PAIRS_
 tab hh_earn_type_t1 if dissolve==1 & MARITAL_PAIRS_==0
 tab hh_earn_type_t if dissolve==1 & MARITAL_PAIRS_==0 // much more distributed. but do lag for ALL or just if marital_pairs = 0 when dissolve ==1?
 
@@ -1394,43 +1417,40 @@ foreach var in SEX_WIFE_ HRLY_RATE_WIFE_ ENROLLED_WIFE_ RELIGION_WIFE_ WEEKLY_HR
 // id 749 as example.
 
 ********************************************************************************
-**# This is where I create the dissolve lag variable 
+**# This is where I create the final outcome variables
 * But if I create this, I want to use t variables, not t-1?
 ********************************************************************************
 
 sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr relationship marital_status_updated rel_start_all rel_end_all  matrix_rel_num matrix_marr_num dissolve dissolve_v0 hh_earn_type_t1 hh_earn_type_t yr_end1 yr_end2 yr_end3 status1 status2 status3 status_all
+
+tab marital_status_updated hh_earn_type_t1, m // so this is the fundamental problem. if interview after dissolution, they don't have a partner and we can't get the t-1 variables, so it's only a head, so then it's all being recorded as male BW because the wife doesn't ever have earnings. BUt also the head is also not nec a man if he doesn't have the gene. okay, but I think I fixed most of this above
+tab relation SEX if inlist(marital_status_updated, 5,6), m cell // okay and actually MOST are women
 
 // I think the effects are the same. I either use it where it is and use t-1 variables OR i move dissolve up and use t variables. 
 // same effect - main thing is that I did some of this wrong bc my variables are not measured at the same point.
 // I guess there is the question if I want to lag even one more year to account for the potential preemption (I think, in effect, this is what I was accidentally doing?)
 
-gen dissolve_lag = dissolve
-replace dissolve_lag = 1 if dissolve==0 & dissolve[_n+1]==1 & unique_id == unique_id[_n+1] & MARITAL_PAIRS_[_n+1]==0
+browse unique_id partner_unique_id survey_yr relationship marital_status_updated rel_start_all rel_end_all status_all matrix_rel_num matrix_marr_num dissolve dissolve_v0 exit_rel hh_earn_type_t1 hh_earn_type_t yr_end1 yr_end2 yr_end3 status1 status2 status3 earnings_t1_wife earnings_t1_head
 
-tab dissolve dissolve_lag, m
-
-bysort unique_id partner_unique_id: egen ever_dissolve=max(dissolve_lag)
+bysort unique_id partner_unique_id: egen ever_dissolve=max(dissolve)
 sort unique_id survey_yr
-tab status_all ever_dissolve, m
+tab status_all ever_dissolve, m row // okay pretty close. it's okay some widowed bc censored
 
-tab dissolve // 6391 -- okay now I think there are too many here OMG
-tab dissolve_lag // 6425
-// was going to do drop if dissolve==1 & dissolve_lag==1 but for 754 - that is valid, but NOT valid for 749
-
-browse unique_id partner_unique_id survey_yr relationship marital_status_updated rel_start_all rel_end_all dissolve dissolve_lag
-replace dissolve_lag = 0 if dissolve_lag==1 & dissolve_lag[_n+1]==1 & survey_yr!=rel_end_all & marital_status_updated==1 & unique_id==unique_id[_n+1] // there are people with two rows being recorded as dissolving
-
-tab dissolve dissolve_lag, m
-tab ever_dissolve dissolve, m
-tab ever_dissolve dissolve_lag, m
+tab dissolve
+tab exit_rel // okay but this includes widows so makes sense it's higher
+tab status_all exit_rel, m
+tab status_all dissolve, m
+tab dissolve exit_rel, m // key area to investigate is where dissolve is 1 but exit is not. I think sometimes we just didn't observe a transition out, so had to use end date
+ 
+browse unique_id partner_unique_id survey_yr relationship marital_status_updated rel_start_all rel_end_all end_year dissolve exit_rel status_all
 
 gen mp_flag = 0
-replace mp_flag = 1 if dissolve==1 & dissolve_lag==1 & MARITAL_PAIRS_==0 & (rel_start_all==rel_start_all[_n-1])  // k do has to be part of same relationship. i wonder if also my code update above fixed this...
+replace mp_flag = 1 if dissolve==1 & dissolve[_n-1]==1 & MARITAL_PAIRS_==0 & (rel_start_all==rel_start_all[_n-1])  // k do has to be part of same relationship. i wonder if also my code update above fixed this...it mostly did
 // drop if mp_flag==1 // I don't know if I need to drop because I am lagging?
 // see 1121, 20961 as example of it working - okay yes it did.
 tab marital_status_updated mp_flag, m // people recorded as divorced / separated
-tab mp_flag dissolve_lag, m col // will remove about 18%. leave for now
+tab mp_flag dissolve_lag, m col // will remove about 2%. leave for now, but might want to either remove this or those where MP = 0
+tab MARITAL_PAIRS_ dissolve_lag, m col // this is more like 10% of couples
 
 // eventually also drop people where only one row and NO wife info - aka marital_pairs==0 - because can't include.
 tab dur if MARITAL_PAIRS_ ==0
@@ -1441,7 +1461,7 @@ sort unique_id survey_yr
 tab num_years if MARITAL_PAIRS_ ==0 // k mostly 1
 tab dissolve relationship, m
 
-tab hh_hours_type_t1 if relationship==0 // so even though this is t-1, it's ASKED in t, so if don't have a partner, this will always be overindexed to men. okay so we do need to remove.
+tab hh_hours_type_t1 if relationship==0 // so even though this is t-1, it's ASKED in t, so if don't have a partner, this will always be overindexed to men / no earners. okay so we do need to remove.
 
 browse id survey_yr rel_start_all rel_end_all dur num_years if dissolve==1 & MARITAL_PAIRS_==0
 browse unique_id survey_yr rel_start_all rel_end_all dur num_years if dur==.
@@ -1453,7 +1473,7 @@ gen total_dur = rel_end_all-rel_start_all + 1
 browse unique_id survey_yr rel_start_all rel_end_all dur num_years total_dur
 
 drop if total_dur==0 | dur==.
-drop if num_years==1
+// drop if num_years==1
 drop if MARITAL_PAIRS_==0
 drop if SEX_HEAD_==2 | SEX_HEAD_==0
 
