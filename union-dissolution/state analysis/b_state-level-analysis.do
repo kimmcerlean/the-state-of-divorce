@@ -9,7 +9,7 @@
 * First just get data and do all the restrictions that are in file 3
 ********************************************************************************
 
-use "$created_data/PSID_marriage_recoded_sample.dta", clear // created in 1a
+use "$created_data/PSID_marriage_recoded_sample.dta", clear // created in step 3 in main folder
 
 gen cohort=.
 replace cohort=1 if inrange(rel_start_all,1969,1979)
@@ -34,23 +34,25 @@ drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
 drop if STATE_==0
 drop if STATE_==99
 
-// checking end dates - okay but duh this won't work when biennial?
-gen end_year = survey_yr if dissolve_lag==1
-bysort unique_id (end_year): replace end_year=end_year[1]
+// final check of sample / end dates BUT this won't work when biennial?
+tab rel_end_all status_all,m 
+tab rel_end_all dissolve,m col
+tab end_year status_all, m
+
 sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr rel_start_all rel_end_all end_year yr_end1 status1 yr_end2 status2 dur dissolve_lag dissolve dissolve_v0 ever_dissolve
+browse unique_id partner_unique_id survey_yr rel_start_all rel_end_all end_year status_all yr_end1 status1 yr_end2 status2 dur dissolve dissolve_v0 ever_dissolve
 
-gen outcome = dissolve_lag
-replace outcome=1 if dissolve_lag==0 & survey_yr == (rel_end_all-1) & inlist(rel_end_all,1998,2000,2002,2004,2006,2008,2010,2012,2014,2016,2018,2020) // I do think biennial are causing problems.
-replace outcome = 0 if dissolve_lag==1 & survey_yr !=rel_end_all & survey_yr!=(rel_end_all-1)
+gen outcome = dissolve
+replace outcome=1 if dissolve==0 & survey_yr == (rel_end_all-1) & inlist(rel_end_all,1998,2000,2002,2004,2006,2008,2010,2012,2014,2016,2018,2020) // I do think biennial are causing problems.
+replace outcome = 0 if dissolve==1 & survey_yr !=rel_end_all & survey_yr!=(rel_end_all-1)
 
-tab outcome dissolve_lag, m
 tab outcome dissolve, m
 tab rel_end_all status_all, m col
-unique unique_id if inlist(status_all,4,5) // 807 here 
-unique unique_id if outcome==1 // 611 here. but not all couples observed in their year of breakup which I think is the problem.
+unique unique_id if inlist(status_all,4,5) // 926 here 
+unique unique_id if outcome==1 // 709 here. but not all couples observed in their year of breakup which I think is the problem 
+unique unique_id if dissolve==1 // 976 here. This is like, I did adjust for them not being observed together in last year, so this s the final year observed together, hence why there are more. in outcome, they are not accounted for. I think this one is right, but maybe robustness with both?
 
-browse unique_id partner_unique_id survey_yr rel_start_all outcome dissolve_lag rel_end_all end_year yr_end1 status1 yr_end2 status2 dur ever_dissolve if inlist(status_all,4,5) // dissolve dissolve_v0 
+browse unique_id partner_unique_id survey_yr rel_start_all rel_end_all end_year dissolve outcome status_all yr_end1 status1 yr_end2 status2 dur dissolve_v0 ever_dissolve
 
 // drop those with no earnings or housework hours the whole time
 bysort unique_id: egen min_type = min(hh_earn_type_t1) // since no earners is 4, if the minimum is 4, means that was it the whole time
