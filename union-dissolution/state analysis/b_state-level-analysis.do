@@ -17,19 +17,20 @@ replace cohort=2 if inrange(rel_start_all,1980,1989)
 replace cohort=3 if inrange(rel_start_all,1990,2010)
 replace cohort=4 if inrange(rel_start_all,2011,2021)
 
-
 // Final sample restrictions
 // keep if cohort==3, need to just use filters so I don't have to keep using and updating the data
 // need to decide - ALL MARRIAGES or just first? - killewald restricts to just first, so does cooke. My validation is MUCH BETTER against those with first marraiges only...
 tab matrix_marr_num, m
 tab matrix_rel_num, m
+tab relationship_order, m // more accurate
 
-keep if matrix_marr_num==1
+// keep if matrix_marr_num==1
+keep if relationship_order==1
 keep if (AGE_HEAD_>=18 & AGE_HEAD_<=55) &  (AGE_WIFE_>=18 & AGE_WIFE_<=55)
 
-keep if inrange(rel_start_all,1995,2016) // extend to 2016? if I keep 2021?
+keep if inrange(rel_start_all,1995,2014) // extend to 2016? if I keep 2021?
 keep if inlist(IN_UNIT,0,1,2)
-// drop if survey_yr==2021 // until I figure out what to do about covid year. I did add the policy measures, now need to figure out if it makes sense to keep for other reasons
+drop if survey_yr==2021 // until I figure out what to do about covid year. I did add the policy measures, now need to figure out if it makes sense to keep for other reasons
 drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
 drop if STATE_==0
 drop if STATE_==99
@@ -48,11 +49,16 @@ replace outcome = 0 if dissolve==1 & survey_yr !=rel_end_all & survey_yr!=(rel_e
 
 tab outcome dissolve, m
 tab rel_end_all status_all, m col
-unique unique_id if inlist(status_all,4,5) // 926 here 
-unique unique_id if outcome==1 // 709 here. but not all couples observed in their year of breakup which I think is the problem 
-unique unique_id if dissolve==1 // 976 here. This is like, I did adjust for them not being observed together in last year, so this s the final year observed together, hence why there are more. in outcome, they are not accounted for. I think this one is right, but maybe robustness with both?
+unique unique_id if inlist(status_all,4,5) // 841 here 
+unique unique_id if outcome==1 // 651 here. but not all couples observed in their year of breakup which I think is the problem 
+unique unique_id if dissolve==1 // 838 here. This is like, I did adjust for them not being observed together in last year, so this s the final year observed together, hence why there are more. in outcome, they are not accounted for. I think this one is right, but maybe robustness with both? And, basically matches those with status of dissolved, so they should all be accounted for here
+unique unique_id if inlist(status_all,4,5) & dissolve==1
+unique unique_id if !inlist(status_all,4,5) & dissolve==1
 
 browse unique_id partner_unique_id survey_yr rel_start_all rel_end_all end_year dissolve outcome status_all yr_end1 status1 yr_end2 status2 dur dissolve_v0 ever_dissolve
+
+// some QAing
+// browse unique_id partner_unique_id survey_yr marital_status_updated dissolve dissolve_v0 outcome rel_start_all rel_end_all last_survey_yr yr_married1 yr_end1 yr_married2 yr_end1 yr_married3 yr_end3 matrix_marr_num if inlist(unique_id, 356030, 409032, 677032, 423032, 916032, 951030, 2707033, 6165006)
 
 // drop those with no earnings or housework hours the whole time
 bysort unique_id: egen min_type = min(hh_earn_type_t1) // since no earners is 4, if the minimum is 4, means that was it the whole time
@@ -196,7 +202,7 @@ tab moved_states_lag, m
 tab moved_states moved_states_lag, m
 tab state_change moved_states_lag, m
 
-browse unique_id partner_unique_id survey_yr STATE_ state_change moved_states moved_states_lag rel_start_all dissolve_lag MOVED_ MOVED_YEAR_
+browse unique_id partner_unique_id survey_yr STATE_ state_change moved_states moved_states_lag rel_start_all dissolve MOVED_ MOVED_YEAR_
 
 gen moved_last2=.
 replace moved_last2 = 0 if moved_states_lag==0 & moved_states==0
@@ -496,6 +502,12 @@ replace time_leave=1 if STATE_==44 & survey_yr >= 2018
 gen min_wage=0
 replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29,30,31,34,35,36,39,41,44,46,50,53,54)
 
+/* QA
+preserve
+collapse (max) rel_start_all rel_end_all dissolve dissolve_v0 outcome end_year survey_yr (count) num_yrs=survey_yr, by(unique_id partner_unique_id)
+restore
+*/
+
 ********************************************************************************
 **# Merge onto policy data
 ********************************************************************************
@@ -536,19 +548,21 @@ merge m:1 state_fips year using "$state_data/structural_familism.dta"
 drop if _merge==2
 drop _merge
 rename structural_familism structural_familism_t
+rename structural_familism_v0 structural_familism_v0_t
 rename f1 f1_t
 drop year_t1 year_t2
 
 gen year_t1 = year - 1
-merge m:1 year_t1 state_fips using "$state_data/structural_familism.dta", keepusing(structural_familism f1)
+merge m:1 year_t1 state_fips using "$state_data/structural_familism.dta", keepusing(structural_familism structural_familism_v0 f1)
 drop if _merge==2
 drop _merge
 rename structural_familism structural_familism_t1
+rename structural_familism_v0 structural_familism_v0_t1
 rename f1 f1_t1
 
 label values state_fips .
 sort unique_id year
-browse unique_id year state_fips structural_familism_t structural_familism_t1
+browse unique_id year state_fips structural_familism_t structural_familism_t1 structural_familism_v0_t structural_familism_v0_t1
 
 // do I center the main data or here? in main data, no real need to center (already essentially at 0)
 gen sf_centered_alt_t=.
@@ -654,6 +668,8 @@ alpha earn_ratio_st lfp_ratio_st pov_ratio_st pctmaleleg_st no_paid_leave_st no_
 set scheme cleanplots
 
 alpha paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st // structural familism. 0.70 0.716 now
+alpha paid_leave_st prek_enrolled_public_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st 
+alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st 
 
 ********************************************************************************
 ********************************************************************************
@@ -918,11 +934,11 @@ outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", ctitle(All 4b
 
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled_t1 i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner_t1 earnings_bucket_t1 i.couple_educ_gp_t1 i.moved_last2 i.couple_joint_religion_t1" 
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 `controls' if children_under6==1 & hh_earn_type_t1 < 4, or
+logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 `controls' if children_under6==1, or // & hh_earn_type_t1 < 4, or
 margins, dydx(hh_earn_type_t1) level(95) post
 estimates store est1
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4, or
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 `controls' if children_under6==1, or // & hh_hours_type_t1 < 4, or
 margins, dydx(hh_hours_type_t1) level(95) post
 estimates store est2
 
@@ -939,7 +955,7 @@ coefplot est1 est2 est3 est4,  drop(_cons) nolabel xline(0) levels(95)
 set scheme cleanplots
 
 coefplot (est1, offset(.20) nokey) (est2, offset(.20) nokey) (est3, offset(-.20) nokey) (est4, offset(-.20) nokey), drop(_cons) xline(0) levels(90) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner"  1.division_bucket_t1 = "Egalitarian" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others") ///
+coeflabels(2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_t1 = "Egalitarian" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others") ///
  headings(1.hh_earn_type_t1 = "{bf:Division of Earnings}" 1.hh_hours_type_t1= "{bf:Division of Work Hours}"  1.division_bucket_t1 = "{bf:Combined (Earnings)}"  1.division_bucket_hrs_t1 = "{bf:Combined (Hours)}")
  // (est3, offset(-.20) label(College)) 
  // coefplot (est1, offset(.20) nokey lcolor("dkgreen") mcolor("dkgreen") ciopts(color("dkgreen")))
