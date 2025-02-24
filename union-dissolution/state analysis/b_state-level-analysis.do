@@ -1396,11 +1396,14 @@ outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(alt dol) dec(4) al
 **# Descriptive statistics
 ********************************************************************************
 ********************************************************************************
-// for ref: local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children
+// for ref: local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" // i.num_children
 
-tab hh_earn_type, gen(earn_type)
-tab race_head, gen(race_head)
-tab region, gen(region)
+tab hh_earn_type_t1, gen(earn_type)
+tab hh_hours_type_t1, gen(hours_type)
+// tab division_bucket_t1, gen(combined_earn)
+tab division_bucket_hrs_t1, gen(combined_hours)
+tab raceth_head_fixed, gen(race_head)
+tab couple_joint_religion, gen(religion)
 
 putexcel set "$results/Table1_Descriptives_chapter3", replace
 putexcel B1:C1 = "Parents of children under 6", merge border(bottom)
@@ -1408,37 +1411,46 @@ putexcel D1:E1 = "Total Sample", merge border(bottom)
 putexcel B2 = ("All") C2 = ("Dissolved") D2 = ("All") E2 = ("Dissolved")
 putexcel A3 = "Unique Couples"
 
-putexcel A4 = "Dual Earning HH"
-putexcel A5 = "Male Breadwinner"
-putexcel A6 = "Female Breadwinner"
-putexcel A7 = "Structural Support for Working Families"
-putexcel A8 = "Total Couple Earnings"
-putexcel A9 = "At least one partner has college degree"
-putexcel A10 = "Couple owns home"
-putexcel A11 = "Husband's age at marriage"
-putexcel A12 = "Wife's age at marriage"
-putexcel A13 = "Husband's Race: White"
-putexcel A14 = "Husband's Race: Black"
-putexcel A15 = "Husband's Race: Indian"
-putexcel A16 = "Husband's Race: Asian"
-putexcel A17 = "Husband's Race: Latino"
-putexcel A18 = "Husband's Race: Other"
-putexcel A19 = "Husband's Race: Multiracial"
-putexcel A20 = "Husband and wife same race"
-putexcel A21 = "Either partner enrolled in school"
-putexcel A22 = "Region: Northeast"
-putexcel A23 = "Region: North Central"
-putexcel A24 = "Region: South"
-putexcel A25 = "Region: West"
-putexcel A26 = "Region: Alaska, Hawaii"
-putexcel A27 = "Husband Wife Cohabit"
-putexcel A28 = "Other Premarital Cohabit"
-putexcel A29 = "First Birth Premarital"
+putexcel A4 = "Dual Earning HH (Hours)"
+putexcel A5 = "Male Breadwinner (Hours)"
+putexcel A6 = "Female Breadwinner (Hours)"
+putexcel A7 = "Dual Earning HH ($)"
+putexcel A8 = "Male Breadwinner ($)"
+putexcel A9 = "Female Breadwinner ($)"
+putexcel A10 = "Egalitarian"
+putexcel A11 = "Traditional"
+putexcel A12 = "Counter-Traditional"
+putexcel A13 = "Second Shift"
+putexcel A14 = "All Other"
+putexcel A15 = "Structural Support for Working Families"
+putexcel A16 = "Relationship Duration"
+putexcel A17 = "Husband's age at marriage"
+putexcel A18 = "Wife's age at marriage"
+putexcel A19 = "Total Couple Earnings"
+putexcel A20 = "At least one partner has college degree"
+putexcel A21 = "Couple owns home"
+putexcel A22 = "Husband's Race: NH White"
+putexcel A23 = "Husband's Race: Black"
+putexcel A24 = "Husband's Race: Hispanic"
+putexcel A25 = "Husband's Race: NH Asian"
+putexcel A26 = "Husband's Race: NH Other"
+putexcel A27 = "Husband and wife same race"
+putexcel A28 = "Either partner enrolled in school"
+putexcel A29 = "Husband Wife Cohabit"
+putexcel A30 = "Other Premarital Cohabit"
+putexcel A31 = "First Birth Premarital"
+putexcel A32 = "Religion: Both No Religion"
+putexcel A33 = "Religion: Both Catholic"
+putexcel A34 = "Religion: Both Protestant"
+putexcel A35 = "Religion: One Catholic"
+putexcel A36 = "Religion: One No Religion"
+putexcel A37 = "Religion: Other"
+putexcel A38 = "Moved Within 2 Survey Waves"
 
-local meanvars "earn_type1 earn_type2 earn_type3 structural_familism couple_earnings couple_educ_gp home_owner age_mar_head age_mar_wife race_head1 race_head2 race_head3 race_head4 race_head5 race_head6 race_head7 same_race either_enrolled region1 region2 region3 region4 region5 cohab_with_wife cohab_with_other pre_marital_birth"
+local meanvars "hours_type1 hours_type2 hours_type3 earn_type1 earn_type2 earn_type3 combined_hours1 combined_hours2 combined_hours3 combined_hours4 combined_hours5 structural_familism_t1 dur age_mar_head age_mar_wife couple_earnings_t1 couple_educ_gp home_owner race_head1 race_head2 race_head3 race_head4 race_head5 same_race either_enrolled cohab_with_wife cohab_with_other pre_marital_birth religion1 religion2 religion3 religion4 religion5 religion6 moved_last2"
 
 // Parents
-forvalues w=1/26{
+forvalues w=1/35{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
 	mean `var' if children_under6==1
@@ -1446,18 +1458,18 @@ forvalues w=1/26{
 	putexcel B`row' = matrix(t`var'), nformat(#.#%)
 }
 
-// those who dissolved; value when outcome==1
-forvalues w=1/26{
+// those who dissolved; value when dissolve==1
+forvalues w=1/35{
 	local row=`w'+3
 	local var: word `w' of `meanvars' 
-	mean `var' if outcome==1 & children_under6==1
+	mean `var' if dissolve==1 & children_under6==1
 	matrix t`var'= e(b)
 	putexcel C`row' = matrix(t`var'), nformat(#.#%)
 }
 
 
 // All couples
-forvalues w=1/26{
+forvalues w=1/35{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
 	mean `var'
@@ -1465,24 +1477,19 @@ forvalues w=1/26{
 	putexcel D`row' = matrix(t`var'), nformat(#.#%)
 }
 
-// those who dissolved; value when outcome==1
-forvalues w=1/26{
+// those who dissolved; value when dissolve==1
+forvalues w=1/35{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
-	mean `var' if outcome==1
+	mean `var' if dissolve==1
 	matrix t`var'= e(b)
 	putexcel E`row' = matrix(t`var'), nformat(#.#%)
 }
 
-mean dur if children_under6==1
-mean dur if children_under6==1 & outcome==1
-mean dur
-mean dur if outcome==1
-
-unique id if children_under6==1
-unique id if children_under6==1 & outcome==1
-unique id 
-unique id if outcome==1
+unique unique_id if children_under6==1
+unique unique_id if children_under6==1 & dissolve==1
+unique unique_id 
+unique unique_id if dissolve==1
 
 ********************************************************************************
 **# * Does it matter how "male-BW" and "dual-earning" are operationalized?
