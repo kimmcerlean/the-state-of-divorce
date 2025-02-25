@@ -824,6 +824,15 @@ margins, dydx(hh_earn_type_t1_alt) at(structural_familism_t1=(`r(p5)' `r(p25)' `
 outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(alt dol) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 */
 
+// Predicted Probabilities for Key Models
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion"
+
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1!=4, or
+margins hh_hours_type_t1
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 `controls' if children_under6==1, or
+margins division_bucket_hrs_t1
+margins, at(structural_familism_t1=(-10(1)15))
 
 ********************************************************************************
 * All parents
@@ -969,8 +978,14 @@ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race
 
 logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 `controls' if children_under6==1, or
 margins, at(structural_familism_t1=(-5(1)10))
-marginsplot, ytitle(Predicted Probability of Divorce) xtitle(Structural Support for Working Families) // splot1opts(lcolor("eltgreen") mcolor("eltgreen")) ci1opts(color("eltgreen"))
-margins, dydx(structural_familism_t1)
+marginsplot, ytitle(Predicted Probability of Divorce) xtitle(Structural Support for Working Families) plot1opts(lcolor("black") mcolor("black")) ci1opts(color("black"))
+margins, dydx(structural_familism_t1) post
+estimates store esta
+
+ // just hours and maybe add structural support
+coefplot (est2, offset(.20) nokey) (est4, offset(-.20) nokey) (esta, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
+ headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
 
 ********************************************************************************
 * Earnings Interaction
@@ -1063,6 +1078,8 @@ estimates store est6
 
 coefplot (est5, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6, label("Female BW")),  drop(_cons) nolabel xline(0) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) headings(1._at = "{bf:Structural Support: Percentiles}", nogap offset(0.30))
 
+coefplot (est5, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6, label("Female BW")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical))
+
 // trying to get predicted prob
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
 
@@ -1117,10 +1134,10 @@ marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red)) 
 * Predicted probabilities
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & division_bucket_hrs_t1!=3, or
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1, or // & division_bucket_hrs_t1!=3, or
 sum structural_familism_t1, detail
 margins division_bucket_hrs_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("blue") mcolor("blue")) plot3opts(lcolor("navy") mcolor("navy")) plot4opts(lcolor("gs8") mcolor("gs8"))  // plot5opts(lcolor("gs8") mcolor("gs8"))  
+marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("blue") mcolor("blue")) plot3opts(lcolor("ltblue") mcolor("ltblue")) plot4opts(lcolor("gs8") mcolor("gs8")) plot5opts(lcolor("black") mcolor("black"))  
 
 **AMEs with CIs
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
@@ -1153,12 +1170,12 @@ sum structural_familism_t1, detail
 margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est13
 
-coefplot (est10, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11, label("Counter-Traditional")) (est12, label("Second Shift"))  (est13, label("All Others")),  drop(_cons) nolabel xline(0) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") headings(1._at = "{bf:Structural Support: Percentiles}", nogap offset(0.30)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1))
+coefplot (est10, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11, label("Counter-Traditional")) (est12, label("Second Shift"))  (est13, label("All Others")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1))
 
 
 ********************************************************************************
 ********************************************************************************
-**# Individual indicators of scale
+**# Individual indicators of scale (not yet updated for Social Forces submission)
 ********************************************************************************
 ********************************************************************************
 * Paid Leave
@@ -1206,70 +1223,194 @@ outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(parent we
 ********************************************************************************
 ********************************************************************************
 
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner knot1 knot2 knot3"
+*******************************
+* College
+*******************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
 
-/* College x Parental Status */
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==1 & couple_educ_gp==1 & hh_earn_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll Par) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(col parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+/* Main Effects */
+* Hours
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==0 & couple_educ_gp==1 & hh_earn_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(col no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+* Combined Hours
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 `controls' if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-/* No College x Parental Status */
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==1 & couple_educ_gp==0 & hh_earn_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Par) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+/* Interactions */
+*Hours
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4  & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll 1a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(Coll 1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==0 & couple_educ_gp==0 & hh_earn_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No No) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+*Combined Hours
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1  & hh_hours_type_t1!=4 & couple_educ_gp==1, or
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll 2a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(no no parent) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(Coll 2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+*******************************
+* No College
+*******************************
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+
+/* Main Effects */
+* Hours
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Combined Hours
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 `controls' if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Coll 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+/* Interactions */
+*Hours
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4  & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Coll 1a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+sum structural_familism_t1, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(No Coll 1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
+*Combined Hours
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1  & hh_hours_type_t1!=4 & couple_educ_gp==0, or
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Coll 2a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+sum structural_familism_t1, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(No Coll 2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+
 
 ********************************************************************************
 * Figures
 ********************************************************************************
-// Non-college-educated (parents of kids under 6)
-*Predicted Probabilities (no CI)
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  
+*******************************
+* College
+*******************************
+** Hours
+// Predicted Probabilities
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==1 & hh_earn_type_t1 < 4 & state_fips!=11 & couple_educ_gp==0, or
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==1, or
+
 sum structural_familism_t1, detail
-margins hh_earn_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue")) 
+margins hh_hours_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
+marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue"))  
 
-* AMEs with CI
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  
+// AMEs
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==1 & hh_earn_type_t1 < 4 & state_fips!=11 & couple_educ_gp==0, or
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==1, or
+
 sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) 
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%70)) 
+margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) // level(90)
+marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%40))
 
-// College-educated (parents of kids under 6)
-*Predicted Probabilities (no CI)
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  
+// Test alternate interaction charts
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==1 & hh_earn_type_t1 < 4 & state_fips!=11 & couple_educ_gp==1, or
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==1, or
 sum structural_familism_t1, detail
-margins hh_earn_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue")) 
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est5c
 
-* AMEs with CI
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 `controls' if children_under6==1 & hh_earn_type_t1 < 4 & state_fips!=11 & couple_educ_gp==1, or
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==1, or
 sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) 
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%70)) 
+margins, dydx(3.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est6c
+
+coefplot (est5c, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6c, label("Female BW")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical))
+
+** Combined DoL (Hours)
+// Test alternate interaction charts
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & couple_educ_gp==1, or
+sum structural_familism_t1, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+estimates store est10c
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & couple_educ_gp==1, or
+sum structural_familism_t1, detail
+margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+estimates store est11c
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & couple_educ_gp==1, or
+sum structural_familism_t1, detail
+margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+estimates store est12c
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & couple_educ_gp==1, or
+sum structural_familism_t1, detail
+margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+estimates store est13c
+
+coefplot (est10c, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est12c, label("Second Shift") mcolor(gs8) ciopts(color(gs8)))  (est13c, label("All Others") mcolor(black) ciopts(color(black))),  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1)) // (est11c, label("Counter-Traditional"))
+
+
+*******************************
+* No College
+*******************************
+** Hours
+// Predicted Probabilities
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==0, or
+
+sum structural_familism_t1, detail
+margins hh_hours_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
+marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue"))  
+
+// AMEs
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==0, or
+
+sum structural_familism_t1, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) // level(90)
+marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%40))
+
+// Test alternate interaction charts
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==0, or
+sum structural_familism_t1, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est5n
+
+logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 `controls' if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==0, or
+sum structural_familism_t1, detail
+margins, dydx(3.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est6n
+
+coefplot (est5n, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6n, label("Female BW")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical))
+
+** Combined DoL (Hours)
+// Test alternate interaction charts
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_wife cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & couple_educ_gp==0, or
+sum structural_familism_t1, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+estimates store est10n
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & couple_educ_gp==0, or
+sum structural_familism_t1, detail
+margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+estimates store est11n
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & couple_educ_gp==0, or
+sum structural_familism_t1, detail
+margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+estimates store est12n
+
+logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 `controls' if children_under6==1 & couple_educ_gp==0, or
+sum structural_familism_t1, detail
+margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+estimates store est13n
+
+coefplot (est10n, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11n, label("Counter-Traditional")) (est12n, label("Second Shift"))  (est13n, label("All Others")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1))
 
 ********************************************************************************
 ********************************************************************************
