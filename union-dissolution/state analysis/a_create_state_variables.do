@@ -30,6 +30,12 @@ alpha paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st parent_e
 
 egen structural_familism = rowtotal(paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st) // for not including 2019/2021 - going to just use paid leave bc length really doesn't vary until after 2018 and I don't want to overexaggerate differences
 
+// summarize inputs: base variable
+tabstat paid_leave prek_enrolled_public min_amt_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all structural_familism, stats(min max mean sd)
+
+// summarize inputs: standardized
+tabstat paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st, stats(min max mean sd)
+
 // egen structural_familism = rowtotal(paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st)
 
 pwcorr structural_familism_v0 structural_familism // 0.9821 correlation
@@ -48,6 +54,7 @@ sum structural_familism sf_centered, detail // okay it is basically already mean
 browse structural_familism sf_centered
 
 tabstat structural_familism paid_leave_length prek_enrolled_public min_amt_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all, by(state_name)
+tabstat structural_familism paid_leave_length prek_enrolled_public min_amt_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all if year<=2019, by(state_name)
 
 **Second approach: Factor-based
 factor paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st, ipf
