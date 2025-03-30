@@ -61,6 +61,13 @@ factor paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ra
 predict f1
 pwcorr f1 structural_familism // so if I make a factor variable, also VERY correlated (~0.95)
 // browse structural_familism f1
+rename f1 structural_factor
+
+**Factor based for fertility
+alpha paid_leave_length_st prek_enrolled_public_st earn_ratio_neg_st welfare_all_st
+factor paid_leave_length_st prek_enrolled_public_st earn_ratio_neg_st welfare_all_st, ipf
+predict f1
+rename f1 fertility_factor
 
 save "$state_data/structural_familism.dta", replace
 
