@@ -4,77 +4,79 @@
 * Kim McErlean
 ********************************************************************************
 
-use  "$created_data/PSID_marriage_recoded_sample.dta", clear // NEW file
+use "$data_keep\PSID_marriage_recoded_sample.dta", clear // OLD file (When this was 1a and only through 2019)
 unique unique_id if inlist(IN_UNIT,0,1,2) // starting sample
 
 gen cohort=.
-replace cohort=0 if inrange(rel_start_all,1970,1994)
-replace cohort=1 if inrange(rel_start_all,1995,2014)
+replace cohort=1 if inrange(rel_start_all,1969,1979)
+replace cohort=2 if inrange(rel_start_all,1980,1989)
+replace cohort=3 if inrange(rel_start_all,1990,2010)
+replace cohort=4 if inrange(rel_start_all,2011,2021)
 
-********************************************************************************
-* Additional sample restrictions
-********************************************************************************
-// let's get rid of 2021
-drop if survey_yr==2021
+tab cohort dissolve, row
 
+gen cohort_alt=.
+replace cohort_alt=1 if inrange(rel_start_all,1969,1979)
+replace cohort_alt=2 if inrange(rel_start_all,1980,1989)
+replace cohort_alt=3 if inrange(rel_start_all,1990,1999)
+replace cohort_alt=4 if inrange(rel_start_all,2000,2009)
+replace cohort_alt=5 if inrange(rel_start_all,2010,2021)
+
+label define cohort 1 "pre-1980s" 2 "1980s" 3 "1990s" 4 "2000s" 5 "2010s"
+label value cohort_alt cohort
+
+tab cohort_alt dissolve, row
+
+gen cohort_v2=.
+replace cohort_v2=0 if inrange(rel_start_all,1969,1989)
+replace cohort_v2=1 if inrange(rel_start_all,1990,2014)
+
+gen cohort_v3=.
+replace cohort_v3=0 if inrange(rel_start_all,1970,1994)
+replace cohort_v3=1 if inrange(rel_start_all,1995,2014)
+
+// keep if cohort==3, need to just use filters so I don't have to keep using and updating the data
 // need to decide - ALL MARRIAGES or just first? - killewald restricts to just first, so does cooke. My validation is MUCH BETTER against those with first marraiges only...
-keep if (AGE_HEAD_>=18 & AGE_HEAD_<=55) &  (AGE_WIFE_>=18 & AGE_WIFE_<=55)
+keep if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55)
 unique unique_id if inlist(IN_UNIT,0,1,2) // sample now
-
-keep if matrix_marr_num==1
+keep if marriage_order_real==1
 unique unique_id if inlist(IN_UNIT,0,1,2) // sample now
 
 // drop those with no earnings or housework hours the whole time
-bysort id: egen min_type = min(hh_earn_type_t1) // since no earners is 4, if the minimum is 4, means that was it the whole time
+bysort id: egen min_type = min(hh_earn_type) // since no earners is 4, if the minimum is 4, means that was it the whole time
 label values min_type hh_earn_type
 sort id survey_yr
-browse id survey_yr min_type hh_earn_type_t1
+browse id survey_yr min_type hh_earn_type
 
 tab min_type // okay very few people had no earnings whole time
 drop if min_type ==4
 
-bysort id: egen min_hw_type = min(housework_bkt_t1) // since no earners is 4, if the minimum is 4, means that was it the whole time
+bysort id: egen min_hw_type = min(housework_bkt) // since no earners is 4, if the minimum is 4, means that was it the whole time
 label values min_hw_type housework_bkt
 sort id survey_yr
-browse id survey_yr min_hw_type housework_bkt_t1
+browse id survey_yr min_hw_type housework_bkt
 
 tab min_hw_type // same here
 drop if min_hw_type ==4
 
-********************************************************************************
-* Additional variables that need to be created
-********************************************************************************
-// joint religion
+// need to make religion
+// religion is new, but think I need to add given historical research. coding changes between 1984 and 1985, then again between 1994 and 1995. using past then, so this is fine. otherwise, need to recode in MAIN FILE before combining. okay still somewhat sketchy. coding like this for now, will update in real analysis
 
-tab religion_head religion_wife, m
-tab religion_head, m
-tab religion_wife, m // lots of missing wife religions
+label define update_religion  ///
+       1 "Catholic"  ///
+       2 "Jewish"  ///
+       8 "Protestant unspecified"  ///
+      10 "Other non-Christian: Muslim, Rastafarian, etc."  ///
+      13 "Greek/Russian/Eastern Orthodox"  ///
+      97 "Other"  ///
+      98 "DK"  ///
+      99 "NA; refused"  ///
+       0 "None"
 
-browse unique_id partner_unique_id survey_yr religion_head religion_wife // going to fill this in
-
-sort unique_id partner_unique_id survey_yr
-replace religion_head = religion_head[_n-1] if religion_head==. & unique_id==unique_id[_n-1] & partner_unique_id==partner_unique_id[_n-1]
-replace religion_wife = religion_wife[_n-1] if religion_wife==. & unique_id==unique_id[_n-1] & partner_unique_id==partner_unique_id[_n-1]
-
-gsort unique_id partner_unique_id -survey_yr
-replace religion_head = religion_head[_n-1] if religion_head==. & unique_id==unique_id[_n-1] & partner_unique_id==partner_unique_id[_n-1]
-replace religion_wife = religion_wife[_n-1] if religion_wife==. & unique_id==unique_id[_n-1] & partner_unique_id==partner_unique_id[_n-1]
-sort unique_id partner_unique_id survey_yr
-
-gen couple_joint_religion=.
-replace couple_joint_religion = 0 if religion_head==0 & religion_wife==0
-replace couple_joint_religion = 1 if religion_head==1 & religion_wife==1
-replace couple_joint_religion = 2 if inlist(religion_head,3,4,5,6) & inlist(religion_wife,3,4,5,6)
-replace couple_joint_religion = 3 if (religion_head==1 & religion_wife!=1 & religion_wife!=.) | (religion_head!=1 & religion_head!=. & religion_wife==1)
-replace couple_joint_religion = 4 if ((religion_head==0 & religion_wife!=0 & religion_wife!=.) | (religion_head!=0 & religion_head!=. & religion_wife==0)) & couple_joint_religion==.
-replace couple_joint_religion = 5 if inlist(religion_head,2,7,8,9,10) & inlist(religion_wife,2,7,8,9,10)
-replace couple_joint_religion = 5 if couple_joint_religion==. & religion_head!=. & religion_wife!=. 
-// tab religion_head religion_wife if couple_joint_religion==.
-
-label define couple_joint_religion 0 "Both None" 1 "Both Catholic" 2 "Both Protestant" 3 "One Catholic" 4 "One No Religion" 5 "Other"
-label values couple_joint_religion couple_joint_religion
-
-tab couple_joint_religion, m
+recode RELIGION_HEAD_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_head)
+recode RELIGION_WIFE_ (3/7=97)(9=97)(11/12=97)(14/31=97), gen(religion_wife)
+	   
+label values religion_head religion_wife update_religion
 
 // fix region
 gen region = REGION_
@@ -82,88 +84,142 @@ replace region = . if inlist(REGION_,0,9)
 label define region 1 "Northeast" 2 "North Central" 3 "South" 4 "West" 5 "Alaska,Hawaii" 6 "Foreign"
 label values region region
 
-// other division of labor measures
+// splitting the college group into who has a degree. also considering advanced degree as higher than college -- this currently only works for cohort 3. I think for college - the specific years matter to split advanced, but for no college - distinguishing between grades less relevant?
+gen college_bkd=.
+replace college_bkd=1 if college_complete_head==1 & college_complete_wife==1
+replace college_bkd=2 if college_complete_head==0 & college_complete_wife==1
+replace college_bkd=3 if college_complete_head==1 & college_complete_wife==0
+replace college_bkd=0 if couple_educ_gp==0
+
+label define college_bkd 1 "Both" 2 "Wife" 3 "Husband"
+label values college_bkd college_bkd
+
+/*
+replace college_bkd=1 if (EDUC_WIFE_==16 & EDUC_HEAD_==16) | (EDUC_WIFE_==17 & EDUC_HEAD_==17)
+replace college_bkd=2 if (EDUC_WIFE_==17 & EDUC_HEAD_ <= 16) | (EDUC_WIFE_==16 & EDUC_HEAD_ <= 15) 
+replace college_bkd=3 if (EDUC_HEAD_==17 & EDUC_WIFE_ <= 16) | (EDUC_HEAD_==16 & EDUC_WIFE_ <= 15)
+*/
+
+gen no_college_bkd=.
+replace no_college_bkd=1 if couple_educ_gp==0 & educ_wife==educ_head
+replace no_college_bkd=2 if couple_educ_gp==0 & educ_wife>educ_head & educ_wife!=.
+replace no_college_bkd=3 if couple_educ_gp==0 & educ_wife<educ_head & educ_head!=.
+replace no_college_bkd=0 if couple_educ_gp==1
+label values no_college_bkd college_bkd
+
+// more discrete measures of work contributions
+input group
+.10
+.20
+.30
+.40
+.50
+.60
+.70
+.80
+1
+end
+
+xtile female_hours_bucket = female_hours_pct, cut(group)
+browse female_hours_bucket female_hours_pct weekly_hrs_wife ft_pt_wife weekly_hrs_head ft_pt_head
+
+// something went wrong here
+drop ft_pt_head
+drop ft_pt_wife
+
+gen ft_pt_head=0
+replace ft_pt_head=1 if weekly_hrs_head>0 & weekly_hrs_head <=35
+replace ft_pt_head=2 if weekly_hrs_head >35 & weekly_hrs_head<=200
+
+gen ft_pt_wife=0
+replace ft_pt_wife=1 if weekly_hrs_wife>0 & weekly_hrs_wife <=35
+replace ft_pt_wife=2 if weekly_hrs_wife >35 & weekly_hrs_wife<=200
+
 gen overwork_head = 0
-replace overwork_head =1 if weekly_hrs_t1_head >50 & weekly_hrs_t1_head<=200 // used by Cha 2013
+replace overwork_head =1 if weekly_hrs_head >50 & weekly_hrs_head<=200 // used by Cha 2013
 
 gen overwork_wife = 0 
-replace overwork_wife = 1 if weekly_hrs_t1_wife > 50 & weekly_hrs_t1_wife<=200
+replace overwork_wife = 1 if weekly_hrs_wife > 50 & weekly_hrs_wife<=200
 
 gen bw_type=.
-replace bw_type=1 if inlist(ft_pt_t1_head,1,2) & ft_pt_t1_wife==0
-replace bw_type=2 if ft_pt_t1_head==2 & ft_pt_t1_wife==1
-replace bw_type=3 if (ft_pt_t1_head==2 & ft_pt_t1_wife==2) | (ft_pt_t1_wife==1 & ft_pt_t1_head==1)
-replace bw_type=4 if ft_pt_t1_head==1 & ft_pt_t1_wife==2
-replace bw_type=5 if ft_pt_t1_head==0 & inlist(ft_pt_t1_wife,1,2)
+replace bw_type=1 if inlist(ft_pt_head,1,2) & ft_pt_wife==0
+replace bw_type=2 if ft_pt_head==2 & ft_pt_wife==1
+replace bw_type=3 if (ft_pt_head==2 & ft_pt_wife==2) | (ft_pt_wife==1 & ft_pt_head==1)
+replace bw_type=4 if ft_pt_head==1 & ft_pt_wife==2
+replace bw_type=5 if ft_pt_head==0 & inlist(ft_pt_wife,1,2)
 
 label define bw_type 1 "Male BW" 2 "Male and a half" 3 "Dual" 4 "Female and a half" 5 "Female BW"
 label values bw_type bw_type
 
 gen bw_type_alt=.
-replace bw_type_alt=1 if inlist(ft_pt_t1_head,1,2) & ft_pt_t1_wife==0
-replace bw_type_alt=2 if ft_pt_t1_head==2 & ft_pt_t1_wife==1
-replace bw_type_alt=3 if ft_pt_t1_head==2 & ft_pt_t1_wife==2
-replace bw_type_alt=4 if ft_pt_t1_wife==1 & ft_pt_t1_head==1
-replace bw_type_alt=5 if ft_pt_t1_head==1 & ft_pt_t1_wife==2
-replace bw_type_alt=6 if ft_pt_t1_head==0 & inlist(ft_pt_t1_wife,1,2)
+replace bw_type_alt=1 if inlist(ft_pt_head,1,2) & ft_pt_wife==0
+replace bw_type_alt=2 if ft_pt_head==2 & ft_pt_wife==1
+replace bw_type_alt=3 if ft_pt_head==2 & ft_pt_wife==2
+replace bw_type_alt=4 if ft_pt_wife==1 & ft_pt_head==1
+replace bw_type_alt=5 if ft_pt_head==1 & ft_pt_wife==2
+replace bw_type_alt=6 if ft_pt_head==0 & inlist(ft_pt_wife,1,2)
 
 label define bw_type_alt 1 "Male BW" 2 "Male and a half" 3 "Dual FT" 4 "Dual PT" 5 "Female and a half" 6 "Female BW"
 label values bw_type_alt bw_type_alt
 
 gen employ_type=.
-replace employ_type=1 if (ft_pt_t1_head==2 & ft_pt_t1_wife==2) | (ft_pt_t1_head==1 & ft_pt_t1_wife==1) // both FT or both PT
-replace employ_type=2 if (ft_pt_t1_head==2 & inlist(ft_pt_t1_wife,0,1)) | (ft_pt_t1_head==1 & ft_pt_t1_wife==0) // just husband FT
-replace employ_type=3 if (ft_pt_t1_wife==2 & inlist(ft_pt_t1_head,0,1)) | (ft_pt_t1_wife==1 & ft_pt_t1_head==0) // just wife FT
-replace employ_type=4 if ft_pt_t1_head==0 & ft_pt_t1_wife==0 // neither employed
+replace employ_type=1 if (ft_pt_head==2 & ft_pt_wife==2) | (ft_pt_head==1 & ft_pt_wife==1) // both FT or both PT
+replace employ_type=2 if (ft_pt_head==2 & inlist(ft_pt_wife,0,1)) | (ft_pt_head==1 & ft_pt_wife==0) // just husband FT
+replace employ_type=3 if (ft_pt_wife==2 & inlist(ft_pt_head,0,1)) | (ft_pt_wife==1 & ft_pt_head==0) // just wife FT
+replace employ_type=4 if ft_pt_head==0 & ft_pt_wife==0 // neither employed
 
 label define employ_type 1 "Both" 2 "Just Male" 3 "Just Fem" 4 "Neither"
 label values employ_type employ_type
 
-// combined dol measures
-browse unique_id partner_unique_id survey_yr hh_earn_type_t hh_earn_type_t1 housework_bkt_t housework_bkt_t1 housework_head housework_wife
+gen hours_type_hw=.
+replace hours_type_hw=1 if bw_type==3 & housework_bkt==1
+replace hours_type_hw=2 if bw_type==3 & housework_bkt==2
+replace hours_type_hw=3 if bw_type==3 & housework_bkt==3
+replace hours_type_hw=4 if inlist(bw_type,1,2) & housework_bkt==1
+replace hours_type_hw=5 if inlist(bw_type,1,2) & housework_bkt==2
+replace hours_type_hw=6 if inlist(bw_type,1,2) & housework_bkt==3
+replace hours_type_hw=7 if inlist(bw_type,4,5) & housework_bkt==1
+replace hours_type_hw=8 if inlist(bw_type,4,5) & housework_bkt==2
+replace hours_type_hw=9 if inlist(bw_type,4,5) & housework_bkt==3
+
+label define hours_type_hw 1 "Dual: Equal" 2 "Dual: Woman" 3 "Dual: Man" 4 "Male BW: Equal" 5 "Male BW: Woman" 6 "Male BW: Man" 7 "Female BW: Equal" 8 "Female BW: Woman" 9 "Female BW: Man"
+label values hours_type_hw hours_type_hw
+
 
 gen earn_type_hw=.
-replace earn_type_hw=1 if hh_earn_type_t1==1 & housework_bkt_t==1
-replace earn_type_hw=2 if hh_earn_type_t1==1 & housework_bkt_t==2
-replace earn_type_hw=3 if hh_earn_type_t1==1 & housework_bkt_t==3
-replace earn_type_hw=4 if hh_earn_type_t1==2 & housework_bkt_t==1
-replace earn_type_hw=5 if hh_earn_type_t1==2 & housework_bkt_t==2
-replace earn_type_hw=6 if hh_earn_type_t1==2 & housework_bkt_t==3
-replace earn_type_hw=7 if hh_earn_type_t1==3 & housework_bkt_t==1
-replace earn_type_hw=8 if hh_earn_type_t1==3 & housework_bkt_t==2
-replace earn_type_hw=9 if hh_earn_type_t1==3 & housework_bkt_t==3
-
-gen earn_type_hw_t1=.
-replace earn_type_hw_t1=1 if hh_earn_type_t1==1 & housework_bkt_t1==1
-replace earn_type_hw_t1=2 if hh_earn_type_t1==1 & housework_bkt_t1==2
-replace earn_type_hw_t1=3 if hh_earn_type_t1==1 & housework_bkt_t1==3
-replace earn_type_hw_t1=4 if hh_earn_type_t1==2 & housework_bkt_t1==1
-replace earn_type_hw_t1=5 if hh_earn_type_t1==2 & housework_bkt_t1==2
-replace earn_type_hw_t1=6 if hh_earn_type_t1==2 & housework_bkt_t1==3
-replace earn_type_hw_t1=7 if hh_earn_type_t1==3 & housework_bkt_t1==1
-replace earn_type_hw_t1=8 if hh_earn_type_t1==3 & housework_bkt_t1==2
-replace earn_type_hw_t1=9 if hh_earn_type_t1==3 & housework_bkt_t1==3
+replace earn_type_hw=1 if hh_earn_type==1 & housework_bkt==1
+replace earn_type_hw=2 if hh_earn_type==1 & housework_bkt==2
+replace earn_type_hw=3 if hh_earn_type==1 & housework_bkt==3
+replace earn_type_hw=4 if hh_earn_type==2 & housework_bkt==1
+replace earn_type_hw=5 if hh_earn_type==2 & housework_bkt==2
+replace earn_type_hw=6 if hh_earn_type==2 & housework_bkt==3
+replace earn_type_hw=7 if hh_earn_type==3 & housework_bkt==1
+replace earn_type_hw=8 if hh_earn_type==3 & housework_bkt==2
+replace earn_type_hw=9 if hh_earn_type==3 & housework_bkt==3
 
 label define earn_type_hw 1 "Dual: Equal" 2 "Dual: Woman" 3 "Dual: Man" 4 "Male BW: Equal" 5 "Male BW: Woman" 6 "Male BW: Man" 7 "Female BW: Equal" 8 "Female BW: Woman" 9 "Female BW: Man"
-label values earn_type_hw earn_type_hw_t1 earn_type_hw
+label values earn_type_hw earn_type_hw
 
-tab earn_type_hw, m
-tab earn_type_hw_t1, m
-tab earn_type_hw earn_type_hw_t1, m
+tab earn_type_hw couple_educ_gp if inlist(IN_UNIT,1,2) & cohort==3
 
-tab earn_type_hw couple_educ_gp if inlist(IN_UNIT,1,2) & cohort==1, col
-tab earn_type_hw_t1 couple_educ_gp if inlist(IN_UNIT,1,2) & cohort==1, col
+gen division_bucket=5
+replace division_bucket = 1 if hh_earn_type== 1 & housework_bkt== 1 // dual, dual
+replace division_bucket = 2 if hh_earn_type== 2 & housework_bkt== 2 // male bw, female hw
+replace division_bucket = 3 if hh_earn_type== 3 & housework_bkt== 3 // female bw, male hw
+replace division_bucket = 4 if hh_earn_type== 1 & housework_bkt== 2 // dual, female hw
+
+label define division_bucket 1 "Dual" 2 "Male BW" 3 "Female BW" 4 "Necessity" 5 "All Other"
+label values division_bucket division_bucket
 
 // this doesn't capture OVERWORK
-sum weekly_hrs_t1_head if ft_pt_t1_head==2, detail
-sum weekly_hrs_t1_wife if ft_pt_t1_wife==2, detail
+sum weekly_hrs_head if ft_pt_head==2, detail
+sum weekly_hrs_wife if ft_pt_wife==2, detail
 
-replace weekly_hrs_t1_head=. if weekly_hrs_t1_head==99
-replace weekly_hrs_t1_wife=. if weekly_hrs_t1_wife==99
+replace weekly_hrs_head=. if weekly_hrs_head==99
+replace weekly_hrs_wife=. if weekly_hrs_wife==99
 
-egen total_weekly_hrs = rowtotal(weekly_hrs_t1_head weekly_hrs_t1_wife)
+egen total_weekly_hrs = rowtotal(weekly_hrs_head weekly_hrs_wife)
 
-/*
 // dissimilarity
 gen hours_diff = weekly_hrs_head - weekly_hrs_wife
 browse hours_diff weekly_hrs_head weekly_hrs_wife
@@ -176,6 +232,7 @@ label define hours_diff_bkt 1 "Similar" 2 "Skew Male" 3 "Skew Female"
 label values hours_diff_bkt hours_diff_bkt 
 
 browse hours_diff_bkt hours_diff
+
 
 gen hw_diff = housework_wife - housework_head
 browse hw_diff housework_wife housework_head
@@ -195,43 +252,58 @@ browse female_earn_pct earn_ratio1 earn_ratio2
 
 mkspline hrs_ratio1 0.5 hrs_ratio2 = female_hours_pct
 browse female_hours_pct hrs_ratio1 hrs_ratio2
-*/
-
 
 // alternate earnings measures
 *Convert to 1000s
-gen earnings_1000s = couple_earnings_t1 / 1000
+gen earnings_1000s = couple_earnings / 1000
 
 *log
-gen earnings_total = couple_earnings_t1 + 1 
+gen earnings_total = couple_earnings + 1 
 gen earnings_ln = ln(earnings_total)
-* browse TAXABLE_T1_HEAD_WIFE_ couple_earnings_t1
+* browse TAXABLE_HEAD_WIFE_ earnings_total earnings_ln
+
+// gen earnings_ln2 = ln(TAXABLE_HEAD_WIFE_)
+// replace earnings_ln2 = 0 if TAXABLE_HEAD_WIFE_ <=0
 
 *square
+// gen earnings_sq = TAXABLE_HEAD_WIFE_ * TAXABLE_HEAD_WIFE_
 gen earnings_sq = earnings_1000s * earnings_1000s
+// browse couple_earnings TAXABLE_HEAD_WIFE_ earnings_1000s  earnings_sq
 
 * groups
-gen earnings_bucket_t1=.
-replace earnings_bucket_t1 = 0 if couple_earnings_t1 <=0
-replace earnings_bucket_t1 = 1 if couple_earnings_t1 > 0 		& couple_earnings_t1 <=10000
-replace earnings_bucket_t1 = 2 if couple_earnings_t1 > 10000 	& couple_earnings_t1 <=20000
-replace earnings_bucket_t1 = 3 if couple_earnings_t1 > 20000 	& couple_earnings_t1 <=30000
-replace earnings_bucket_t1 = 4 if couple_earnings_t1 > 30000 	& couple_earnings_t1 <=40000
-replace earnings_bucket_t1 = 5 if couple_earnings_t1 > 40000 	& couple_earnings_t1 <=50000
-replace earnings_bucket_t1 = 6 if couple_earnings_t1 > 50000 	& couple_earnings_t1 <=60000
-replace earnings_bucket_t1 = 7 if couple_earnings_t1 > 60000 	& couple_earnings_t1 <=70000
-replace earnings_bucket_t1 = 8 if couple_earnings_t1 > 70000 	& couple_earnings_t1 <=80000
-replace earnings_bucket_t1 = 9 if couple_earnings_t1 > 80000 	& couple_earnings_t1 <=90000
-replace earnings_bucket_t1 = 10 if couple_earnings_t1 > 90000 	& couple_earnings_t1 <=100000
-replace earnings_bucket_t1 = 11 if couple_earnings_t1 > 100000 & couple_earnings_t1 <=150000
-replace earnings_bucket_t1 = 12 if couple_earnings_t1 > 150000 & couple_earnings_t1 !=.
+gen earnings_bucket=.
+replace earnings_bucket = 0 if TAXABLE_HEAD_WIFE_ <=0
+replace earnings_bucket = 1 if TAXABLE_HEAD_WIFE_ > 0 		& TAXABLE_HEAD_WIFE_ <=10000
+replace earnings_bucket = 2 if TAXABLE_HEAD_WIFE_ > 10000 	& TAXABLE_HEAD_WIFE_ <=20000
+replace earnings_bucket = 3 if TAXABLE_HEAD_WIFE_ > 20000 	& TAXABLE_HEAD_WIFE_ <=30000
+replace earnings_bucket = 4 if TAXABLE_HEAD_WIFE_ > 30000 	& TAXABLE_HEAD_WIFE_ <=40000
+replace earnings_bucket = 5 if TAXABLE_HEAD_WIFE_ > 40000 	& TAXABLE_HEAD_WIFE_ <=50000
+replace earnings_bucket = 6 if TAXABLE_HEAD_WIFE_ > 50000 	& TAXABLE_HEAD_WIFE_ <=60000
+replace earnings_bucket = 7 if TAXABLE_HEAD_WIFE_ > 60000 	& TAXABLE_HEAD_WIFE_ <=70000
+replace earnings_bucket = 8 if TAXABLE_HEAD_WIFE_ > 70000 	& TAXABLE_HEAD_WIFE_ <=80000
+replace earnings_bucket = 9 if TAXABLE_HEAD_WIFE_ > 80000 	& TAXABLE_HEAD_WIFE_ <=90000
+replace earnings_bucket = 10 if TAXABLE_HEAD_WIFE_ > 90000 	& TAXABLE_HEAD_WIFE_ <=100000
+replace earnings_bucket = 11 if TAXABLE_HEAD_WIFE_ > 100000 & TAXABLE_HEAD_WIFE_ <=150000
+replace earnings_bucket = 12 if TAXABLE_HEAD_WIFE_ > 150000 & TAXABLE_HEAD_WIFE_ !=.
 
-label define earnings_bucket_t1 0 "0" 1 "0-10000" 2 "10000-20000" 3 "20000-30000" 4 "30000-40000" 5 "40000-50000" 6 "50000-60000" 7 "60000-70000" ///
+label define earnings_bucket 0 "0" 1 "0-10000" 2 "10000-20000" 3 "20000-30000" 4 "30000-40000" 5 "40000-50000" 6 "50000-60000" 7 "60000-70000" ///
 8 "70000-80000" 9 "80000-90000" 10 "90000-100000" 11 "100000-150000" 12 "150000+"
-label values earnings_bucket_t1 earnings_bucket_t1
+label values earnings_bucket earnings_bucket
 
-*Spline
+* Spline
+mkspline earnx 4 = couple_earnings, displayknots pctile
+mkspline earn = couple_earnings, cubic displayknots
+
+browse couple_earnings earn1 earn2 earn3 earn4 earnx1 earnx2 earnx3 earnx4
+
 mkspline knot1 0 knot2 20 knot3 = earnings_1000s
+
+// i'm confused
+mkspline knotx1 20 knotx2 = earnings_1000s
+
+// tertiles of both total earnings and men's specifically
+xtile earnings_tertile = earnings_1000s, nquantiles(3)
+xtile head_tertile = earnings_head, nquantiles(3)
 
 // alternate wealth measures
 replace HOUSE_VALUE_ = 0 if inlist(HOUSE_VALUE_,9999998,9999999)
@@ -252,6 +324,40 @@ sum wealth_eq_1000s, detail
 sum wealth_eq_1000s if survey_yr>=1990, detail
 mkspline wealth1 0 wealth2 `r(p25)' wealth3 `r(p50)' wealth4 `r(p75)' wealth5 = wealth_eq_1000s
 browse wealth_eq_1000s wealth1 wealth2 wealth3 wealth4 wealth5
+
+* Employment 
+gen couple_work=.
+replace couple_work=1 if ft_head==1 & ft_wife==1
+replace couple_work=2 if ft_head==0 & ft_wife==0
+replace couple_work=3 if ft_head==1 & ft_wife==0
+replace couple_work=4 if ft_head==0 & ft_wife==1
+
+label define couple_work 1 "Both FT" 2 "Neither FT" 3 "Him FT Her Not" 4 "Her FT Him Not"
+label values couple_work couple_work
+
+// want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?)
+browse id survey_yr rel_start_all dur hh_earn_type_bkd
+bysort id (survey_yr): egen yr_rank=rank(survey_yr)
+gen hh_earn_type_mar = hh_earn_type_bkd if yr_rank==1
+bysort id (hh_earn_type_mar): replace hh_earn_type_mar=hh_earn_type_mar[1]
+label values hh_earn_type_mar earn_type_bkd
+
+browse id survey_yr rel_start_all yr_rank dur hh_earn_type_bkd hh_earn_type_mar
+
+// okay rolling change in female earn pct - absolute or relative?! absolute for now...
+sort id survey_yr
+gen female_earn_pct_chg = (female_earn_pct-female_earn_pct[_n-1]) if id==id[_n-1]
+browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
+
+// spline of female earnings percent
+mkspline earn_pct1 .40 earn_pct2 .60 earn_pct3 = female_earn_pct
+browse female_earn_pct earn_pct*
+
+gen earn_pct_sq = female_earn_pct*female_earn_pct
+
+// spline of female HW percent
+mkspline hw_pct1 .40 hw_pct2 .60 hw_pct3 = wife_housework_pct
+browse wife_housework_pct hw_pct*
 
 // alt cohab
 gen ever_cohab=0
@@ -274,6 +380,7 @@ gen vehicle_owner=.
 replace vehicle_owner=0 if VEHICLE_OWN_e==5
 replace vehicle_owner=1 if VEHICLE_OWN_e==1
 
+
 // create new variable for having kids under 6 in household
 gen children_under6=0
 replace children_under6=1 if children==1 & AGE_YOUNG_CHILD_ < 6
@@ -281,12 +388,12 @@ replace children_under6=1 if children==1 & AGE_YOUNG_CHILD_ < 6
 // create dummy variable for interval length
 gen interval=.
 replace interval=1 if inrange(survey_yr,1968,1997)
-replace interval=2 if inrange(survey_yr,1999,2021)
+replace interval=2 if inrange(survey_yr,1999,2019)
 
 // need to combine weight variables
 gen weight=.
 replace weight=CORE_WEIGHT_ if inrange(survey_yr,1968,1992)
-replace weight=COR_IMM_WT_ if inrange(survey_yr,1993,2021)
+replace weight=COR_IMM_WT_ if inrange(survey_yr,1993,2019)
 
 gen weight_rescale=.
 
@@ -298,7 +405,7 @@ forvalues y=1991/1997{
 	summarize weight_rescale if survey_yr==`y'
 }
 
-forvalues y=1999(2)2021{
+forvalues y=1999(2)2019{
 	summarize weight if survey_yr==`y'
 	local rescalefactor `r(N)'/`r(sum)'
 	display `rescalefactor'
@@ -313,9 +420,8 @@ tabstat weight_rescale, by(interval)
 gen cds_sample=0
 replace cds_sample=1 if CDS_ELIGIBLE_==1
 
-/*
 // also add weight adjustment thing - "$temp\psid_weight_adjustment.dta"
-merge m:1 AGE_HEAD_ survey_yr using "$temp\psid_weight_adjustment.dta"
+merge m:1 AGE_REF_ survey_yr using "$temp\psid_weight_adjustment.dta"
 drop if _merge==2
 drop _merge
 
@@ -327,18 +433,35 @@ replace weight_adjust = weight * adjust_child if race_head==2 & inrange(survey_y
 replace weight_adjust = weight * adjust_no_child if race_head==2 & inrange(survey_yr,1997,2019) & (num_children==0 | (num_children>=1 & AGE_YOUNG_CHILD >13))
 
 browse survey_yr race_head AGE_YOUNG_CHILD_ weight weight_adjust adjust_child adjust_no_child
-*/
 
 // missing value inspect
 inspect age_mar_wife // 0
 inspect age_mar_head // 0
-inspect raceth_head // 2
+inspect race_head // 2
 inspect same_race // 0
 inspect either_enrolled // 0
-inspect region // 7
+inspect REGION_ // 0
 inspect cohab_with_wife // 0
 inspect cohab_with_other // 0 
 inspect pre_marital_birth // 0
+
+// indicators of paid leave
+gen paid_leave_state=0
+replace paid_leave_state=1 if inlist(STATE_,6,34,36,44)
+
+gen time_leave=.
+replace time_leave=0 if STATE_==6 & survey_yr < 2004
+replace time_leave=0 if STATE_==34 & survey_yr < 2009
+replace time_leave=0 if STATE_==36 & survey_yr < 2014
+replace time_leave=0 if STATE_==44 & survey_yr < 2018
+replace time_leave=1 if STATE_==6 & survey_yr >= 2004
+replace time_leave=1 if STATE_==34 & survey_yr >= 2009
+replace time_leave=1 if STATE_==36 & survey_yr >= 2014
+replace time_leave=1 if STATE_==44 & survey_yr >= 2018
+
+// minimum wage
+gen min_wage=0
+replace min_wage=1 if inlist(STATE_,2,4,5,6,8,9,10,11,12,15,17,23,24,25,26,27,29,30,31,34,35,36,39,41,44,46,50,53,54)
 
 // control variables: age of marriage (both), race (head + same race), religion (head), region? (head), cohab_with_wife, cohab_with_other, pre_marital_birth, post_marital_birth
 // both pre and post marital birth should NOT be in model because they are essentially inverse. do I want to add if they have a child together as new flag?
@@ -347,7 +470,6 @@ inspect pre_marital_birth // 0
 // original: local controls "age_mar_wife age_mar_head i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth"
 
 **# Analysis starts
-global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head i.couple_joint_religion i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
 
 ********************************************************************************
 ********************************************************************************
@@ -357,74 +479,77 @@ global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.rac
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
-unique unique_id if inlist(IN_UNIT,0,1,2) & inlist(cohort,0,1) // analytical sample
-unique unique_id if inlist(IN_UNIT,0,1,2) & inlist(cohort,0,1) & dissolve==1 // divorces analytical sample
+unique unique_id if inlist(IN_UNIT,0,1,2) & inlist(cohort_v3,0,1) // analytical sample
+unique unique_id if inlist(IN_UNIT,0,1,2) & inlist(cohort_v3,0,1) & dissolve_lag==1 // divorces analytical sample
 
 // First show changes in divorce rates over time, descriptively
-logit dissolve i.dur i.couple_educ_gp##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2), or
-margins cohort#couple_educ_gp
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
+
+logit dissolve_lag i.dur i.couple_educ_gp##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2), or
+margins cohort_v3#couple_educ_gp
 marginsplot, xtitle("Marital Cohort") xlabel(0 "Early (1970-1994)" 1 "Late (1995-2014)", angle(45))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) // ylabel(0(.01).06, angle(0))
 
 // then go into actual models of interest
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
 
 ** College-educated
 // 1970-1994
-logit dissolve i.dur i.hh_earn_type knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
-logit dissolve i.dur i.housework_bkt knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
 margins, dydx(housework_bkt)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll HW1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.earn_type_hw knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
 margins, dydx(earn_type_hw)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll Both1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 // 1995-2014
-logit dissolve i.dur i.hh_earn_type knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.housework_bkt knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 margins, dydx(housework_bkt)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.earn_type_hw knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 margins, dydx(earn_type_hw)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(Coll Both2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 ** Non-college-educated
 // 1970-1994
-logit dissolve i.dur i.hh_earn_type knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoColl1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.housework_bkt knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
 margins, dydx(housework_bkt)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(No HW1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	
-logit dissolve i.dur i.earn_type_hw knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
 margins, dydx(earn_type_hw)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(No Both1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 	
 // 1995-2014
-logit dissolve i.dur i.hh_earn_type knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoColl2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.housework_bkt knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 margins, dydx(housework_bkt)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoColl HW2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.earn_type_hw knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.earn_type_hw knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 margins, dydx(earn_type_hw)
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoColl Both2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -434,21 +559,21 @@ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race
 
 // College-educated
 // 1970-1994
-logit dissolve i.dur i.hh_earn_type knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
 margins, dydx(hh_earn_type)
 margins hh_earn_type
 margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
-logit dissolve i.dur i.housework_bkt knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==1, or
 margins housework_bkt
 margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 // 1995-2014
-logit dissolve i.dur i.hh_earn_type knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 margins hh_earn_type
 margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
-logit dissolve i.dur i.housework_bkt knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==1, or
 margins housework_bkt
 margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
@@ -456,21 +581,21 @@ local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race
 
 // Non-college-educated
 // 1970-1994
-logit dissolve i.dur i.hh_earn_type knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
 margins, dydx(hh_earn_type)
 margins hh_earn_type
 margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
-logit dissolve i.dur i.housework_bkt knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1970,1994) & couple_educ_gp==0, or
 margins housework_bkt
 margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
 // 1995-2014
-logit dissolve i.dur i.hh_earn_type knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.hh_earn_type knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 margins hh_earn_type
 margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
-logit dissolve i.dur i.housework_bkt knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
+logit dissolve_lag i.dur i.housework_bkt knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & inrange(rel_start_all,1995,2014) & couple_educ_gp==0, or
 margins housework_bkt
 margins, at(knot2=(0(10)20)) at(knot3=(0(10)100))
 
@@ -480,35 +605,35 @@ graph query colorstyle
 ** Interactions
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & hh_earn_type!=4, or // overall
-margins cohort#hh_earn_type
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & hh_earn_type!=4, or // overall
+margins cohort_v3#hh_earn_type
 marginsplot, xtitle("Marital Cohort") ylabel(, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot3opts(lcolor("cranberry") mcolor("cranberry")) ci3opts(color("cranberry"))
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & housework_bkt!=4, or // overall
-margins cohort#housework_bkt
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & housework_bkt!=4, or // overall
+margins cohort_v3#housework_bkt
 marginsplot, xtitle("Marital Cohort") ylabel(, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot3opts(lcolor("cranberry") mcolor("cranberry")) ci3opts(color("cranberry"))
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
-margins cohort#hh_earn_type // decline in all. female BW consistently has highest risk. v. small crossover between male BW and dual, but seems negligible
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
+margins cohort_v3#hh_earn_type // decline in all. female BW consistently has highest risk. v. small crossover between male BW and dual, but seems negligible
 marginsplot, xtitle("Marital Cohort") ylabel(0(.01).05, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot2opts(lcolor("gs12") mcolor("gs12")) ci2opts(color("gs12")) plot3opts(lcolor("gs12") lpattern("dash") mcolor("gs12")) ci3opts(color("gs12")) 
 // marginsplot, xtitle("Marital Cohort") ylabel(0(.01).05, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot3opts(lcolor("cranberry") mcolor("cranberry")) ci3opts(color("cranberry")) 
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(CollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
-margins cohort#housework_bkt
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
+margins cohort_v3#housework_bkt
 marginsplot, xtitle("Marital Cohort") ylabel(0(.01).05, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot2opts(lcolor("gs12") mcolor("gs12")) ci2opts(color("gs12")) plot3opts(lcolor("gs12") lpattern("dash") mcolor("gs12")) ci3opts(color("gs12")) 
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(CollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
-margins cohort#hh_earn_type
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
+margins cohort_v3#hh_earn_type
 marginsplot, xtitle("Marital Cohort") ylabel(0(.02).1, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot2opts(lcolor("gs12") mcolor("gs12")) ci2opts(color("gs12")) plot3opts(lcolor("gs12") lpattern("dash") mcolor("gs12")) ci3opts(color("gs12"))  // interesting - no change dual / male - and male always lowest only decline in female - so dual + female get more similar, but male BW still lowest
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoCollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
-margins cohort#housework_bkt
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
+margins cohort_v3#housework_bkt
 marginsplot, xtitle("Marital Cohort") ylabel(0(.02).1, angle(0))  ytitle("Predicted Probability of Marital Dissolution") plotregion(fcolor(white)) graphregion(fcolor(white)) title("") legend(region(lcolor(white))) legend(pos(6)) legend(rows(1)) xlabel(0 "Early" 1 "Late") plot1opts(lcolor("gs6") mcolor("gs6")) ci1opts(color("gs6")) plot2opts(lcolor("gs12") mcolor("gs12")) ci2opts(color("gs12")) plot3opts(lcolor("gs12") lpattern("dash") mcolor("gs12")) ci3opts(color("gs12")) 
 margins, dydx(*) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoCollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
@@ -516,69 +641,69 @@ outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval
 // okay the interactions aren't posting with above code, so have to do separately
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
-margins cohort, dydx(hh_earn_type) post
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
+margins cohort_v3, dydx(hh_earn_type) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(CollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
-margins cohort, dydx(housework_bkt) post
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
+margins cohort_v3, dydx(housework_bkt) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(CollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
-margins cohort, dydx(hh_earn_type) post
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
+margins cohort_v3, dydx(hh_earn_type) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoCollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
-margins cohort, dydx(housework_bkt) post
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
+margins cohort_v3, dydx(housework_bkt) post
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef se pval) ctitle(NoCollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 // are odds ratios better?
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(CollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(CollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
 
-logit dissolve i.dur i.earn_type_hw##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1, or // college
+logit dissolve_lag i.dur i.earn_type_hw##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1, or // college
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(CollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
-margins cohort#earn_type_hw
+margins cohort_v3#earn_type_hw
 marginsplot
-margins earn_type_hw#cohort
+margins earn_type_hw#cohort_v3
 marginsplot, recast(bar)
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(NoCollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(NoC	ollInt HW) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
 
-logit dissolve i.dur i.earn_type_hw##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0, or // no college
+logit dissolve_lag i.dur i.earn_type_hw##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0, or // no college
 outreg2 using "$results/dissolution_time_trends.xls", sideway stats(coef) ctitle(NoCollInt) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) eform append
-margins cohort#earn_type_hw
+margins cohort_v3#earn_type_hw
 marginsplot
 
 // predicted probabilities
 local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.region cohab_with_wife cohab_with_other pre_marital_birth  i.num_children i.interval i.home_owner"
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
-margins cohort#hh_earn_type
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & hh_earn_type!=4, or // college
+margins cohort_v3#hh_earn_type
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
-margins cohort#housework_bkt
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1 & housework_bkt!=4, or // college
+margins cohort_v3#housework_bkt
 
-logit dissolve i.dur i.earn_type_hw##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1, or // college
-margins cohort#earn_type_hw
+logit dissolve_lag i.dur i.earn_type_hw##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==1, or // college
+margins cohort_v3#earn_type_hw
 
-logit dissolve i.dur i.hh_earn_type##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
-margins cohort#hh_earn_type
+logit dissolve_lag i.dur i.hh_earn_type##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & hh_earn_type!=4, or // no college
+margins cohort_v3#hh_earn_type
 
-logit dissolve i.dur i.housework_bkt##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
-margins cohort#housework_bkt
+logit dissolve_lag i.dur i.housework_bkt##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0 & housework_bkt!=4, or // no college
+margins cohort_v3#housework_bkt
 
-logit dissolve i.dur i.earn_type_hw##i.cohort knot1 knot2 knot3 $controls if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0, or // no college
-margins cohort#hh_earn_type
+logit dissolve_lag i.dur i.earn_type_hw##i.cohort_v3 knot1 knot2 knot3 `controls' if inlist(IN_UNIT,0,1,2) & couple_educ_gp==0, or // no college
+margins cohort_v3#hh_earn_type
 
 ********************************************************************************
 **# Over time model comparisons

@@ -69,6 +69,13 @@ factor paid_leave_length_st prek_enrolled_public_st earn_ratio_neg_st welfare_al
 predict f1
 rename f1 fertility_factor
 
+alpha paid_leave_length_st prek_enrolled_public_st parent_earn_ratio_neg_st min_amt_above_fed_st welfare_all_st abortion_protected_st
+factor paid_leave_length_st prek_enrolled_public_st parent_earn_ratio_neg_st min_amt_above_fed_st welfare_all_st abortion_protected_st, ipf
+predict f1
+rename f1 fertility_factor_det
+
+tabstat structural_familism fertility_factor_det paid_leave_length prek_enrolled_public min_amt_above_fed parent_earn_ratio_neg abortion_protected welfare_all, by(state_name)
+
 save "$state_data/structural_familism.dta", replace
 
 ********************************************************************************
