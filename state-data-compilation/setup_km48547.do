@@ -47,6 +47,7 @@ if `"`c(hostname)'"' == "LAPTOP-TP2VHI6B"{
 	global data "$homedir/data"
 	global CPS "$homedir/data"
 	global ACS "$homedir/data"
+	global GSS "$homedir/data"
 	
 	*outputs
 	global created_data "$homedir/created data"

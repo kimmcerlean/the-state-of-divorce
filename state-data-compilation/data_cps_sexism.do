@@ -130,6 +130,45 @@ replace fathers_u5_earn_ft = weekly_earn_ft if fathers_u5==1
 gen mothers_u5_earn_ft=.
 replace mothers_u5_earn_ft = weekly_earn_ft if mothers_u5==1
 
+// median HH income
+// for cost percentage, they use "median income by state, married couple with children under the age of 18"
+// example table B19126 from ACS 5-year: ""Median Family Income in the Past 12 Months (in 2023 Inflation-Adjusted Dollars) by Family Type by Presence of Own Children Under 18 Years"
+tabstat hhincome, by(year) stats(p50 mean)
+tabstat hhincome [aweight=asecwt], by(year) stats(p50 mean)
+
+gqtype // not asked all years
+ncouples // but need the couple to be the HHer
+tab gqtype ncouples, m // so in years with overlap, husband / wife "Types" always have at least 1 couple. HOWEVER, there are sometimes couples even if not the HH type
+// oh duh there is famkind - use this
+tab gqtype famkind, m row
+tab ncouples famkind, m
+
+// nchild is also children of ANY AGE (NCHILD counts the number of own children (of any age or marital status) residing with each individual.)
+// so there isn't an under 18 version. So I might need to do both of these things (married HH + children) using HH roster info?
+// or do based on age of eldest child? like if the eldest child is under 18, then I can use nchild, but if not, need to figure it out...
+tab eldch nchild, m
+tab eldch if eldch!=99 // okay, about 70% have the eldest child under 18
+tab age if famrel == 3, m
+
+bysort serial year: egen nchild_u18 = count(pernum) if age < 18 & relate==301
+bysort serial year (nchild_u18): replace nchild_u18 = nchild_u18[1]
+replace nchild_u18 = 0 if nchild_u18==.
+tab nchild_u18, m
+tab nchild if eldch<18, m
+tab nchild if yngch<18, m
+
+sort year serial pernum
+browse serial pernum year marst age nfams famkind famrel ncouples nchild_u18 nchild relate eldch yngch hhincome
+
+gen married_fam_hh=0
+replace married_fam_hh = 1 if famkind==1 & inrange(nchild_u18,1,20)
+// browse serial pernum year married_fam_hh marst age nfams famkind famrel ncouples nchild_u18 nchild relate eldch yngch hhincome
+
+unique serial year
+unique serial year if pernum==1 // because i am doing median, I actually think I do need to restrict this based on just 1 record per HH. will just do pernum of 1 (gets same count)
+unique serial year, by(married_fam_hh)
+unique serial year if pernum==1, by(married_fam_hh)
+
 ********************************************************************************
 * for poverty ratio / HS eligiblity
 ********************************************************************************
@@ -414,3 +453,23 @@ save "$created_data/sexism_measures_1988_2023.dta", replace
 export excel using "$created_data/sexism_measures_1988_2023", firstrow(variables) replace
 
 restore
+
+********************************************************************************
+**# Median income
+********************************************************************************
+
+** Need to deduplicate
+keep if pernum==1
+keep if married_fam_hh==1
+unique serial year pernum
+
+preserve
+
+collapse 	(p50)	hhincome [aweight=asecwt], /// 
+					by(year statefip)
+
+// save
+save "$created_data/cps_medianfaminc_1988_2023.dta", replace
+
+restore
+

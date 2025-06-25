@@ -1,139 +1,154 @@
-set maxvar 10000
+ 
+use "$data/gss_regional_attitudes_1972_2024.dta", clear
+drop if YEAR < 1990
 
-use "$GSS/gss7221_r1b.dta", clear
-// use "$GSS\ICPSR_36797-V1\ICPSR_36797\DS0001\36797-0001-Data.dta", clear
+********************************************************************************
+**# Recodes for analysis
+********************************************************************************
 
+recode EDUC (0/11=1) (12=2) (13/15=3) (16/20=4), gen(education)
+label define educ 1 "LTHS" 2 "HS" 3 "Some College" 4 "College +"
+label values education educ
+drop if education <0
 
-// run supplemental syntax
+gen college=(education==4)
 
-rename *, lower
+fre FECHLD // (1/2=agree)(3/4=disagree) - agree = egal (" A working mother can establish just as warm and secure a relationship with her children as a mother who does not work")
+fre FEPRESCH // (1/2=agree)(3/4=disagree) - DISagree = egal ("A preschool child is likely to suffer if his or her mother works.")
+fre FEFAM // (1/2=agree)(3/4=disagree) - DISagree = egal ("It is much better for everyone involved if the man is the achiever outside the home and the woman takes care of the home and family.")
+fre FEPOL // (1=agree)(2=disagree) - DISagree = egal ("Most men are better suited emotionally for politics than are most women.")
 
-// keep if year > 2009 & year <2021
+recode FECHLD (-100/-98=.)(1/2=1)(3/4=2), gen(work_children)
+recode FEPRESCH (-100/-98=.)(1/2=1)(3/4=2), gen(work_preschool)
+recode FEFAM (-100/-98=.)(1/2=1)(3/4=2), gen(gendered_roles)
+recode FEPOL (-100/-98=.), gen(women_politics)
 
-keep year region womenhrt chldhrt allhrt noonehrt famsuffr twoincs hubbywrk hubbywk1 /// 
-twoincs1 menhrt nooneben id childs educ sex tradmod menben womenben chldben /// 
-allben ballot kidsuffr fepresch mawrkwrm mapaid paidlvdv
+/* not needed anything bc 100/97 already recoded now to diff types of missing
+recode FECHLD (-100/-98=.), gen(FECHLD_M)
+label values FECHLD_M   GSP005X
 
-// recode missings and not asked so can aggregate questions by year and region.
-foreach var in womenhrt chldhrt allhrt noonehrt famsuffr twoincs hubbywrk hubbywk1 /// 
-twoincs1 menhrt nooneben tradmod menben womenben chldben /// 
-allben kidsuffr fepresch mawrkwrm mapaid paidlvdv{
-	recode `var' (0=.)(8/9=.)
-}
+recode FEPRESCH (-100/-98=.), gen(FEPRESCH_M)
+label values FEPRESCH_M   GSP006X
 
-recode educ(0/11=1)(12=2)(13/15=3)(16/20=4), gen(education)
-gen college=0
-replace college=1 if education==4
+recode FEFAM (-100/-98=.), gen( )
+label values FEFAM_M  GSP007X
 
-save "$temp/GSS_region_long.dta", replace
-
-// prepping data to annualize
-* recode binary so it's 0/1, not 1/2 (No=0, Yes=1 to whatever the question is)
-foreach var in womenhrt chldhrt allhrt noonehrt menhrt nooneben menben womenben chldben allben{
-	recode `var' (2=0)
-}
-
-* want agree to be HIGHER (right now AGREE=1 and disagree=5)
-foreach var in famsuffr twoincs hubbywrk hubbywk1 twoincs1 kidsuffr mawrkwrm mapaid{
-	recode `var' (1=5)(2=4)(4=2)(5=1)
-}
-
-* Others:
-* tradmod: 1=man alone responsible; 2: both responsible
-* fepresch: doesn't have 3 as neither - so 3=disagree, 4=strongly disagree. 
-recode fepresch (1=5)(2=4)(3=2)(4=1)
-
-* paidlvdv: who should take paid leave. 1= mother, 3=equal, 5=father
-
-collapse (mean) womenhrt chldhrt allhrt noonehrt menhrt nooneben menben womenben chldben allben ///
-				famsuffr twoincs hubbywrk hubbywk1 twoincs1 kidsuffr mawrkwrm mapaid fepresch ///
-				tradmod paidlvdv, by(year region)
-				
-// how to fill in previous years: https://www.statalist.org/forums/forum/general-stata-discussion/general/1358759-duplicate-each-row-as-many-times-as-is-given-in-a-variable
-// use expand to create new rows? then label?
-				
-save "$temp/GSS_region.dta", replace
-
-save "$temp/GSS_region_altyears.dta", replace
-
-drop if year==2010
-recode year (2012=2011)(2014=2013)(2016=2015)(2018=2017)
-
-append using "$temp/GSS_region.dta"
-sort year region
-
-rename region region_gss
-recode region_gss (1=11)(2=12)(3=21)(4=22)(5=31)(6=32)(7=33)(8=41)(9=42), gen (region)
-
-foreach var in famsuffr twoincs1 kidsuffr mawrkwrm paidlvdv hubbywk1 hubbywrk{
-	bysort region (`var'): replace `var' = `var'[1]
-}
-
-gen hubbywk_all = hubbywk1 if year>=2010 & year <=2014 // asked in 2012 so will use for earlier years
-replace hubbywk_all = hubbywrk if year >=2015 & year<=2018 // asked in 2018 so will use for later years
-
-save "$created_data/GSS_region.dta", replace
-
-// keepusing(famsuffr twoincs1 kidsuffr mawrkwrm paidlvdv hubbywk_all fepresch)
-
-/*
-GSS regions:
-Valid   1 new england         |          9      11.11      11.11      11.11
-        2 middle atlantic     |          9      11.11      11.11      22.22
-        3 east north central  |          9      11.11      11.11      33.33
-        4 west north central  |          9      11.11      11.11      44.44
-        5 south atlantic      |          9      11.11      11.11      55.56
-        6 east south atlantic |          9      11.11      11.11      66.67
-        7 west south central  |          9      11.11      11.11      77.78
-        8 mountain            |          9      11.11      11.11      88.89
-        9 pacific             |          9      11.11      11.11     100.00
-		
-ACS regions:
-Valid   11 New England Division     |         54      11.76      11.76      11.76
-        12 Middle Atlantic Division |         27       5.88       5.88      17.65
-        21 East North Central Div.  |         45       9.80       9.80      27.45
-        22 West North Central Div.  |         63      13.73      13.73      41.18
-        31 South Atlantic Division  |         81      17.65      17.65      58.82
-        32 East South Central Div.  |         36       7.84       7.84      66.67
-        33 West South Central Div.  |         36       7.84       7.84      74.51
-        41 Mountain Division        |         72      15.69      15.69      90.20
-        42 Pacific Division         |         45       9.80       9.80     100.00
-/*
-
-/* Variables
-//2012 and 2002
-* hubbywk1: Men should earn money women keep house (1=agree 5=disagree)
-tab region hubbywk1 if (year==2002 | year ==2012) & inrange(hubbywk1,1,5), row
-tab region hubbywk1 if year==2002 & inrange(hubbywk1,1,5), row
-tab region hubbywk1 if year==2012 & inrange(hubbywk1,1,5), row
-
-* twoincs1: Both men and women should contribute to income (1=agree 5=disagree)
-tab region twoincs1 if (year==2002 | year ==2012) & inrange(twoincs1,1,5), row
-tab region twoincs1 if year==2002 & inrange(twoincs1,1,5), row
-tab region twoincs1 if year==2012 & inrange(twoincs1,1,5), row
-
-* famsuffr: Family life suffers if mom works f-t (1=agree 5=disagree)
-tab region famsuffr if (year==2002 | year ==2012) & inrange(famsuffr,1,5), row
-tab region famsuffr if year==2002 & inrange(famsuffr,1,5), row
-tab region famsuffr if year==2012 & inrange(famsuffr,1,5), row
-
-//2018 and 2008
-* hubbywrk: Husb shld work wife shld look after home
-tab region hubbywrk if (year==2008 | year ==2018) & inrange(hubbywrk,1,5), row
-tab region hubbywrk if year==2008 & inrange(hubbywrk,1,5), row
-tab region hubbywrk if year==2018 & inrange(hubbywrk,1,5), row
-
-// 1988, 1994, 2002, 2012
-* kidsuffr: Preschool child suffers with working mother
-* mawrkwrm: A working mother can establish just as warm and secure a relationship with her children as a mother who does not work
-
-// 1988 onwards
-* fepresch: Preschool child suffers with working mother (1=strongly agree -> 4 = strongly disagree) so as is - higher = more egal?
-* I recoded - so higher now is more traditional? I am so confused...
-
-// 1994 and 2002
-* mapaid: Should working women have paid maternity leave?
-
-// 2012
-* paidlvdv: Who should take paid leave?
+recode FEPOL (-100/-98=.), gen(FEPOL_M)
+label values FEPOL_M   GSP004X
 */
+
+label define scale 1 "Agree" 2 "Disagree"
+label values work_children work_preschool gendered_roles women_politics scale
+
+// so then these become proportion of people who are egal
+gen working_mom_egal=.
+replace working_mom_egal=1 if work_children==1 // agree = egal
+replace working_mom_egal=0 if work_children==2
+
+gen gender_egal=.
+replace gender_egal=1 if gendered_roles==2 // disagree = egal
+replace gender_egal=0 if gendered_roles==1
+
+gen preschool_egal=.
+replace preschool_egal=1 if work_preschool==2 // disagree = egal
+replace preschool_egal=0 if work_preschool==1
+
+// want to recode so higher score = always more egal. Mainly just FECHLD that needs to change (currently lower = more egal)
+recode FECHLD (1=4)(2=3)(3=2)(4=1), gen(FECHLD_rev)
+label define rev_scale 1 "strongly disagree" 2 "disagree" 3 "agree" 4 "strongly agree"
+label values FECHLD_rev rev_scale
+// tab FECHLD FECHLD_rev
+
+tabstat FECHLD FECHLD_rev FEPRESCH FEFAM FEPOL
+
+// for when I collapse - want to see cell sizes
+gen records=1
+
+// tab YEAR gendered_roles, row nofreq
+// tab YEAR gender_egal, row nofreq
+// tab YEAR gendered_roles if college==0, row nofreq
+// tab YEAR gendered_roles if college==1, row nofreq
+
+
+// factor analysis of scale as alt indicator
+/* Pessin 2018 for methods reference:
+All the available surveys were pooled and a principal-factor analysis was carried out to obtain a unique index where higher
+scores represented more egalitarian gender attitudes (Cronbach's alpha = 0.74; see Appendix
+B for more details). To fill the missing years before 1977 and between 1977 and 2010, an
+interpolation was carried out. Additional analyses showed that the results were not sensitive
+to the interpolation of the gender index 
+*/
+
+alpha FECHLD_rev FEPRESCH FEFAM // 0.7252
+factor FECHLD_rev FEPRESCH FEFAM, ipf // but this tends to be more common...
+// rotate, varimax
+predict f1
+rename f1 gender_factor_ipf
+
+factor FECHLD_rev FEPRESCH FEFAM, pcf // see: https://www.statalist.org/forums/forum/general-stata-discussion/general/1500686-principal-factor-vs-principal-component-factor-option-for-factor-analysis and Acock 2016
+predict f1
+rename f1 gender_factor_pcf
+
+browse YEAR FECHLD_rev FEPRESCH FEFAM gender_factor_ipf gender_factor_pcf
+pwcorr gender_factor_ipf gender_factor_pcf // almost perfectly correlated
+
+pwcorr gender_factor_ipf FECHLD_rev FEPRESCH FEFAM 
+pwcorr gender_factor_pcf FECHLD_rev FEPRESCH FEFAM 
+
+** this is from when I really cared about educ differences
+// save "T:\data\GSS\GSS - Chapter 3\gss_year_region_educ.dta", replace
+save "$data/gss_year_region_educ.dta", replace
+;
+
+log using "$logdir/regional_gss.log", replace
+
+foreach var in work_children work_preschool gendered_roles women_politics{
+	display "total"
+	tab REGION `var', row nofreq
+	display "no college"
+	tab REGION `var' if college==0, row nofreq
+	display "college"
+	tab REGION `var' if college==1, row nofreq
+}
+
+log close
+
+preserve 
+collapse (mean) gender_egal working_mom_egal, by(REGION YEAR college)
+restore
+
+preserve
+collapse (mean) gender_egal working_mom_egal FEFAM_M, by(YEAR college)
+restore
+
+********************************************************************************
+**# Exports to use
+********************************************************************************
+
+preserve
+keep if YEAR > = 1990
+collapse 	(mean) gender_egal working_mom_egal preschool_egal FECHLD_rev FEPRESCH FEFAM gender_factor_ipf ///
+			(sum) records, by(REGION) // keeping just these two because HIGHER = more egal (the other variable is coded the other way)
+// save "T:\Research Projects\State data\data_keep\region_gss_total.dta", replace
+save "$created_data/region_gss_total.dta", replace
+restore
+
+preserve
+keep if YEAR > = 1990
+collapse 	(mean) gender_egal working_mom_egal preschool_egal FECHLD_rev FEPRESCH FEFAM gender_factor_ipf ///
+			(sum) records, by(REGION YEAR) // keeping just these two because HIGHER = more egal (the other variable is coded the other way)
+
+sum records // okay so the min is 60 so that makes me feel okay (Ruppanner says 50 is their min at a state level
+save "$created_data/region_gss_by-year.dta", replace
+restore
+
+
+preserve
+keep if YEAR > = 1990 & YEAR <= 2018 // can I replicate my old numbers? okay yes basically
+collapse 	(mean) gender_egal working_mom_egal preschool_egal FECHLD_rev FEPRESCH FEFAM gender_factor_ipf ///
+			(sum) records, by(REGION) // keeping just these two because HIGHER = more egal (the other variable is coded the other way)
+browse
+restore
+
+use "$created_data/region_gss_by-year.dta", clear
+export excel using "$created_data/region_gss_by-year", firstrow(variables) replace
