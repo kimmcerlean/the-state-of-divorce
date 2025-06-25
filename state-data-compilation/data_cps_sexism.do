@@ -66,6 +66,12 @@ gen work_age_women = 1 if sex==2 & age>=16 & age <=64
 replace work_age_women = 0 if work_age_women==.
 
 // will restrict all of these to working age
+gen married_women=0
+replace married_women=1 if sex==2 & inlist(marst,1,2) & age>=16 & age <=64
+
+gen married_men=0
+replace married_men=1 if sex==1 & inlist(marst,1,2) & age>=16 & age <=64
+
 gen mothers=0
 replace mothers=1 if sex==2 & nchild!=0 & age>=16 & age <=64
 
@@ -89,6 +95,11 @@ replace men_emp=1 if work_age_men==1 & employed==1
 gen women_emp=0
 replace women_emp=1 if work_age_women==1 & employed==1
 
+gen married_men_emp=0
+replace married_men_emp=1 if married_men==1 & employed==1
+gen married_women_emp=0
+replace married_women_emp=1 if married_women==1 & employed==1
+
 gen mothers_emp=0
 replace mothers_emp=1 if mothers==1 & employed==1
 gen mothers_u5_emp=0
@@ -103,6 +114,9 @@ replace fathers_u5_emp=1 if fathers_u5==1 & employed==1
 gen women_pt_emp=0
 replace women_pt_emp=1 if work_age_women==1 & employed==1 & pt_worker==1
 
+gen married_women_pt_emp=0
+replace married_women_pt_emp=1 if married_women==1 & employed==1 & pt_worker==1
+
 gen mothers_pt_emp=0
 replace mothers_pt_emp=1 if mothers==1 & employed==1 & pt_worker==1
 
@@ -111,14 +125,19 @@ replace mothers_u5_pt_emp=1 if mothers_u5==1 & employed==1 & pt_worker==1
 
 * for earnings ratio
 gen men_earn_ft=.
-replace men_earn_ft = weekly_earn_ft if men==1
+replace men_earn_ft = weekly_earn_ft if work_age_men==1
 gen women_earn_ft=.
-replace women_earn_ft = weekly_earn_ft if women==1
+replace women_earn_ft = weekly_earn_ft if work_age_women==1
+
+gen married_men_earn_ft=.
+replace married_men_earn_ft = weekly_earn_ft if married_men==1
+gen married_women_earn_ft=.
+replace married_women_earn_ft = weekly_earn_ft if married_women==1
 
 gen men_wage=.
-replace men_wage=incwage if men==1
+replace men_wage=incwage if work_age_men==1
 gen women_wage=.
-replace women_wage=incwage if women==1
+replace women_wage=incwage if work_age_women==1
 
 gen fathers_earn_ft=.
 replace fathers_earn_ft = weekly_earn_ft if fathers==1
@@ -134,10 +153,10 @@ replace mothers_u5_earn_ft = weekly_earn_ft if mothers_u5==1
 // for cost percentage, they use "median income by state, married couple with children under the age of 18"
 // example table B19126 from ACS 5-year: ""Median Family Income in the Past 12 Months (in 2023 Inflation-Adjusted Dollars) by Family Type by Presence of Own Children Under 18 Years"
 tabstat hhincome, by(year) stats(p50 mean)
-tabstat hhincome [aweight=asecwt], by(year) stats(p50 mean)
+// tabstat hhincome [aweight=asecwt], by(year) stats(p50 mean)
 
-gqtype // not asked all years
-ncouples // but need the couple to be the HHer
+tab year gqtype, m // not asked all years
+tab ncouples, m // but need the couple to be the HHer
 tab gqtype ncouples, m // so in years with overlap, husband / wife "Types" always have at least 1 couple. HOWEVER, there are sometimes couples even if not the HH type
 // oh duh there is famkind - use this
 tab gqtype famkind, m row
