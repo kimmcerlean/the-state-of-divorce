@@ -250,7 +250,7 @@ foreach var in mom mom2 pop pop2{
 
 browse serial pernum age year ssi_income incssi incssi_mom ssi_mom incssi_mom2 ssi_mom2 incssi_pop ssi_pop incssi_pop2 ssi_pop2
 
-tab age srcwelf, m // okay, not asked to those under 15, so I should just make a HH version? OR, I pull in mom and dad variables to get this info for kids - like did mom or dad receive?
+tab age srcwelfr, m // okay, not asked to those under 15, so I should just make a HH version? OR, I pull in mom and dad variables to get this info for kids - like did mom or dad receive?
 tab age srcwelfr_mom, m
 tab age srcwelfr_pop, m
 
@@ -366,9 +366,9 @@ So, I am planning to use both...
 */
 
 // quickly validate all binary before I do this math
-sum total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn
+sum total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp
 
-foreach var in total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn{
+foreach var in total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp{
 	gen `var'_wt = `var' * asecwt if hflag==. | hflag== 0 // using 5/8 sample for 2014 for now...
 }
 
@@ -380,19 +380,22 @@ browse serial pernum year sex asecwt men women men_wt women_wt
 
 preserve
 
-collapse 	(sum) 	total men women work_age_men work_age_women mothers mothers_u5 ///
-					fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp ///
-					mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp ///
+collapse 	(sum) 	total men women work_age_men work_age_women married_women married_men ///
+					mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp ///
+					women_emp married_men_emp married_women_emp mothers_emp mothers_u5_emp ///
+					fathers_emp fathers_u5_emp women_pt_emp married_women_pt_emp mothers_pt_emp ///
 					mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 ///
 					child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov ///
 					child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf ///
 					child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig ///
 					child_0to2_hs_elig child_3to5_hs_elig married married_male_bw ///
 					married_pure_male_bw married_dual_earn total_wt men_wt women_wt ///
-					work_age_men_wt work_age_women_wt mothers_wt mothers_u5_wt fathers_wt ///
-					fathers_u5_wt men_lfp_wt women_lfp_wt men_emp_wt women_emp_wt mothers_emp_wt ///
-					mothers_u5_emp_wt fathers_emp_wt fathers_u5_emp_wt women_pt_emp_wt ///
-					mothers_pt_emp_wt mothers_u5_pt_emp_wt men_pov_wt women_pov_wt child_u18_wt ///
+					work_age_men_wt work_age_women_wt married_women_wt married_men_wt ///
+					mothers_wt mothers_u5_wt fathers_wt fathers_u5_wt men_lfp_wt ///
+					women_lfp_wt men_emp_wt women_emp_wt married_men_emp_wt married_women_emp_wt ///
+					mothers_emp_wt mothers_u5_emp_wt fathers_emp_wt fathers_u5_emp_wt ///
+					women_pt_emp_wt married_women_pt_emp_wt mothers_pt_emp_wt ///
+					mothers_u5_pt_emp_wt men_pov_wt women_pov_wt child_u18_wt ///
 					child_u6_wt child_0to2_wt child_3to5_wt child_u18_in_pov_wt child_u6_in_pov_wt ///
 					child_0to2_in_pov_wt child_3to5_in_pov_wt parent_tanf_wt parent_ssi_wt ///
 					child_u6_tanf_wt child_0to2_tanf_wt child_3to5_tanf_wt child_u6_ssi_wt ///
@@ -400,7 +403,8 @@ collapse 	(sum) 	total men women work_age_men work_age_women mothers mothers_u5 
 					child_3to5_hs_elig_wt married_wt married_male_bw_wt married_pure_male_bw_wt ///
 					married_dual_earn_wt ///
 			(p50)	men_earn_ft women_earn_ft men_wage women_wage fathers_earn_ft ///
-					mothers_earn_ft fathers_u5_earn_ft mothers_u5_earn_ft, /// 
+					mothers_earn_ft fathers_u5_earn_ft mothers_u5_earn_ft ///
+					married_men_earn_ft married_women_earn_ft, /// 
 					by(year statefip)
 
 // tmp save
@@ -410,10 +414,12 @@ save "$created_data/sexism_measures_1988_2023.dta", replace
 gen men_lfp_rate = men_lfp / work_age_men
 gen women_lfp_rate = women_lfp / work_age_women
 gen women_emp_rate = women_emp / work_age_women
+gen married_women_emp_rate = married_women_emp / married_women
 gen maternal_employment = mothers_emp / mothers	
 gen maternal_u5_employment = mothers_u5_emp / mothers
 gen women_pt_rate = women_pt_emp / women_emp // is base all women or just employed? Just employed (see Hook and Paek. I thought more studies used this but maybe just them?)
 // "We took the incidence of parttime employment among dependent employees as a percentage of women's total employment, using national definitions."
+gen married_women_pt_rate = married_women_pt_emp / married_women_emp
 gen maternal_pt_rate = mothers_pt_emp / mothers_emp
 gen maternal_u5_pt_rate = mothers_u5_pt_emp / mothers_u5_emp
 
@@ -433,6 +439,7 @@ gen married_male_bw_rate = married_male_bw / married
 gen married_pure_male_bw_rate = married_pure_male_bw / married
 
 gen earn_ratio = women_earn_ft / men_earn_ft // (note 6/19/25: this used to be men / women, but in the scale, I want higher to be "better" for women, so I have updated)
+gen married_earn_ratio = married_women_earn_ft / married_men_earn_ft
 gen parent_earn_ratio = mothers_earn_ft / fathers_earn_ft
 gen parent_u5_earn_ratio = mothers_u5_earn_ft / fathers_u5_earn_ft
 gen lfp_ratio = women_lfp_rate / men_lfp_rate 
@@ -442,9 +449,11 @@ gen pov_ratio = men_pov_rate / women_pov_rate
 gen men_lfp_rate_wt = men_lfp_wt / work_age_men_wt
 gen women_lfp_rate_wt = women_lfp_wt / work_age_women_wt
 gen women_emp_rate_wt = women_emp_wt / work_age_women_wt
+gen married_women_emp_rate_wt = married_women_emp_wt / married_women_wt
 gen maternal_employment_wt = mothers_emp_wt / mothers_wt
 gen maternal_u5_employment_wt = mothers_u5_emp_wt / mothers_wt
 gen women_pt_rate_wt = women_pt_emp_wt / women_emp_wt
+gen married_women_pt_rate_wt = married_women_pt_emp_wt / married_women_emp_wt
 gen maternal_pt_rate_wt = mothers_pt_emp_wt / mothers_emp_wt
 gen maternal_u5_pt_rate_wt = mothers_u5_pt_emp_wt / mothers_u5_emp_wt
 

@@ -2,7 +2,7 @@ global homedir "T:" // comment this out if you are not using the PRC Remote Serv
 
 * This is the base directory with the setup files.
 * It is the directory you should change into before executing any files
-global code "$homedir/github/marriage_predictors/union-dissolution"
+global code "$homedir/github/the-state-of-divorce"
 
 
 * This locations of folders containing the original data files

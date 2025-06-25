@@ -28,6 +28,12 @@ tab relationship_order, m // more accurate
 keep if relationship_order==1
 keep if (AGE_HEAD_>=18 & AGE_HEAD_<=55) &  (AGE_WIFE_>=18 & AGE_WIFE_<=55)
 
+gen age_flag_2554=0
+replace age_flag_2554=1 if (AGE_HEAD_>=25 & AGE_HEAD_<=54) &  (AGE_WIFE_>=25 & AGE_WIFE_<=54)
+
+gen age_flag_2055=0
+replace age_flag_2055=1 if (AGE_HEAD_>=20 & AGE_HEAD_<=55) &  (AGE_WIFE_>=20 & AGE_WIFE_<=55)
+
 keep if inrange(rel_start_all,1995,2014) // extend to 2016? if I keep 2021?
 keep if inlist(IN_UNIT,0,1,2)
 drop if survey_yr==2021 // until I figure out what to do about covid year. I did add the policy measures, now need to figure out if it makes sense to keep for other reasons
@@ -467,9 +473,61 @@ gen either_enrolled_t1=.
 replace either_enrolled_t1=either_enrolled[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
 replace either_enrolled_t1 = 0 if either_enrolled_t1==. & either_enrolled==0 
 
-// create new variable for having kids under 6 in household
+// create new variable for having kids under 6 in household.
+// also doing some exploring and considering other ways to measure
+tab AGE_YOUNG_CHILD_ if children==1 // okay, this is an interesting statistic: of those with children in the HH, 68% have a child under 6 (so it is the majority experience)
+
 gen children_under6=0
 replace children_under6=1 if children==1 & AGE_YOUNG_CHILD_ < 6
+
+tab dur children_under6, row
+
+bysort unique_id: egen num_years_child = count(survey_yr) if children==1
+bysort unique_id (num_years_child): replace num_years_child=num_years_child[1]
+replace num_years_child = 0 if num_years_child==. & children_ever==0
+
+bysort unique_id: egen num_years_child_u6 = count(survey_yr) if children_under6==1
+bysort unique_id (num_years_child_u6): replace num_years_child_u6=num_years_child_u6[1]
+replace num_years_child_u6 = 0 if num_years_child_u6==. & children_ever==0
+tab AGE_YOUNG_CHILD_ if num_years_child_u6==.
+replace num_years_child_u6 = 0 if num_years_child_u6==. 
+tab num_years_child_u6 children_under6, m
+tabstat num_years_child_u6 if num_years_child_u6!=0
+tabstat num_years if num_years_child_u6!=0
+
+gen prop_years_childu6 = num_years_child_u6 / num_years
+tabstat prop_years_childu6 if num_years_child_u6!=0
+
+gen dur_childu6 = dur if children_under6==1
+bysort unique_id: egen childu6_cutoff = max(dur_childu6)
+bysort unique_id: egen childu6_start = min(dur_childu6)
+sort unique_id survey_yr
+
+// browse unique_id dur children_under6 childu6_start childu6_cutoff
+
+// rel start to no more kids under 6
+gen children_under6_flag = 0
+replace children_under6_flag = 1 if dur <= childu6_cutoff & childu6_cutoff!=.
+tab children_under6_flag, m
+
+// one year prior to first kid under 6 to kids under 6
+gen children_under6_flag_alt = 0
+replace children_under6_flag_alt = 1 if dur >= (childu6_start-2) & dur <= childu6_cutoff & childu6_cutoff!=.
+tab children_under6_flag_alt, m
+
+tab children_under6_flag children_under6, m row
+tab children_under6_flag_alt children_under6, m row
+tab children_under6_flag children_under6_flag_alt, m row
+
+sort unique_id survey_yr
+browse unique_id partner_unique_id survey_yr rel_start_all min_dur dur childu6_cutoff children_under6_flag children_under6 AGE_YOUNG_CHILD_ num_years num_years_child_u6 prop_years_childu6 children num_children 
+
+	// also create other cut-offs for robustness
+	* this is would be like pre-high-school
+	gen children_under14=0
+	replace children_under14=1 if children==1 & AGE_YOUNG_CHILD_ < 14
+	
+	tab children_under14 children_under6_flag, m
 
 // create dummy variable for interval length
 gen interval=.
@@ -550,7 +608,7 @@ drop if _merge==2
 drop _merge
  */
 
-local scale_vars "structural_familism structural_familism_v0 f1 paid_leave_st paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st paid_leave paid_leave_length prek_enrolled_public min_amt_above_fed min_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all sf_centered"
+local scale_vars "structural_familism structural_familism_v0 paid_leave_st paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st paid_leave paid_leave_length prek_enrolled_public min_amt_above_fed min_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all sf_centered" // f1 
 
 merge m:1 state_fips year using "$state_data/structural_familism.dta", keepusing(`scale_vars')
 drop if _merge==2
@@ -688,9 +746,12 @@ alpha paid_leave_st_t1 prek_enrolled_public_st_t1 min_amt_above_fed_st_t1 earn_r
 ********************************************************************************
 ********************************************************************************
 **# Analysis starts
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+********************************************************************************
 * Overall trends
-********************************************************************************
-********************************************************************************
 ********************************************************************************
 
 logit outcome i.dur i.couple_educ_gp, or
