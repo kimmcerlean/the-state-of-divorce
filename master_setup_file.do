@@ -23,8 +23,9 @@ if `"`c(hostname)'"' == "PPRC-STATS-P01"{
 	* Note that these directories will contain all "created" files - including intermediate data, results, and log files.
 
 	* created data files
-	global created_data "$homedir/Research Projects/Dissertation - Union Dissolution/data_keep"
-	global state_data "$homedir/Research Projects/State data/data_keep"
+	// global created_data "$homedir/Research Projects/Dissertation - Union Dissolution/data_keep"
+	// global state_data "$homedir/Research Projects/State data/data_keep"
+	global created_data "$homedir/Research Projects/State data/data_keep"
 	global structural "$homedir/data/structural support measure"
 
 	* results
@@ -67,4 +68,10 @@ if `"`c(hostname)'"' == "LAPTOP-TP2VHI6B"{
 ********************************************************************************
 ** Create macro for current date to use when saving files
 ********************************************************************************
-global logdate = string( d(`c(current_date)'), "%dCY.N.D" )
+global logdate = string( d(`c(current_date)'), "%dCYND" )
+
+
+// search polychoric
+// package name:  polychoric.pkg
+//        from:  https://staskolenikov.net/stata/
+

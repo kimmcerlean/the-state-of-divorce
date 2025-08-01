@@ -4,6 +4,9 @@
 * Kim McErlean
 ********************************************************************************
 
+********************************************************************************
+**# Scale for first Social Forces submission
+********************************************************************************
 use "$structural/structural_support_2021.dta", clear
 
 drop if state_fips==11 // DC doesn't have a lot of these variables
@@ -81,6 +84,212 @@ save "$state_data/structural_familism.dta", replace
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
+**# Exploring other scale options
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+// use "$structural/structural_familism_june25_int.dta", clear
+use "$created_data/structural_familism_june25_int.dta", clear
+
+/*
+Work-family policy: explicit
+- paid_leave
+- cc_pct_income
+- prek_enrolled_public
+- cc_pct_served
+- headstart_pct_totalpop
+- earlyhs_pct_totalpop
+
+Work-family policy: implicit
+- policy_lib_all
+- abortion_protected
+- married_women_pt_rate_wt
+- maternal_u5_pt_rate
+
+Normative diffusion of gender revolution
+- gender_factor_reg
+- avg_egal_reg
+- gender_factor_state
+- avg_egal_state
+- evang_lds_rate
+
+Behavioral diffusion of gender revolution
+- married_dual_earn_rate
+- married_pure_male_bw_rate
+- married_women_emp_rate_wt
+- maternal_u5_employment_wt
+
+Women's economic dependence on marriage (some of these could arguably be explicit work-family policy)
+- min_amt_above_fed
+- unemployment_percap
+- wba_max
+- high_inc_prem_pct
+- low_inc_prem_pct
+- married_earn_ratio
+- welfare_all
+*/
+
+// any variables still need to be recoded so higher = more support fro gender egalitarianism? (I tried to update most of this in underlying data). although, with factor analysis, at least, it will reverse code for you? so maybe I don't need to myself?
+// browse state_fips year cc_pct_income_orig evang_lds_rate low_inc_prem_pct
+gen cc_pct_inc_neg = 0 - cc_pct_income_orig // higher = bad
+gen married_wom_pt_rate_neg = 0 - married_women_pt_rate_wt // is higher pt good or bad?
+gen mom_u5_pt_rate_neg = 0 - maternal_u5_pt_rate // is higher pt good or bad?
+gen non_evang_lds_rate = 1 - evang_lds_rate
+gen non_pure_male_bw_rate = 1 - married_pure_male_bw_rate // not *quite* a direct foil to dual-earn percent, so should recode
+// high_inc_prem_pct // negative = more of a premium, so less negative = I guess better, so is this actually fine?
+// low_inc_prem_pct
+
+// then standardize variables
+foreach var in paid_leave cc_pct_income prek_enrolled_public cc_pct_served headstart_pct_totalpop earlyhs_pct_totalpop policy_lib_all abortion_protected married_women_pt_rate_wt maternal_u5_pt_rate gender_factor_reg avg_egal_reg gender_factor_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all cc_pct_inc_neg married_wom_pt_rate_neg mom_u5_pt_rate_neg non_evang_lds_rate non_pure_male_bw_rate{
+	sum `var'
+	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
+}
+
+save "$temp/data_for_scale.dta", replace
+
+********************************************************************************
+**# Exploring factor analysis
+********************************************************************************
+// https://libguides.princeton.edu/factor
+// https://www.theanalysisfactor.com/the-fundamental-difference-between-principal-component-analysis-and-factor-analysis/
+// https://stats.oarc.ucla.edu/spss/seminars/introduction-to-factor-analysis/a-practical-introduction-to-factor-analysis/
+
+/* From rotate guide: https://www.stata.com/manuals/mvrotate.pdf#mvrotate
+The default factor solution is rather poor from the perspective of a "simple structure", namely, that
+variables should have high loadings on few (one) factors and factors should ideally have only low and
+high values.
+
+UCLA: https://stats.oarc.ucla.edu/stata/faq/how-can-i-perform-a-factor-analysis-with-categorical-or-categorical-and-continuous-variables/
+Better for continuous variables, realizing some of these (With high uniqueness) are dichotomous - paid leave and abortion
+*/
+
+// feel like variables that could be dropped include those with uniqueness above 0.6
+// those with loadings below 0.3
+
+use "$temp/data_for_scale.dta", clear
+
+// paid_leave_st cc_pct_income_st prek_enrolled_public_st cc_pct_served_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st policy_lib_all_st abortion_protected_st married_women_pt_rate_wt_st maternal_u5_pt_rate_st gender_factor_reg_st avg_egal_reg_st gender_factor_state_st avg_egal_state_st evang_lds_rate_st married_dual_earn_rate_st married_pure_male_bw_rate_st married_women_emp_rate_wt_st maternal_u5_employment_wt_st min_amt_above_fed_st unemployment_percap_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st
+pwcorr gender_factor_reg_st avg_egal_reg_st
+
+alpha paid_leave_st prek_enrolled_public_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st // cc_pct_income_st cc_pct_served_st
+alpha paid_leave_st prek_enrolled_public_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st cc_pct_served_st
+
+factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st policy_lib_all_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf
+// Warning: Solution is a Heywood case; that is, invalid or boundary values of uniqueness.
+// This is because of policy_lib_all, which makes sense if that is already an amalgamation of policies
+
+factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf // policy_lib_all_st
+
+// uniqueness depends on # of factors. This is yielding MANY factors, so let's update
+factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf factors(2) blanks(0.2) // also - don't display extremely low factors. okay but when I do this, uniqueness goes up quite significantly for many...
+loadingplot, xlab(-1(.2)1) ylab(0(.2)1.2) aspect(1) yline(0) xline(0)
+ 
+rotate, varimax // so in theory, should more easily be able to see that some variables load high on one factor and low on another and vice versa
+loadingplot, xlab(-1(.2)1) ylab(-.2(.2)1.2) aspect(1) yline(0) xline(0)
+estat rotatecompare
+//rotate, quartimax
+
+estat kmo // is it worth doing a factor analysis? "small values meaning that overall the variables have too little in common to warrant a factor analysis". >0.9 is "marvelous" but feel like above 0.7 to 0.8 is okay
+
+// do I actually want standardized or non-standardized??
+// Unstandardized is a Heywood case - bc of maternal employment. but the general outcome is similar
+factor paid_leave prek_enrolled_public earlyhs_pct_totalpop abortion_protected maternal_u5_pt_rate avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt min_amt_above_fed wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all, ipf factors(2) blanks(0.2) 
+rotate, varimax
+
+// polychoric (https://stats.oarc.ucla.edu/stata/faq/how-can-i-perform-a-factor-analysis-with-categorical-or-categorical-and-continuous-variables/)
+polychoric paid_leave prek_enrolled_public earlyhs_pct_totalpop abortion_protected maternal_u5_pt_rate avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt min_amt_above_fed wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all
+
+display r(sum_w)
+global N = r(sum_w)
+
+matrix r = r(R)
+factormat r, n($N) factors(3) forcepsd // okay I am getting this error: r not positive (semi)definite
+// (collinear variables specified)
+// okay these are like...very different
+// okay I actually wonder if married dual earn rate and married women employment rate are too collinear (bc women's employment needs to be high)
+
+// okay, I am doing all of this. Is there a world where I use my ORIGINAL scale (maybe with small variable and / or construction tweaks) and I just control for other possible factors - including attitudes, dual earning rate, religiosity, women's employment rate, etc? I am possibly losing the plot a bit
+// MAYBE make a factor for like "Diffusion" of gender rev, but that's it?
+alpha avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st // 0.6116
+factor avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st , ipf
+rotate // okay but attitudes and religiosity quite unique. so attitudinal diffusion + behavioral diffusion might not be the same?
+
+********************************************************************************
+**# Exploring PCA
+********************************************************************************
+// https://www.stata.com/manuals/mvpca.pdf
+// I *think* this might actually be better robustness for testing how to better aggregate my variables in my original scale? rather than a simple addition?// 
+/*
+but is it problematic again that my data are mostly continuous or dichtomous, none of these are like...scales (which i feel like all of these methods assume)
+(from manual):
+"It does not assume that the data satisfy a specific statistical model, though it does require that the data be interval-level
+data—otherwise taking linear combinations is meaningless."
+*/
+
+// original scale:
+pca paid_leave_st prek_enrolled_public_st min_amt_above_fed_st married_earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st
+pca paid_leave prek_enrolled_public min_amt_above_fed married_earn_ratio unemployment_percap abortion_protected welfare_all // okay, exactly the same standardized or not
+
+// new variables
+pca paid_leave prek_enrolled_public earlyhs_pct_totalpop abortion_protected maternal_u5_pt_rate avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt min_amt_above_fed wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all
+
+********************************************************************************
+**# Exploring LCA
+********************************************************************************
+// https://stats.oarc.ucla.edu/stata/dae/latent-class-analysis-stata-data-analysis-examples/
+// okay, so I think my mix of variable types is one problem: Factor Analysis – Because the term "latent variable" is used, you might be tempted to use factor analysis, since that is a technique used with latent variables. However, factor analysis is used for continuous and usually normally distributed latent variables, where this latent variable, e.g., alcoholism, is categorical.
+// so latent class = typically category; latent profile = typically continuous (see Stata presentation by Huber: https://stats.stackexchange.com/questions/339936/mixing-variable-types-in-latent-class-profile-analysis)
+// there COULD also be a world where I make my continuous categorical using quartiles are something, but why reduce data?
+// slide 6 is VERY HELPFUL: if I want to turn continuous observed to a continous latent construct, I use factor analysis.
+// if you want your latent construact to be CATEGORICAL, you use LCA
+// item response theory could also work for categorical observed variables
+
+// mixing variable types:
+// https://stats.stackexchange.com/questions/339936/mixing-variable-types-in-latent-class-profile-analysis
+// https://www.statmodel.com/download/2006catcont1MBR.pdf
+// https://hummedia.manchester.ac.uk/institutes/methods-manchester/docs/lsa.pdf
+
+// original
+paid_leave prek_enrolled_public min_amt_above_fed married_earn_ratio unemployment_percap abortion_protected welfare_all 
+// variables for "diffusion"
+avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt
+
+gsem (paid_leave abortion_protected <-  , logit) ///
+(prek_enrolled_public_st min_amt_above_fed_st married_earn_ratio_st unemployment_percap_st ///
+ welfare_all_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st <-  , regress) ///
+, lclass(C 3) nonrtolerance
+estimates store class3
+
+estimates stats class3 class4 class5 class6 // want low AIC /BIC
+
+estimates restore class3
+estat lcprob  // prob of being in each group
+estat lcmean // values by group
+
+// alt visuals
+margins, predict(outcome(x) class(3)) ///
+		predict(outcome(y) class(3)) 
+		predict(outcome(z) class(3)) 
+marginsplot
+
+margins, predict(outcome(x) class(1)) ///
+		predict(outcome(x) class(2)) ///
+		predict(outcome(x) class(3))
+marginsplot
+
+/* their latent profile example
+gsem (glucose insulin sspg <- _cons),    ///
+     family(gaussian) link(identity)     ///
+     lclass(C 3)
+*/
+
+// might need a latent STRUCTURE model (see what i downloaded)
+// in stata: gllamm (http://www.gllamm.org/)
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
 **# Old measures - no longer using
 ********************************************************************************
 ********************************************************************************
@@ -90,6 +299,7 @@ save "$state_data/structural_familism.dta", replace
 ** https://www.stata.com/features/overview/latent-class-analysis/
 ** https://www.stata.com/features/latent-class-analysis/
 ** https://www.stata.com/meeting/uk18/slides/uk18_MacDonald.pdf
+** https://stats.oarc.ucla.edu/stata/dae/latent-class-analysis-stata-data-analysis-examples/
 Convergence problems
 https://www.statalist.org/forums/forum/general-stata-discussion/general/1629031-not-achieving-convergence-in-latent-class-analysis
 */
