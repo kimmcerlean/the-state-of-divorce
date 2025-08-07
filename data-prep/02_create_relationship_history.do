@@ -153,6 +153,8 @@ drop rank help_var marr_rank marr_help_var
 
 rename year survey_yr // to match to later files
 
+unique unique_id // 40741 // also only people in relationships
+
 save "$temp/PSID_relationship_list_tomatch.dta", replace
 /// so this file, because it was reshaped frm wide to long, actually contains records even for non-sample years for all unique ids
 // so there are 42 records per unique id and it is keyed on unique id and survey_yr
@@ -216,6 +218,38 @@ tab partnered rel_type, m
 tab in_sample rel_type, m
 replace rel_type = 0 if rel_type==. & in_sample==1 // only want to identify relationship transitions if in sample bc if it's dropout or entrance, we don't know true info
 
+// need to create real marital status indicators
+gen cohab_est_head=0
+replace cohab_est_head=1 if MARST_DEFACTO_HEAD_==1 & inlist(MARST_LEGAL_HEAD_,2,3,4,5) // will only apply after 1977
+
+gen marital_status_updated=.
+replace marital_status_updated=1 if MARST_DEFACTO_HEAD_==1 & cohab_est_head==0
+replace marital_status_updated=2 if MARST_DEFACTO_HEAD_==1 & cohab_est_head==1
+replace marital_status_updated=3 if MARST_DEFACTO_HEAD_==2
+replace marital_status_updated=4 if MARST_DEFACTO_HEAD_==3
+replace marital_status_updated=5 if MARST_DEFACTO_HEAD_==4
+replace marital_status_updated=6 if MARST_DEFACTO_HEAD_==5
+
+label define marital_status_updated 1 "Married (or pre77)" 2 "Partnered" 3 "Single" 4 "Widowed" 5 "Divorced" 6 "Separated"
+label values marital_status_updated marital_status_updated
+
+label define marital_status 1 "Married" 2 "Never Married" 3 "Widowed" 4 "Divorced" 5 "Separated"
+label values marital_status marital_status
+
+replace marital_status_updated = . if relationship==3 | relationship==0 // this marital status doesn't apply if you are not head or their partner or you are not in sample
+tab marital_status_updated relationship, m col
+tab marital_status relationship, m // this is last known - could use for people with 1 relationship and for their last relationship
+tab marital_status_updated partnered, m col
+tab rel_type partnered, m col // okay, yes, very few rows missing here
+tab marital_status_updated rel_type if partnered==1, m
+
+replace marital_status_updated = 1 if rel_type == 20 & marital_status_updated==1
+replace marital_status_updated = 2 if rel_type == 22 & marital_status_updated==1 // move the cohab I wasn't sure about
+replace marital_status_updated = 1 if rel_type == 20 & marital_status_updated==. // fill in missing
+replace marital_status_updated = 2 if rel_type == 22 & marital_status_updated==. 
+
+tab marital_status_updated partnered, m col
+
 bysort unique_id: egen first_survey_yr= min(survey_yr) if in_sample==1
 bysort unique_id (first_survey_yr): replace first_survey_yr=first_survey_yr[1]
 tab first_survey_yr, m
@@ -254,6 +288,35 @@ replace cohab_end=1 if rel_type==22 & rel_type[_n+1]==0 & unique_id==unique_id[_
 
 browse unique_id survey_yr rel_start marriage_start cohab_start rel_end marriage_end cohab_end first_survey_yr last_survey_yr has_psid_gene in_sample hh_status SAMPLE partnered rel_type relationship partner_unique_id yr_married1 yr_married2 yr_married3
 
+// how did it end - this will not cover attriton bc need to observe in next wave - add that here or later based on last observed couple year matching last year in sample?
+// i guess - if had multiple relationships - it also def had to be an end not an attrit - we just might not know if widowhood or divorce...but divorce more likely, especially in cohab
+sort unique_id wave
+
+gen how_rel_end = .
+replace how_rel_end = 1 if marital_status_updated==1 & inlist(marital_status_updated[_n+1],3,5,6) & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // breakup
+replace how_rel_end = 1 if marital_status_updated==2 & inlist(marital_status_updated[_n+1],3,5,6) & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // breakup
+replace how_rel_end = 2 if marital_status_updated==1 & marital_status_updated[_n+1]==4 & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // widowhood
+replace how_rel_end = 2 if marital_status_updated==2 & marital_status_updated[_n+1]==4 & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // widowhood
+replace how_rel_end = 3 if marital_status_updated==2 & marital_status_updated[_n+1]==1 & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // transition to marriage
+
+gen how_marr_end = .
+replace how_marr_end = 1 if marital_status_updated==1 & inlist(marital_status_updated[_n+1],3,5,6) & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // breakup
+replace how_marr_end = 2 if marital_status_updated==1 & marital_status_updated[_n+1]==4 & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // widowhood
+
+gen how_cohab_end = .
+replace how_cohab_end = 1 if marital_status_updated==2 & inlist(marital_status_updated[_n+1],3,5,6) & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // breakup
+replace how_cohab_end = 2 if marital_status_updated==2 & marital_status_updated[_n+1]==4 & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // widowhood
+replace how_cohab_end = 3 if marital_status_updated==2 & marital_status_updated[_n+1]==1 & unique_id==unique_id[_n+1] & wave==wave[_n+1]-1 // transition to marriage
+
+label define how_rel_end 1 "breakup" 2 "widowhood" 3 "marriage"
+label values how_rel_end how_marr_end how_cohab_end how_rel_end
+
+tab rel_end how_rel_end, m row // this is not bad (but again - just observed endings)
+tab rel_end how_rel_end if inlist(relationship,1,2), m row // not really any better for just heads / wives
+
+sort unique_id survey_yr
+browse unique_id partner_unique_id survey_yr in_sample hh_status relationship partnered rel_type marital_status_updated rel_end how_rel_end marriage_end how_marr_end cohab_end how_cohab_end
+
 // now turn these into years - let's start with all relationships
 gen entered_in_rel = .
 replace entered_in_rel = 0 if survey_yr == first_survey_yr & rel_type==0
@@ -282,10 +345,15 @@ forvalues r=1/6{
 	gen rel`r'_type=.
 	replace rel`r'_type = rel_type if relno==`r'
 	bysort unique_id (rel`r'_type): replace rel`r'_type=rel`r'_type[1]	
+	
+	gen rel`r'_how_end=.
+	replace rel`r'_how_end=how_rel_end if exitno==`r'
+	bysort unique_id (rel`r'_how_end): replace rel`r'_how_end=rel`r'_how_end[1]
+	label values rel`r'_how_end how_rel_end
 }
 
 sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr in_sample hh_status partnered rel_type rel1_start rel1_end rel2_start rel2_end rel3_start rel3_end yr_married1 yr_end1 yr_married2 yr_end2 yr_married3 yr_end3 rel_start marriage_start cohab_start rel_end marriage_end cohab_end has_psid_gene 
+browse unique_id partner_unique_id survey_yr hh_status partnered marital_status_updated rel_type rel1_start rel1_end rel1_how_end rel2_start rel2_end rel2_how_end rel3_start rel3_end yr_married1 yr_end1 yr_married2 yr_end2 yr_married3 yr_end3 rel_start marriage_start cohab_start rel_end marriage_end cohab_end has_psid_gene 
 
 tab rel1_start rel1_type, m
 
@@ -307,6 +375,11 @@ forvalues r=1/6{
 	gen marr`r'_end=.
 	replace marr`r'_end=marriage_end_yr if marr_exitno==`r'
 	bysort unique_id (marr`r'_end): replace marr`r'_end=marr`r'_end[1]
+	
+	gen marr`r'_how_end=.
+	replace marr`r'_how_end=how_marr_end if marr_exitno==`r'
+	bysort unique_id (marr`r'_how_end): replace marr`r'_how_end=marr`r'_how_end[1]
+	label values marr`r'_how_end how_rel_end
 }
 
 // just cohabitation
@@ -327,6 +400,11 @@ forvalues r=1/6{
 	gen coh`r'_end=.
 	replace coh`r'_end=cohab_end_yr if coh_exitno==`r'
 	bysort unique_id (coh`r'_end): replace coh`r'_end=coh`r'_end[1]
+	
+	gen coh`r'_how_end=.
+	replace coh`r'_how_end=how_cohab_end if coh_exitno==`r'
+	bysort unique_id (coh`r'_how_end): replace coh`r'_how_end=coh`r'_how_end[1]
+	label values coh`r'_how_end how_rel_end
 }
 
 sort unique_id survey_yr
@@ -337,9 +415,11 @@ browse unique_id partner_unique_id survey_yr in_sample partnered rel_type rel1_s
 ********************************************************************************
 preserve
 
-collapse 	(mean) rel1_start rel2_start rel3_start rel4_start rel5_start rel6_start rel1_end rel2_end rel3_end rel4_end rel5_end rel6_end rel1_type rel2_type rel3_type rel4_type rel5_type rel6_type /// created rel variables
+collapse 	(mean) rel1_start rel2_start rel3_start rel4_start rel5_start rel6_start rel1_end rel2_end rel3_end rel4_end rel5_end rel6_end ///
+					rel1_type rel2_type rel3_type rel4_type rel5_type rel6_type rel1_how_end rel2_how_end rel3_how_end rel4_how_end rel5_how_end rel6_how_end /// created rel variables
 					marr1_start marr2_start marr3_start marr4_start marr5_start marr6_start marr1_end marr2_end marr3_end marr4_end marr5_end marr6_end ///
 					coh1_start coh2_start coh3_start coh4_start coh5_start coh6_start coh1_end coh2_end coh3_end coh4_end coh5_end coh6_end ///
+					marr1_how_end marr2_how_end marr3_how_end marr4_how_end marr5_how_end marr6_how_end coh1_how_end coh2_how_end coh3_how_end coh4_how_end coh5_how_end coh6_how_end ///
 					yr_married1 yr_married2 yr_married3 yr_married4 yr_married5 yr_married6 yr_married7 yr_married8 yr_married9 yr_married12 yr_married13 /// marital history variables
 					yr_end1 yr_end2 yr_end3 yr_end4 yr_end5 yr_end6 yr_end7 yr_end8 yr_end9 yr_end12 yr_end13  ///
 					status1 status2 status3 status4 status5 status6 status7 status8 status9 status12 status13 ///
@@ -384,13 +464,24 @@ tab history_flag, m
 // 1b. In marital history, observed at least one cohab: add cohab info to marital history
 // 2. Not in marital history, doesn't really matter if have cohab or not - use my rel variables?
 
-reshape long rel@_start rel@_end rel@_type marr@_start marr@_end coh@_start coh@_end ///
-yr_married yr_end status, i(unique_id) j(relationship)
+reshape long rel@_start rel@_end rel@_type rel@_how_end marr@_start marr@_end marr@_how_end ///
+coh@_start coh@_end coh@_how_end yr_married yr_end status, i(unique_id) j(relationship)
 
 tab num_marriages marrno
 tab cohno, m
 
-browse unique_id history_flag relno relationship rel_start rel_end rel_type yr_married yr_end marr_start marr_end coh_start coh_end
+capture label drop how_rel_end 
+label define how_rel_end 0 "intact" 1 "breakup" 2 "widowhood" 3 "marriage"
+label values rel_how_end coh_how_end marr_how_end  how_rel_end
+
+capture label define status 1 "intact" 3 "widowhood" 4 "divorce" 5 "separated"
+label values status status
+
+recode status (1=0) (3=2) (4/5=1) (7/9=.), gen(mh_status)
+label values mh_status how_rel_end
+tab status mh_status, m
+
+browse unique_id history_flag relno relationship rel_start rel_end rel_how_end rel_type yr_married yr_end mh_status marr_start marr_end marr_how_end coh_start coh_end coh_how_end
 // 4006 good example of history no cohab - my marriage dates off by 1 year, so need to use real marital history data but my cohab data
 // and 4008 - there is a marriage in history that I do not even observe
 // 2156002 good example of marriage in history who enters in rel, need marital history for true start date
@@ -398,42 +489,54 @@ browse unique_id history_flag relno relationship rel_start rel_end rel_type yr_m
 // okay, think I like the approach of putting all in same column, but want to create a few things while long
 rename yr_married mh_yr_married
 rename yr_end mh_yr_end
-rename status mh_status
 gen mh_rel_type = .
 replace mh_rel_type = 20 if mh_yr_married!=.
 
-reshape wide rel@_start rel@_end rel@_type marr@_start marr@_end coh@_start coh@_end ///
-mh_yr_married mh_yr_end mh_status mh_rel_type, i(unique_id) j(relationship)
+drop status
+
+tab mh_status marr_how_end, m // these are actually not bad
+
+reshape wide rel@_start rel@_end rel@_type rel@_how_end marr@_start marr@_end marr@_how_end ///
+coh@_start coh@_end coh@_how_end mh_yr_married mh_yr_end mh_status mh_rel_type, i(unique_id) j(relationship)
 
 // create master indicator that is based on above rel type
 forvalues r=1/9{
 	gen master_rel_start`r'=.
 	gen master_rel_end`r'=.
 	gen master_rel_type`r'=.
+	gen master_rel_how_end`r'=.
 	
 	replace master_rel_start`r' = mh_yr_married`r' if in_marital_history==1 // start here - because I will still fill in marriages as 1-13 for those in history, i'll just ADD ON cohab
 	replace master_rel_end`r' = mh_yr_end`r' if in_marital_history==1 // start here - because I will still fill in marriages as 1-13 for those in history, i'll just ADD ON cohab
 	replace master_rel_type`r' = mh_rel_type`r' if in_marital_history==1 // start here - because I will still fill in marriages as 1-13 for those in history, i'll just ADD ON cohab
+	replace master_rel_how_end`r' = mh_status`r' if in_marital_history==1 // start here - because I will still fill in marriages as 1-13 for those in history, i'll just ADD ON cohab
 
 	replace master_rel_start`r' = rel`r'_start if in_marital_history==0
 	replace master_rel_end`r' = rel`r'_end if in_marital_history==0
 	replace master_rel_type`r' = rel`r'_type if in_marital_history==0	
+	replace master_rel_how_end`r' = rel`r'_how_end if in_marital_history==0	
+	
+	label values master_rel_how_end`r' how_rel_end
 }
 
 forvalues r=12/13{
 	gen master_rel_start`r'=.
 	gen master_rel_end`r'=.
 	gen master_rel_type`r'=.
+	gen master_rel_how_end`r'=.
 	
 	replace master_rel_start`r' = mh_yr_married`r' if in_marital_history==1 // start here - because I will still fill in marriages as 1-13 for those in history, i'll just ADD ON cohab
 	replace master_rel_end`r' = mh_yr_end`r' if in_marital_history==1 // start here - because I will still fill in marriages as 1-13 for those in history, i'll just ADD ON cohab
 	replace master_rel_type`r' = mh_rel_type`r' if in_marital_history==1 // start here - because I will still fill in marriages as 1-13 for those in history, i'll just ADD ON cohab
-
+	replace master_rel_how_end`r' = mh_status`r' if in_marital_history==1 // start here - because I will still fill in marriages as 1-13 for those in history, i'll just ADD ON cohab
+	
 	replace master_rel_start`r' = rel`r'_start if in_marital_history==0
 	replace master_rel_end`r' = rel`r'_end if in_marital_history==0
 	replace master_rel_type`r' = rel`r'_type if in_marital_history==0	
-}
+	replace master_rel_how_end`r' = rel`r'_how_end if in_marital_history==0	
 
+	label values master_rel_how_end`r' how_rel_end
+}
 
 gen master_rel_start14 = coh1_start if history_flag==2
 gen master_rel_start15 = coh2_start if history_flag==2
@@ -456,18 +559,26 @@ gen master_rel_type17 = 22 if history_flag==2 & coh4_start != .
 gen master_rel_type18 = 22 if history_flag==2 & coh5_start != .
 gen master_rel_type19 = 22 if history_flag==2 & coh6_start != .
 
+gen master_rel_how_end14 = coh1_how_end if history_flag==2
+gen master_rel_how_end15 = coh2_how_end if history_flag==2
+gen master_rel_how_end16 = coh3_how_end if history_flag==2
+gen master_rel_how_end17 = coh4_how_end if history_flag==2
+gen master_rel_how_end18 = coh5_how_end if history_flag==2
+gen master_rel_how_end19 = coh6_how_end if history_flag==2
+
 label define type 20 "Marriage" 22 "Cohab"
 forvalues r=1/19{
 	capture label values master_rel_type`r' type 
+	capture label values master_rel_how_end`r' how_rel_end
 }
 
-browse unique_id history_flag master_rel_start* master_rel_type*
+browse unique_id history_flag master_rel_start* master_rel_type* master_rel_how_end*
 
-reshape long master_rel_start master_rel_end master_rel_type ///
-rel@_start rel@_end rel@_type marr@_start marr@_end coh@_start coh@_end ///
+reshape long master_rel_start master_rel_end master_rel_type master_rel_how_end ///
+rel@_start rel@_end rel@_type rel@_how_end marr@_start marr@_end marr@_how_end coh@_start coh@_end coh@_how_end ///
 mh_yr_married mh_yr_end mh_status mh_rel_type, i(unique_id) j(relationship)
 
-browse unique_id relationship history_flag master_rel_start master_rel_end master_rel_type
+browse unique_id relationship history_flag master_rel_start master_rel_end master_rel_type master_rel_how_end
 
 // now actually rank relationships (following x_create_cohab_sample)
 gen master_rel_end_orig=master_rel_end
@@ -520,9 +631,11 @@ replace rel_rank = rank_end if duplicate_rank==2 // this should work
 bysort unique_id rel_rank: egen duplicate_rank_v2 = count(rel_rank)
 replace rel_rank = rank_end if duplicate_rank_v2==2
 
-keep unique_id entered_in_rel history_flag rel_rank  master_rel_start master_rel_end master_rel_type
+keep unique_id entered_in_rel history_flag rel_rank  master_rel_start master_rel_end master_rel_type master_rel_how_end
 sort unique_id rel_rank
 
-reshape wide master_rel_start master_rel_end master_rel_type, i(unique_id) j(rel_rank)
+reshape wide master_rel_start master_rel_end master_rel_type master_rel_how_end, i(unique_id) j(rel_rank)
+
+unique unique_id // this is currently only restricted to people in relationships (remember this for when I merge later and inevitably panic) // 42039 (might match the relationship list above?)
 
 save "$created_data/psid_master_relationship_history_wide.dta", replace

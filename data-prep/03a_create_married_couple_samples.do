@@ -4,13 +4,10 @@
 * Kim McErlean
 ********************************************************************************
 
+* Instead of just keeping those with relationship start 20000 - keeping those later, to try to validate other findings (e.g. Killewald, Schwartz and GP). Since just marriage, can also do prior to 1983?
+
 use "$temp/PSID_full_long.dta", clear // created in step 1
 egen wave = group(survey_yr) // this will make years consecutive, easier for later
-
-label define sample 0 "not sample" 1 "original sample" 2 "born-in" 3 "moved in" 4 "joint inclusion" 5 "followable nonsample parent" 6 "nonsample elderly"
-label values SAMPLE sample
-gen has_psid_gene=0
-replace has_psid_gene = 1 if inlist(SAMPLE,1,2)
 
 ********************************************************************************
 * First organize data and get relationship status / history
@@ -68,7 +65,6 @@ tab marital_status_updated relationship, m col
 // see if I can also make use of info from the relationship history file - because I think that can also distinguish marriage and cohab?
 merge 1:1 unique_id survey_yr using "$temp/PSID_relationship_list_tomatch.dta", keepusing(MX8 partner_unique_id rel_num marr_num)
 drop if _merge==2
-tab relationship _merge, m
 drop _merge
 
 rename rel_num matrix_rel_num // just so I know where I got it
@@ -84,13 +80,7 @@ replace marital_status_updated = 2 if MX8 == 22 & marital_status_updated==.
 
 tab marital_status_updated relationship, m col
 
-// relationship transitions - okay replacing original code with the new history I just created (bc previous code was just for marriage and need cohab)
-merge m:1 unique_id using "$created_data/psid_master_relationship_history_wide.dta" // remember kim, before you panic, this file is restricted to ONLY PEOPLE with relationships ever
-drop if _merge==2
-tab relationship _merge, m row // a few people in relationships don't have matches, but pretty good (it's less than 1% non-match rate)
-drop _merge
-tab yr_married1 if history_flag==., m // confirm - those missing on history flag (aka no record in rel history wide) do not have any observed marriage dates in marital history - and this is true. this validates that my history at least covers those in a relationship at some point.
-
+// relationship transitions
 browse unique_id survey_yr relationship MARITAL_PAIRS_ MARST_DEFACTO_HEAD_ marital_status_updated
 gen relationship_yr = survey_yr if relationship==1
 sort unique_id survey_yr
@@ -103,272 +93,138 @@ sort id survey_yr
 replace exit_rel=1 if relationship==1 & relationship[_n+1]==0 & unique_id==unique_id[_n+1]
 // replace exit_rel=1 if relationship==0 & relationship[_n-1]==1 & id==id[_n-1]
 
-browse unique_id survey_yr relationship MX8 partner_unique_id enter_rel exit_rel master_rel_start1 master_rel_end1 master_rel_type1 master_rel_start2 master_rel_end2 master_rel_type2 master_rel_start3 master_rel_end3 master_rel_type3
+browse unique_id survey_yr relationship enter_rel exit_rel
 
-tab marital_status_updated MX8
-tab MX8 master_rel_type1, m
+gen relationship_start = survey_yr if enter_rel==1
+bysort unique_id: egen marrno=rank(relationship_start)
+browse unique_id survey_yr enter_rel relationship_start FIRST_MARRIAGE_YR_START marrno
 
-gen current_rel_number=.
-forvalues r=1/10{
-	capture replace current_rel_number = `r' if survey_yr >= master_rel_start`r' & survey_yr<= master_rel_end`r' & MX8 == master_rel_type`r' // prio next relationship bc end dates of 9999 causing problems
-	// yes - bc current rel_type is based on start type-  so couples who transition frm cohab to marriage will not match (that is currently happening)
-	capture replace current_rel_number = `r' if current_rel_number==. & survey_yr >= master_rel_start`r' & survey_yr<= master_rel_end`r' // & MX8!=. // don't need to match, but need to be observed in a rel
-}
+gen rel1_start=.
+// replace rel1_start = FIRST_MARRIAGE_YR_START if FIRST_MARRIAGE_YR_START <=2019
+replace rel1_start=relationship_start if marrno==1 // & FIRST_MARRIAGE_YR_START==9999
+bysort unique_id (rel1_start): replace rel1_start=rel1_start[1]
+gen rel2_start=.
+replace rel2_start=relationship_start if marrno==2 // & RECENT_MARRIAGE_YR_START ==9999
+bysort unique_id (rel2_start): replace rel2_start=rel2_start[1]
+gen rel3_start=.
+replace rel3_start=relationship_start if marrno==3
+bysort unique_id (rel3_start): replace rel3_start=rel3_start[1]
+gen rel4_start=.
+replace rel4_start=relationship_start if marrno==4
+bysort unique_id (rel4_start): replace rel4_start=rel4_start[1]
 
-tab current_rel_number relationship, m col
-tab current_rel_number MX8, m col
-tab matrix_rel_num current_rel_number, m // matrix rel num doesn't include relationships prior to survey, so makes sense some of those are lower than here
-// browse unique_id survey_yr relationship MX8 partner_unique_id enter_rel exit_rel current_rel_number master_rel_start1 master_rel_end1 master_rel_type1 master_rel_start2 master_rel_end2 master_rel_type2 master_rel_start3 master_rel_end3 master_rel_type3
+sort unique_id survey_yr
+browse unique_id survey_yr enter_rel relationship_start rel1_start FIRST_MARRIAGE_YR_START rel2_start marrno
+
+browse unique_id survey_yr enter_rel relationship_start rel1_start FIRST_MARRIAGE_YR_START rel2_start marrno id_spouse1 per_no_spouse1 yr_married1 id_spouse2 per_no_spouse2 yr_married2 in_marital_history MARITAL_PAIRS_
+
+gen relationship_end = survey_yr if exit_rel==1
+bysort unique_id: egen exitno=rank(relationship_end)
+browse unique_id survey_yr enter_rel relationship_start exitno
+
+gen rel1_end=.
+replace rel1_end=relationship_end if exitno==1
+bysort unique_id (rel1_end): replace rel1_end=rel1_end[1]
+gen rel2_end=.
+replace rel2_end=relationship_end if exitno==2
+bysort unique_id (rel2_end): replace rel2_end=rel2_end[1]
+gen rel3_end=.
+replace rel3_end=relationship_end if exitno==3
+bysort unique_id (rel3_end): replace rel3_end=rel3_end[1]
+gen rel4_end=.
+replace rel4_end=relationship_end if exitno==4
+bysort unique_id (rel4_end): replace rel4_end=rel4_end[1]
+
+browse unique_id survey_yr relationship enter_rel marrno rel1_start rel1_end rel2_start rel2_end
+sort unique_id survey_yr
+browse unique_id survey_yr rel1_start rel1_end rel2_start rel2_end in_marital_history yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 // figuring out how to combine gah. since this is just marital dissolution, it is okay that I am ignoring cohabitation. but, this will not work for everything.
+
+replace rel1_start=yr_married1 if in_marital_history==1
+replace rel2_start=yr_married2 if in_marital_history==1
+replace rel3_start=yr_married3 if in_marital_history==1
+replace rel4_start=yr_married4 if in_marital_history==1
+replace rel1_end=yr_end1 if in_marital_history==1
+replace rel2_end=yr_end2 if in_marital_history==1
+replace rel3_end=yr_end3 if in_marital_history==1
+replace rel4_end=yr_end4 if in_marital_history==1
+
+browse unique_id survey_yr rel1_start rel1_end rel2_start rel2_end in_marital_history yr_married1 status1 yr_end1 yr_married2 status2 yr_end2 // figuring out how to combine gah
+replace rel1_end=. if rel1_end==9999
+replace rel2_end=. if rel2_end==9999
+replace rel3_end=. if rel3_end==9999
+replace rel4_end=. if rel4_end==9999
 
 gen rel_start_all=.
+replace rel_start_all = rel1_start if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace rel_start_all = rel2_start if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace rel_start_all = rel3_start if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace rel_start_all = rel4_start if survey_yr>=rel4_start & survey_yr <=rel4_end
+
 gen rel_end_all=.
-gen rel_type_all=.
-gen rel_status_all=.
+replace rel_end_all = rel1_end if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace rel_end_all = rel2_end if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace rel_end_all = rel3_end if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace rel_end_all = rel4_end if survey_yr>=rel4_end & survey_yr <=rel4_end
 
-forvalues r=1/10{
-	replace rel_start_all = master_rel_start`r' if current_rel_number==`r'
-	replace rel_end_all = master_rel_end`r' if current_rel_number==`r'
-	replace rel_type_all = master_rel_type`r' if current_rel_number==`r'
-	replace rel_status_all = master_rel_how_end`r' if current_rel_number==`r'
+gen status_all=.
+replace status_all = status1 if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace status_all = status2 if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace status_all = status3 if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace status_all = status4 if survey_yr>=rel4_end & survey_yr <=rel4_end
+
+gen spouse_id_all=.
+replace spouse_id_all = id_spouse1 if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace spouse_id_all = id_spouse2 if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace spouse_id_all = id_spouse3 if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace spouse_id_all = id_spouse4 if survey_yr>=rel4_end & survey_yr <=rel4_end
+
+gen spouse_per_num_all=.
+replace spouse_per_num_all = per_no_spouse1 if survey_yr>=rel1_start & survey_yr <=rel1_end
+replace spouse_per_num_all = per_no_spouse2 if survey_yr>=rel2_start & survey_yr <=rel2_end
+replace spouse_per_num_all = per_no_spouse3 if survey_yr>=rel3_start & survey_yr <=rel3_end
+replace spouse_per_num_all = per_no_spouse4 if survey_yr>=rel4_end & survey_yr <=rel4_end
+
+label values status_all status
+
+browse id survey_yr relationship marrno  rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end spouse_id_all spouse_per_num_all id_spouse1 id_spouse2 per_no_spouse1 per_no_spouse2
+
+gen relationship_order=.
+
+forvalues r=1/4{
+	replace relationship_order=`r' if survey_yr>=rel`r'_start & survey_yr <=rel`r'_end
 }
 
-label values rel_type_all type
-label values rel_status_all how_rel_end
-tab MX8 rel_type_all, m // some are off because transitioned cohab to marriage and mine only captures 1st rel - we are going to update htis the way I normally do with the min / max rel dates. but doing this at a couple-level so can attempt to fill in true start / end dates (if one has non-missing info)
-tab MX8 rel_status_all, m // this is def not perfect, especially for cohab - intact not at all labelled yet
+browse unique_id survey_yr relationship relationship_order rel_start_all rel_end_all rel1_start rel1_end rel2_start rel2_end
 
-browse unique_id survey_yr relationship MX8 partner_unique_id rel_start_all rel_end_all rel_type_all rel_status_all enter_rel exit_rel master_rel_start1 master_rel_end1 master_rel_type1 master_rel_how_end1 master_rel_start2 master_rel_end2 master_rel_type2 master_rel_how_end2 master_rel_start3 master_rel_end3 master_rel_type3
-
-// attempt to fill in 9999s / missings using transition info created above
-tab rel_start_all MX8, m
-tab rel_end_all MX8, m col
-
-gen rel_start_est = survey_yr if enter_rel==1
-bysort unique_id partner_unique_id (rel_start_est): replace rel_start_est=rel_start_est[1] if partner_unique_id!=.
-
-gen rel_end_est = survey_yr if exit_rel==1
-bysort unique_id partner_unique_id (rel_end_est): replace rel_end_est=rel_end_est[1] if partner_unique_id!=.
-
-sort unique_id survey_yr
-browse unique_id survey_yr relationship MX8 partner_unique_id rel_start_all rel_end_all rel_type_all enter_rel exit_rel rel_start_est rel_end_est
-browse unique_id survey_yr relationship MX8 partner_unique_id rel_start_all rel_end_all rel_type_all enter_rel exit_rel rel_start_est rel_end_est if (rel_start_all==. | rel_end_all==. | rel_end_all==9999) & MX8!=.
-
-gen current_rel_start = rel_start_all // retain original
-replace current_rel_start = rel_start_est if current_rel_start==. & rel_start_est!=.
-
-gen current_rel_end = rel_end_all // retain original
-replace current_rel_end = rel_end_est if (current_rel_end==. | current_rel_end==9999) & rel_end_est!=.
-
-browse unique_id survey_yr relationship MX8 partner_unique_id current_rel_start current_rel_end rel_start_all rel_end_all rel_type_all enter_rel exit_rel rel_start_est rel_end_est
-
-tab current_rel_start MX8, m
-tab current_rel_end MX8, m col
-
-bysort unique_id: egen first_survey_yr = min(survey_yr)
 bysort unique_id: egen last_survey_yr = max(survey_yr)
-bysort unique_id partner_unique_id: egen first_couple_yr = min(survey_yr) if partner_unique_id!=. // possibly can help figure out attrition?
-bysort unique_id partner_unique_id: egen last_couple_yr = max(survey_yr) if partner_unique_id!=.
-
-tab current_rel_end rel_status_all, m // also could all 9999s be proxy for attrit? that is true for marital history, not sure otherwise
 
 sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr in_marital_history MX8 rel_status_all current_rel_start current_rel_end first_survey_yr last_survey_yr first_couple_yr last_couple_yr
+browse unique_id survey_yr relationship rel_start_all rel_end_all exit_rel status1 status2
 
-gen current_rel_status_est = rel_status_all
-replace current_rel_status_est = 0 if current_rel_status_est==. & last_survey_yr == last_couple_yr & MX8!=.
-replace current_rel_status_est = 1 if current_rel_status_est==. & last_survey_yr != last_couple_yr & MX8!=. // breakup if person continues in survey past relationship end
+tab status_all relationship, m
+tab status_all marital_status_updated if relationship==1, m
+tab status_all relation if relationship==1 & marital_status_updated==., m
 
-label values current_rel_status_est how_rel_end
-browse unique_id partner_unique_id survey_yr in_marital_history MX8 current_rel_status_est rel_status_all current_rel_start current_rel_end first_survey_yr last_survey_yr first_couple_yr last_couple_yr
-tab current_rel_end current_rel_status_est, m
+replace marital_status_updated = 4 if status_all==3 & marital_status_updated==. // widowed
+replace marital_status_updated = 5 if status_all==4 & marital_status_updated==. // divorced
+replace marital_status_updated = 6 if status_all==5 & marital_status_updated==. // separated
 
-// oh yeah, add in info on transitions between cohab and marriage
-sort unique_id survey_yr
-browse unique_id survey_yr wave partner_unique_id MX8
-
-gen marr_trans=0
-replace marr_trans=1 if MX8 == 20 & MX8[_n-1]==22 & unique_id==unique_id[_n-1] & partner_unique_id==partner_unique_id[_n-1] & wave==wave[_n-1]+1
-
-bysort unique_id partner_unique_id: egen ever_transition = max(marr_trans)
-
-gen transition_year = survey_yr if marr_trans==1
-bysort unique_id partner_unique_id (transition_year): replace transition_year=transition_year[1] if partner_unique_id!=. 
-
-sort unique_id survey_yr
-browse unique_id survey_yr wave partner_unique_id MX8  marr_trans ever_transition transition_year
-
-rename MX8 current_rel_type
-
-********************************************************************************
-* take intermission to match on partners so we a. use same info across partners, 
-* where possible, and b. can fill in maybe rel start / end if one partner has
-* and the other does not
-********************************************************************************
-
-preserve
-
-keep unique_id survey_yr current_rel_type current_rel_start current_rel_end current_rel_status_est rel_status_all ever_transition transition_year entered_in_rel has_psid_gene in_marital_history history_flag first_survey_yr last_survey_yr first_couple_yr last_couple_yr
-
-rename unique_id partner_unique_id
-foreach var in current_rel_type current_rel_start current_rel_end current_rel_status_est rel_status_all ever_transition transition_year entered_in_rel has_psid_gene in_marital_history history_flag first_survey_yr last_survey_yr first_couple_yr last_couple_yr{
-	rename `var' `var'_sp
+gen marr_no_estimated=.
+forvalues y=1/13{
+	capture replace marital_status_updated = 1 if status_all==1 & marital_status_updated==. & rel_start_all == yr_married`y' // if matches marriage date, know it's a marriage	
+	capture replace marr_no_estimated = `y' if rel_start_all == yr_married`y' & rel_start_all!=.
 }
 
-save "$temp/psid_partner_rel_info.dta", replace
+// browse unique_id survey_yr last_survey_yr rel_start_all rel_end_all exit_rel status_all marital_status_updated yr_married1 yr_married2 yr_married3 if relationship==1 & marital_status_updated==.
 
-restore
+tab marital_status_updated relationship, m col
 
-merge m:1 partner_unique_id survey_yr using "$temp/psid_partner_rel_info.dta"
-drop if _merge==2
-tab current_rel_type _merge, m row // okay yes all partnered rows match (I haven't yet restricted to couples)
-drop _merge
+tab matrix_marr_num relationship_order, m
+tab matrix_rel_num relationship_order, m
+tab matrix_marr_num marr_no_estimated, m
+tab relationship_order marr_no_estimated, m
 
-tab current_rel_type current_rel_type_sp, m // match, which makes sense bc this info came from matrix
-tab entered_in_rel entered_in_rel_sp, m // might be able to recover some data from here
-// basically, the problems are if a. both entered in marriage and neither in marital history or b. both entered already cohab - bc they can enter in rel but I still have correct info...
-tab current_rel_type entered_in_rel, m
-tab entered_in_rel in_marital_history if current_rel_type==20, m
-tab in_marital_history in_marital_history_sp, m
-tab history_flag history_flag_sp, m
-tab has_psid_gene has_psid_gene_sp, m
-tab ever_transition ever_transition_sp, m // this is congruent also (I guess makes sense if also came from matrix info)
-tab current_rel_status_est current_rel_status_est_sp, m // these are all over the place - so ideally can use teh one that is NOT estimated
-tab rel_status_all rel_status_all_sp, m // these are all quite all over the place...
-
-gen long partner_1 = cond(unique_id < partner_unique_id, unique_id, partner_unique_id) if partner_unique_id!=.
-gen long partner_2 = cond(unique_id < partner_unique_id, partner_unique_id, unique_id) if partner_unique_id!=.
-egen long couple_id = group(partner_1 partner_2)
-
-browse unique_id partner_unique_id survey_yr partner_1 partner_2 couple_id
-
-unique unique_id partner_unique_id if partner_unique_id!=.
-unique couple_id if partner_unique_id!=.
-
-browse couple_id unique_id partner_unique_id survey_yr in_marital_history in_marital_history_sp entered_in_rel entered_in_rel_sp current_rel_type current_rel_start current_rel_start_sp current_rel_end current_rel_end_sp rel_status_all rel_status_all_sp current_rel_status_est current_rel_status_est_sp ever_transition transition_year 
-
-gen couple = 0
-replace couple = 1 if inlist(current_rel_type, 20,22)
-tab current_rel_start couple, m
-
-tab couple relationship, m // the couple yes, relationship no are the first year cohabitors (bc in family matrix they are considered partners already). for now, I am filling in their info, but they are not considered "wife" so i actually can't even use first year cohabitors, unless I impute, which i then need to think about (check Brines and Joyner?)
-
-gen flag = 0
-replace flag = 1 if master_rel_type1 == 20 & in_marital_history==0 & in_marital_history_sp == 0 & entered_in_rel==1 & entered_in_rel_sp == 1 // want to check those couples where neither partner is in marital history and both entered in relationship - does this mean left censored?
-replace flag = 1 if master_rel_type1 == 22 & entered_in_rel==1 & entered_in_rel_sp == 1 // if first rel is cohab - it doesn't matter if neitehr in marital history?
-tab couple flag, m row // still a small percentage once adjusted for cohab, BUT affects cohab more (ofc)
-tab current_rel_type flag, m row
-
-// I first want to get current info to match across couples. also - like some info might match while other info does not...
-gen rel_start_yr_couple = .
-gen rel_end_yr_couple = .
-gen how_end_couple = .
-
-	// like first - if they match, okay great
-	replace rel_start_yr_couple = current_rel_start if couple==1 & current_rel_start == current_rel_start_sp & current_rel_start!=.
-	replace rel_end_yr_couple = current_rel_end if couple==1 & current_rel_end == current_rel_end_sp & current_rel_end!=.
-	replace how_end_couple = current_rel_status_est if couple==1 & current_rel_status_est == current_rel_status_est_sp & current_rel_status_est!=.
-	
-	// if they don't match, and the relationship is a marriage, use the partner in marital history (if both not)
-	replace rel_start_yr_couple = current_rel_start if rel_start_yr_couple==. & couple==1 & current_rel_type==20 & in_marital_history==1 & in_marital_history_sp==0
-	replace rel_start_yr_couple = current_rel_start_sp if rel_start_yr_couple==. & couple==1 & current_rel_type==20 & in_marital_history==0 & in_marital_history_sp==1
-	
-	replace rel_end_yr_couple = current_rel_end if rel_end_yr_couple==. & couple==1 & current_rel_type==20 & in_marital_history==1 & in_marital_history_sp==0
-	replace rel_end_yr_couple = current_rel_end_sp if rel_end_yr_couple==. & couple==1 & current_rel_type==20 & in_marital_history==0 & in_marital_history_sp==1
-	
-	replace how_end_couple = current_rel_status_est if how_end_couple==. & couple==1 & current_rel_type==20 & in_marital_history==1 & in_marital_history_sp==0
-	replace how_end_couple = current_rel_status_est_sp if how_end_couple==. & couple==1 & current_rel_type==20 & in_marital_history==0 & in_marital_history_sp==1
-	
-	// widowhood is a specific problem as usually the one that dies disappears so only one of them gets widow info
-	replace rel_end_yr_couple = current_rel_end if rel_end_yr_couple==. & couple==1 & rel_status_all==2 & rel_status_all_sp==. // want the info of the person recorded as WIDOWHOOD
-	replace rel_end_yr_couple = current_rel_end if rel_end_yr_couple==. & couple==1 & rel_status_all==2 & rel_status_all_sp==0 // want the info of the person recorded as WIDOWHOOD
-	replace rel_end_yr_couple = current_rel_end_sp if rel_end_yr_couple==. & couple==1 & rel_status_all==. & rel_status_all_sp==2
-	replace rel_end_yr_couple = current_rel_end_sp if rel_end_yr_couple==. & couple==1 & rel_status_all==0 & rel_status_all_sp==2
-
-	replace how_end_couple = 2 if how_end_couple==. & ((rel_status_all==2 & rel_status_all_sp==.) | (rel_status_all==. & rel_status_all_sp==2))
-	replace how_end_couple = 2 if how_end_couple==. & ((rel_status_all==2 & rel_status_all_sp==0) | (rel_status_all==0 & rel_status_all_sp==2))
-	
-	// next prioritize those with psid gene
-	replace rel_start_yr_couple = current_rel_start if rel_start_yr_couple==. & couple==1 & has_psid_gene==1 & has_psid_gene_sp==0
-	replace rel_start_yr_couple = current_rel_start_sp if rel_start_yr_couple==. & couple==1 & has_psid_gene==0 & has_psid_gene_sp==1
-	
-	replace rel_end_yr_couple = current_rel_end if rel_end_yr_couple==. & couple==1 & has_psid_gene==1 & has_psid_gene_sp==0
-	replace rel_end_yr_couple = current_rel_end_sp if rel_end_yr_couple==. & couple==1 & has_psid_gene==0 & has_psid_gene_sp==1
-	
-	replace how_end_couple = current_rel_status_est if how_end_couple==. & couple==1 & has_psid_gene==1 & has_psid_gene_sp==0
-	replace how_end_couple = current_rel_status_est_sp if how_end_couple==. & couple==1 & has_psid_gene==0 & has_psid_gene_sp==1
-	
-	// not many but if someone missing and other not - use the non missing
-	replace rel_start_yr_couple = current_rel_start if rel_start_yr_couple==. & couple==1 & current_rel_start!=. & current_rel_start_sp==.
-	replace rel_start_yr_couple = current_rel_start_sp if rel_start_yr_couple==. & couple==1 & current_rel_start==. & current_rel_start_sp!=.
-	
-	replace rel_end_yr_couple = current_rel_end if rel_end_yr_couple==. & couple==1 & !inlist(current_rel_end,.,9998,9999) & inlist(current_rel_end_sp,.,9998,9999)
-	replace rel_end_yr_couple = current_rel_end_sp if rel_end_yr_couple==. & couple==1 & inlist(current_rel_end,.,9998,9999) & !inlist(current_rel_end_sp,.,9998,9999)
-	
-	replace rel_end_yr_couple = 9999 if rel_end_yr_couple==. & couple==1 & ((current_rel_end==9999 & current_rel_end_sp==.) | (current_rel_end==. & current_rel_end_sp==9999))
-	replace rel_end_yr_couple = 9999 if rel_end_yr_couple==. & couple==1 & how_end_couple==0 & current_rel_end==. & current_rel_end_sp==.
-		// tab how_end_couple if couple==1 & current_rel_end==. & current_rel_end_sp==.
-		
-	// with no other info, use first start date and last end date
-	egen min_start = rowmin(current_rel_start current_rel_start_sp)
-	egen max_end = rowmax(current_rel_end current_rel_end_sp)
-	// tab min_start if rel_start_yr_couple==. & couple==1, m
-	// tab max_end if rel_end_yr_couple==. & couple==1, m 
-	
-	replace rel_start_yr_couple = min_start if rel_start_yr_couple==. & couple==1
-	replace rel_end_yr_couple = max_end if rel_end_yr_couple==. & couple==1
-	
-	// think widowhood > breakup and breakup > intact
-	replace how_end_couple = 2 if how_end_couple==. & ((current_rel_status_est==2 & current_rel_status_est_sp==1) | (current_rel_status_est==1 & current_rel_status_est_sp==2))
-	replace how_end_couple = 1 if how_end_couple==. & ((current_rel_status_est==1 & current_rel_status_est_sp==0) | (current_rel_status_est==0 & current_rel_status_est_sp==1))
-		
-	label values how_end_couple how_rel_end
-	
-browse couple_id unique_id partner_unique_id survey_yr in_marital_history in_marital_history_sp entered_in_rel entered_in_rel_sp has_psid_gene has_psid_gene_sp current_rel_type rel_start_yr_couple rel_end_yr_couple how_end_couple current_rel_start current_rel_start_sp current_rel_end current_rel_end_sp rel_status_all rel_status_all_sp current_rel_status_est current_rel_status_est_sp last_survey_yr last_survey_yr_sp
-// browse couple_id unique_id partner_unique_id survey_yr current_rel_type rel_start_yr_couple rel_end_yr_couple how_end_couple current_rel_start current_rel_start_sp current_rel_end current_rel_end_sp rel_status_all rel_status_all_sp current_rel_status_est current_rel_status_est_sp last_survey_yr last_survey_yr_sp if how_end_couple==. & couple==1
-// browse couple_id unique_id partner_unique_id survey_yr current_rel_type rel_start_yr_couple rel_end_yr_couple how_end_couple current_rel_start current_rel_start_sp current_rel_end current_rel_end_sp rel_status_all rel_status_all_sp current_rel_status_est current_rel_status_est_sp last_survey_yr last_survey_yr_sp if inlist(unique_id, 75001,75002,2326174,2326171,5065001,5065002)
-
-tab rel_start_yr_couple if couple==1 & (current_rel_start!=. | current_rel_start_sp!=.), m
-tab rel_end_yr_couple if  couple==1 & (current_rel_end!=. | current_rel_end_sp!=.), m
-tab how_end_couple if  couple==1 & (current_rel_status_est!=. | current_rel_status_est_sp!=.), m
-tab current_rel_status_est current_rel_status_est_sp if how_end_couple==. & couple==1, m
-
-// but THEN need to adjust for transitions from marriage to cohabitation also...
-sort unique_id survey_yr
-browse couple_id unique_id partner_unique_id survey_yr ever_transition transition_year current_rel_type current_rel_number rel_start_yr_couple rel_end_yr_couple how_end_couple 
-
-rename rel_start_yr_couple rel_start_yr_couple_unadj
-rename rel_end_yr_couple rel_end_yr_couple_unadj
-rename current_rel_number current_rel_number_unadj
-
-unique unique_id partner_unique_id
-unique couple_id 
-unique couple_id rel_start_yr_couple_unadj rel_end_yr_couple_unadj // current_rel_number_unadj
-
-bysort unique_id partner_unique_id: egen rel_start_yr_couple = min(rel_start_yr_couple_unadj) if partner_unique_id!=.
-bysort unique_id partner_unique_id: egen rel_end_yr_couple = max(rel_end_yr_couple_unadj) if partner_unique_id!=.
-bysort unique_id partner_unique_id: egen current_rel_number = min(current_rel_number_unadj) if partner_unique_id!=. 
-
-inspect  rel_start_yr_couple  rel_start_yr_couple_unadj
-inspect  rel_end_yr_couple  rel_end_yr_couple_unadj
-inspect  current_rel_number  current_rel_number_unadj
-
-sort couple_id partner_unique_id survey_yr
-
-browse couple_id unique_id partner_unique_id survey_yr ever_transition transition_year current_rel_type current_rel_number rel_start_yr_couple rel_end_yr_couple how_end_couple current_rel_number_unadj rel_start_yr_couple_unadj rel_end_yr_couple_unadj
-
-// probably need to also update "how end" - because we want info from the LAST partnership not the first (like cohab will probably say break up but married will say intact)
-browse couple_id unique_id partner_unique_id survey_yr ever_transition transition_year current_rel_type current_rel_number rel_start_yr_couple rel_end_yr_couple how_end_couple current_rel_number_unadj rel_start_yr_couple_unadj rel_end_yr_couple_unadj if ever_transition==1
-tab current_rel_type how_end_couple if ever_transition==1, row // I actually feel like this is not terrible inaccurate?
-
-gen how_end_marriage = how_end_couple if current_rel_type==20 & ever_transition==1
-bysort unique_id partner_unique_id (how_end_marriage): replace how_end_marriage=how_end_marriage[1] if ever_transition==1
-tab how_end_marriage if ever_transition==1, m
-
-tab how_end_couple how_end_marriage if ever_transition==1, row m
-replace how_end_couple = how_end_marriage if ever_transition==1
-
-// temp save - stopped here 8/7/25
-save "$temp/PSID_couples_compiled.dta", replace
+browse unique_id survey_yr rel_start_all rel_end_all matrix_marr_num relationship_order marr_no_estimated yr_married1 yr_married2 yr_married3
 
 ********************************************************************************
 **# Create outcome
@@ -1611,6 +1467,7 @@ keep if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55)
 ********************************************************************************
 **# Now create combined marriage and cohab sample (new sample - SF R&R)
 ********************************************************************************
+// stopped here - decided that I wanted to make a new file so I can easily revert to the original married sample if needed, because I need to make some changes to get accurate cohab history / start / end date info (since not in marital history) - and I don't want to lose my marriage sample that is based on that info
 
 ********************************************************************************
 **# Now create marriage specific sample (original sample)
