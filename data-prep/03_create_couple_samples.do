@@ -81,7 +81,7 @@ replace marital_status_updated = 2 if MX8 == 22 & marital_status_updated==.
 tab marital_status_updated relationship, m col
 
 // relationship transitions
-browse unique_id survey_yr relationship MARITAL_PAIRS_ MARST_DEFACTO_HEAD_ marital_status
+browse unique_id survey_yr relationship MARITAL_PAIRS_ MARST_DEFACTO_HEAD_ marital_status_updated
 gen relationship_yr = survey_yr if relationship==1
 sort unique_id survey_yr
 gen enter_rel=0
@@ -239,7 +239,8 @@ replace dissolve_v0=1 if exit_rel[_n+1]==1 & dissolve_v0[_n+1]==0 & (inrange(sta
 
 tab marital_status_updated exit_rel, m
 
-** new indicator based on improved marital status and end dates
+** new indicator based on improved marital status and end dates; this is just marriage and is my current outcome variable (version submitted to SF)
+// browse unique_id survey_yr marital_status_updated MX8 rel_start_all rel_end_all 
 gen dissolve=.
 replace dissolve=0 if relationship==1
 replace dissolve=1 if marital_status_updated==1 & marital_status_updated[_n+1]==5 & unique_id == unique_id[_n+1]  // & wave == wave[_n+1]-1 - okay, if the next time they appear, they are divorced, then this is probably fine?
@@ -260,11 +261,36 @@ replace dissolve = 0 if dissolve==1 & dissolve[_n-1]==1 & inlist(marital_status_
  
 tab dissolve dissolve_v0, m
 tab exit_rel dissolve_v0, m
-tab exit_rel dissolve, m
+tab exit_rel dissolve, m // okay so many of these discrepancies are bc of a. exits that aren't breakups, like widowhood, and b. exits from cohab. so this should get closer below?
 
 browse unique_id partner_unique_id survey_yr marital_status_updated rel_start_all rel_end_all dissolve exit_rel yr_end1 status1 yr_end2 status2 yr_end3 status3
 
-sort id survey_yr
+// sort id survey_yr
+
+** Now I want to create a version based on cohab as well - want to leave as distinct so I can replicate my previous analysis
+sort unique_id survey_yr
+gen dissolve_all=.
+replace dissolve_all=0 if relationship==1
+replace dissolve_all=1 if marital_status_updated==1 & marital_status_updated[_n+1]==5 & unique_id == unique_id[_n+1]  // & wave == wave[_n+1]-1 - okay, if the next time they appear, they are divorced, then this is probably fine? // married to divorce
+replace dissolve_all=1 if marital_status_updated==1 & marital_status_updated[_n+1]==6 & unique_id == unique_id[_n+1] & status_all!=1  // need to not capture temporary separations // married to separated
+replace dissolve_all=1 if marital_status_updated==2 & marital_status_updated[_n+1]==3 & unique_id == unique_id[_n+1]  // cohab to single
+replace dissolve_all=1 if marital_status_updated==2 & marital_status_updated[_n+1]==5 & unique_id == unique_id[_n+1] // cohab to divorce - shouldn't be possible, but jic - okay divorce does seem to be used. oh duh - if divorced, then partnered, then breakup- they prob are considered divorced? okay, so these are all possible. basically just not widowed
+replace dissolve_all=1 if marital_status_updated==2 & marital_status_updated[_n+1]==6 & unique_id == unique_id[_n+1] & status_all!=1  // cohab to separation - same here
+
+forvalues y=1/13{ // unfortunately there is not a comparable solve for cohab, because this history is only marriage. so need to use this info, but can't do for cohab
+	capture replace dissolve_all=1 if survey_yr == yr_end`y' & inlist(status`y',4,5) // don't want WIDOWHOOD
+	capture replace dissolve_all=1 if survey_yr == (yr_end`y'-1) & inlist(status`y',4,5) & inlist(yr_end`y',1998,2000,2002,2004,2006,2008,2010,2012,2014,2016,2018,2020) // I think biennial years are causing problems, so update to prior year
+}
+
+replace dissolve_all = 0 if dissolve_all==1 & dissolve_all[_n-1]==1 & inlist(marital_status_updated,5,6) & inlist(marital_status_updated[_n-1],1,2) & unique_id==unique_id[_n-1] // there are people with two diff years recording as dissolved. putting it next to partnered one so I have both partners' info
+replace dissolve_all = 0 if dissolve_all==1 & dissolve_all[_n-1]==1 & inlist(marital_status_updated,3,5,6) & marital_status_updated[_n-1]==2 & unique_id==unique_id[_n-1]
+
+browse unique_id survey_yr marital_status_updated MX8 dissolve dissolve_all exit_rel rel_start_all rel_end_all 
+tab marital_status_updated dissolve, m row
+tab marital_status_updated dissolve_all, m row
+
+tab dissolve_all dissolve, m
+tab exit_rel dissolve_all, m
 
 /* exploration
 browse id survey_yr relationship rel_start_all rel_end_all dissolve_v0 exit_rel status_all MARST_LEGAL_HEAD_ if inlist(id,2009,2986,2992) // so the survey yr GREATER than part isn't working for people who dissolve in an off year - like 2008. so 2007 not getting flagged as end? 
@@ -282,9 +308,10 @@ replace total_relationship=1 if dissolve==1 // need to keep year of dissolution
 keep if total_relationship==1 
 browse id survey_yr relationship rel_start_all rel_end_all dissolve dissolve_v0 exit_rel status_all marital_status_updated
 
-unique id if inrange(status_all,4,7) // 6060, this is now higher, but not much (6260)
-unique id if dissolve_v0==1 // 7660, this is now lower...(7185)
+unique id if inrange(status_all,4,7) // 6060, this is now higher, but not much (6258)
+unique id if dissolve_v0==1 // 7660, this is now lower...(7182)
 unique id if dissolve==1 // 10385 - new version // now 8464
+unique id if dissolve_all==1 // 11724
 
 // trying to identify if married or cohabiting. .. need relation_?
 // see fAQ, some might be labeled bf / gf in first year coresiding (code 88)
@@ -313,7 +340,7 @@ label define relationship_type 1 "Cohab" 2 "Married"
 label values relationship_type relationship_type
 
 tab marital_status_updated relationship_type, m
-tab MX8 relationship_type, m
+tab MX8 relationship_type, m // I am confused here - because this would reclassify many cohabitors as married? oh duh - above I say I want to use the matrix. these were just estimations, and I think wrong ones
 
 /* going to try to avoid using this
 tab RELATION_ relationship_type 
@@ -1269,31 +1296,117 @@ tab in_marital_history if dissolve==1 & MARITAL_PAIRS_==0,m // is in marital his
 // merge cohabitation history for head
 // merge 1:1 survey_yr main_per_id INTERVIEW_NUM_ using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // lol now only 724 matched
 // lol okay match rate SUPER low here when WIDE- 1000
-merge m:1 unique_id using "$temp/PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // still only 48000 which seems low (when wide). okay try LONG -- okay this was my best bet... I AM DUMB - it shouldn;t all match because it is only people who ever had A COHABITING partner, not others.
+merge m:1 unique_id using "$temp/PSID_partner_history.dta", keepusing(MX8* partner_unique_id*) // still only 48000 which seems low (when wide). okay try LONG -- okay this was my best bet... I AM DUMB - it shouldn;t all match because it is only people who ever had A COHABITING partner, not others. // partner_1968_id* partner_per_num* - not sure why I wasn't using unique ID befre...
 
 drop if _merge==2 // people not in my sample
 gen ever_cohab_head = 1 if _merge==3
 replace ever_cohab_head=0 if ever_cohab_head==.
 drop _merge
 
-foreach var in MX8* partner_1968_id* partner_per_num*{
+foreach var in MX8* partner_unique_id*{
 	rename `var' `var'_head
 }
 
+rename partner_unique_id_head partner_unique_id
+
 // k now trying to match on PARTNER id to get HER history
-merge m:1 spouse_per_num_all spouse_id_all using "$data_tmp\PSID_partner_history.dta", keepusing(MX8* partner_1968_id* partner_per_num*) // less matches but I am not surprised about this (i don't think??
+merge m:1 partner_unique_id using "$temp\PSID_partner_history.dta", keepusing(MX8* partner_unique_id*) // less matches but I am not surprised about this (i don't think??
+// merge m:1 spouse_per_num_all spouse_id_all // why am I confused? which should I match on? Okay, partner ID comes from family matrix, spouse comes from marital history. problem with marital history is that it's not comprehensive bc doesn't cover cohab. nor does it cover certain relationships prior to 1985, so use partner unique id
+// inspect spouse_per_num_all if marital_status_updated==1
+// inspect spouse_per_num_all if marital_status_updated==2
 
 drop if _merge==2 // people not in my sample
 gen ever_cohab_wife = 1 if _merge==3
 replace ever_cohab_wife=0 if ever_cohab_wife==.
 drop _merge
 
-foreach var in MX8* partner_1968_id* partner_per_num*{
+tab ever_cohab_wife ever_cohab_head, m
+
+foreach var in MX8* partner_unique_id*{
 	rename `var' `var'_wife
 }
 
-rename partner_1968_id*_head_wife partner_1968_id*_head
-rename partner_per_num*_head_wife partner_per_num*_head
+rename partner_unique_id*_head_wife partner_unique_id*_head
+rename partner_unique_id_wife partner_unique_id
+
+**# Stopped here because realizing - the below is problematic when relationship start info missing, which it is for many of the cohabitors. I need to take some steps back and figure out if I can get real rel start info. How do GP and Gangl / Brines and Joyner deal with potential left censoring? My usual goal is to avoid, but harder for cohab since we lack a history.
+save "$created_data/PSID_union_validation_sample.dta", replace
+
+// now create the cohab history variables (this used to come later but moved up)
+sort unique_id survey_yr
+browse unique_id partner_unique_id survey_yr marital_status_updated ever_cohab_head rel_start_all rel_end_all partner_unique_id*_head partner_unique_id*_wife // okay not all of these make sense anymore if I keep cohabitors, but the pre / other ones do. should I only make the "with wife" ones for married couples? well, these are all pre rel, so think might only end up applying to married? can check at end
+
+forvalues y=1968/1997{
+	gen cohab_`y'_with_partner_head=0
+	replace cohab_`y'_with_partner_head=1 if `y' < rel_start_all & partner_unique_id`y'_head==partner_unique_id
+	
+	gen cohab_`y'_with_partner_wife=0
+	replace cohab_`y'_with_partner_wife=1 if `y' < rel_start_all & partner_unique_id`y'_wife==unique_id
+}
+
+forvalues y=1999(2)2021{
+	gen cohab_`y'_with_partner_head=0
+	replace cohab_`y'_with_partner_head=1 if `y' < rel_start_all & partner_unique_id`y'_head==partner_unique_id
+	
+	gen cohab_`y'_with_partner_wife=0
+	replace cohab_`y'_with_partner_wife=1 if `y' < rel_start_all & partner_unique_id`y'_wife==unique_id
+}
+
+forvalues y=1968/1997{
+	gen cohab_`y'_other_head=0
+	replace cohab_`y'_other_head=1 if `y' < rel_start_all & partner_unique_id`y'_head!=partner_unique_id & partner_unique_id!=. & partner_unique_id`y'_head!=.
+	
+	gen cohab_`y'_other_wife=0
+	replace cohab_`y'_other_wife=1 if `y' < rel_start_all & partner_unique_id`y'_wife!=unique_id & unique_id!=. & partner_unique_id`y'_wife!=.
+}
+
+forvalues y=1999(2)2021{
+	gen cohab_`y'_other_head=0
+	replace cohab_`y'_other_head=1 if `y' < rel_start_all & partner_unique_id`y'_head!=partner_unique_id & partner_unique_id!=. & partner_unique_id`y'_head!=.
+	
+	gen cohab_`y'_other_wife=0
+	replace cohab_`y'_other_wife=1 if `y' < rel_start_all & partner_unique_id`y'_wife!=unique_id & unique_id!=. & partner_unique_id`y'_wife!=.
+}
+
+
+forvalues y=1968/1997{
+	gen cohab_`y'_after_head=0
+	replace cohab_`y'_after_head=1 if `y' > rel_end_all & partner_unique_id`y'_head!=.
+	
+	gen cohab_`y'_after_wife=0
+	replace cohab_`y'_after_wife=1 if `y' > rel_end_all & partner_unique_id`y'_wife!=.
+}
+
+forvalues y=1999(2)2021{
+	gen cohab_`y'_after_head=0
+	replace cohab_`y'_after_head=1 if `y' > rel_end_all & partner_unique_id`y'_head!=.
+	
+	gen cohab_`y'_after_wife=0
+	replace cohab_`y'_after_wife=1 if `y' > rel_end_all & partner_unique_id`y'_wife!=.
+}
+
+browse unique_id partner_unique_id survey_yr marital_status_updated ever_cohab_head partner_unique_id rel_start_all rel_end_all cohab_*_with_partner_head cohab_*_other_head partner_unique_id*_head
+
+egen cohab_with_partner_head = rowtotal(cohab_*_with_partner_head)
+replace cohab_with_partner_head = 1 if cohab_with_partner_head > 1 & cohab_with_partner_head!=.
+
+egen cohab_with_partner_wife = rowtotal(cohab_*_with_partner_wife)
+replace cohab_with_partner_wife = 1 if cohab_with_partner_wife > 1 & cohab_with_partner_wife!=.
+
+tab cohab_with_partner_head cohab_with_partner_wife, m
+tab marital_status_updated cohab_with_partner_head, m row
+
+egen cohab_with_other = rowtotal(cohab_*_other)
+replace cohab_with_other = 1 if cohab_with_other > 1 & cohab_with_other!=.
+
+egen cohab_after = rowtotal(cohab_*_after)
+replace cohab_after = 1 if cohab_after > 1 & cohab_after!=.
+
+browse unique_id ever_cohab_head cohab_with_other cohab_with_wife // about 14000 of ever cohab not accounted for - only 44 other, so put as other? OR are they missing marital history and I need to figure out?
+
+browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all partner_1968_id*_head partner_per_num*_head if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife==0 & cohab_after==0
+
+tab rel_start_all if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife==0 & cohab_after==0 // okay most are relationships started in 1968, which I exclude anyway because I don't think all of these are accurate
 
 // relationship_duration
 sort unique_id survey_yr
@@ -1325,7 +1438,7 @@ unique unique_id if dissolve==1, by(rel_start_all)
 // also delete records after the end of the relationship 
 sort unique_id survey_yr
 
-browse unique_id partner_unique_id survey_yr rel_start_all rel_end_all marital_status_updated dissolve dissolve_v0
+browse unique_id partner_unique_id survey_yr rel_start_all rel_end_all marital_status_updated dissolve dissolve_all dissolve_v0
 gen rel_over_flag=0
 replace rel_over_flag = 1 if survey_yr > rel_end_all & rel_end_all!=.
 tab rel_over_flag, m // okay there are none here
@@ -1333,7 +1446,7 @@ tab rel_over_flag, m // okay there are none here
 drop if rel_over_flag==1
 
 // alt way
-gen end_year = survey_yr if dissolve==1
+gen end_year = survey_yr if dissolve_all==1
 bysort unique_id partner_unique_id (end_year): replace end_year=end_year[1]
 sort unique_id survey_yr
 
@@ -1341,7 +1454,7 @@ gen rel_over_flag_alt=0
 replace rel_over_flag_alt = 1 if survey_yr > end_year & end_year!=.
 tab rel_over_flag_alt, m 
 
-browse unique_id partner_unique_id survey_yr marital_status_updated rel_start_all rel_end_all end_year dissolve rel_over_flag_alt
+browse unique_id partner_unique_id survey_yr marital_status_updated rel_start_all rel_end_all end_year dissolve_all rel_over_flag_alt
 
 drop if rel_over_flag_alt==1
 	
@@ -1350,64 +1463,16 @@ drop if rel_over_flag_alt==1
 browse id survey_yr AGE_ AGE_REF_ AGE_SPOUSE_ RELATION_
 keep if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55)
 */
- 
+
 ********************************************************************************
-**# Now create marriage specific sample
+**# Now create combined marriage and cohab sample (new sample - SF R&R)
+********************************************************************************
+
+********************************************************************************
+**# Now create marriage specific sample (original sample)
 ********************************************************************************
 // keep if relationship_type==2
 keep if inlist(marital_status_updated,1,5,6) // keep dissolve year jic for now
-
-// okay create cohabitation variables
-sort unique_id survey_yr
-browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all partner_1968_id*_head partner_per_num*_head
-
-forvalues y=1968/1997{
-	gen cohab_`y'_with_wife=0
-	replace cohab_`y'_with_wife=1 if `y' <= rel_start_all & partner_1968_id`y'_head==spouse_id_all & partner_per_num`y'_head==spouse_per_num_all
-}
-
-forvalues y=1999(2)2021{
-	gen cohab_`y'_with_wife=0
-	replace cohab_`y'_with_wife=1 if `y' <= rel_start_all & partner_1968_id`y'_head==spouse_id_all & partner_per_num`y'_head==spouse_per_num_all
-}
-
-forvalues y=1968/1997{
-	gen cohab_`y'_other=0
-	replace cohab_`y'_other=1 if `y' <= rel_start_all & ((partner_1968_id`y'_head!=spouse_id_all & spouse_id_all!=. & partner_1968_id`y'_head!=.) | (partner_per_num`y'_head!=spouse_per_num_all & spouse_per_num_all!=. & partner_per_num`y'_head!=.))
-	}
-
-forvalues y=1999(2)2021{
-	gen cohab_`y'_other=0
-	replace cohab_`y'_other=1 if `y' <= rel_start_all & ((partner_1968_id`y'_head!=spouse_id_all & spouse_id_all!=. & partner_1968_id`y'_head!=.) | (partner_per_num`y'_head!=spouse_per_num_all & spouse_per_num_all!=. & partner_per_num`y'_head!=.))
-}
-
-
-forvalues y=1968/1997{
-	gen cohab_`y'_after=0
-	replace cohab_`y'_after=1 if `y' >= rel_end_all & partner_1968_id`y'_head!=. & partner_per_num`y'_head!=.
-	}
-
-forvalues y=1999(2)2021{
-	gen cohab_`y'_after=0
-	replace cohab_`y'_after=1 if `y' >= rel_end_all & partner_1968_id`y'_head!=. & partner_per_num`y'_head!=.
-}
-
-browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all cohab_*_with_wife cohab_*_other partner_1968_id*_head partner_per_num*_head
-
-egen cohab_with_wife = rowtotal(cohab_*_with_wife)
-replace cohab_with_wife = 1 if cohab_with_wife > 1 & cohab_with_wife!=.
-
-egen cohab_with_other = rowtotal(cohab_*_other)
-replace cohab_with_other = 1 if cohab_with_other > 1 & cohab_with_other!=.
-
-egen cohab_after = rowtotal(cohab_*_after)
-replace cohab_after = 1 if cohab_after > 1 & cohab_after!=.
-
-browse unique_id ever_cohab_head cohab_with_other cohab_with_wife // about 14000 of ever cohab not accounted for - only 44 other, so put as other? OR are they missing marital history and I need to figure out?
-
-browse unique_id survey_yr ever_cohab_head spouse_per_num_all spouse_id_all rel_start_all rel_end_all partner_1968_id*_head partner_per_num*_head if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife==0 & cohab_after==0
-
-tab rel_start_all if ever_cohab_head==1 & cohab_with_other==0 & cohab_with_wife==0 & cohab_after==0 // okay most are relationships started in 1968, which I exclude anyway because I don't think all of these are accurate
 
 save "$created_data/PSID_marriage_validation_sample.dta", replace
 

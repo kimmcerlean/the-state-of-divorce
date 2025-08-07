@@ -9,8 +9,8 @@
 ********************************************************************************
 do "$PSID/J342304 (2021)/J342304.do" // note - this will need to be updated to wherever the raw data you downloaded is - this is directly provided by PSID
 do "$PSID/J342304 (2021)/J342304_formats.do" // note - this will need to be updated to wherever the raw data you downloaded is - this is directly provided by PSID - also need to direct this file where to save: "$PSID\PSID_full.dta"
-do "$code/x_rename_vars.do"
-do "$code/x_marital_history.do"
+do "$code/data-prep/x_rename_vars.do"
+do "$code/data-prep/x_marital_history.do"
 
 ********************************************************************************
 * Then reshape the data to be long, I think this will be less overwhelming / 
