@@ -59,6 +59,7 @@ if `"`c(hostname)'"' == "LAPTOP-TP2VHI6B"{
 	
 	*outputs
 	global created_data "$homedir/created data"
+	global state_data "$homedir/created data"
 	global results "$homedir/results"
 	global logdir "$homedir/logs"
 	global temp "$homedir/temp data"

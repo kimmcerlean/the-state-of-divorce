@@ -9,15 +9,23 @@
 * First just get data and do all the restrictions that are in file 3
 ********************************************************************************
 
-use "$created_data/PSID_union_sample_dedup.dta", clear // created in step 3 in main folder
+use "$created_data/PSID_marriage_recoded_sample.dta", clear // created in step 3 in main folder
+
+gen cohort=.
+replace cohort=1 if inrange(rel_start_all,1969,1979)
+replace cohort=2 if inrange(rel_start_all,1980,1989)
+replace cohort=3 if inrange(rel_start_all,1990,2010)
+replace cohort=4 if inrange(rel_start_all,2011,2021)
 
 // Final sample restrictions
+// keep if cohort==3, need to just use filters so I don't have to keep using and updating the data
+// need to decide - ALL MARRIAGES or just first? - killewald restricts to just first, so does cooke. My validation is MUCH BETTER against those with first marraiges only...
 tab matrix_marr_num, m
 tab matrix_rel_num, m
-tab current_rel_number, m // this includes historical relationships. BUT - need to figure out how to do this across cohab and marriage. likee ...how do I want to keep people?
+tab relationship_order, m // more accurate
 
 // keep if matrix_marr_num==1
-keep if current_rel_number==1
+keep if relationship_order==1
 keep if (AGE_HEAD_>=18 & AGE_HEAD_<=55) &  (AGE_WIFE_>=18 & AGE_WIFE_<=55)
 
 gen age_flag_2554=0
@@ -32,12 +40,6 @@ drop if survey_yr==2021 // until I figure out what to do about covid year. I did
 drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
 drop if STATE_==0
 drop if STATE_==99
-
-// let's get a sense of sample NOW  - this needs to be revisited based on how I want to think about relationship order...but just want an initial sense
-unique unique_id partner_unique_id, by(current_rel_type)
-unique unique_id partner_unique_id if flag==0, by(current_rel_type) // no left-censor. this removes shockingless less than expected (think bc of using the later years)
-unique unique_id partner_unique_id if dissolve==1, by(current_rel_type)
-unique unique_id partner_unique_id if flag==0 & dissolve==1, by(current_rel_type) // real concern is # of divorces - except i guess bc cohab is more unstable, this might not actually be as bad as I think??
 
 // final check of sample / end dates BUT this won't work when biennial?
 tab rel_end_all status_all,m 
@@ -747,6 +749,11 @@ alpha paid_leave_st_t1 prek_enrolled_public_st_t1 min_amt_above_fed_st_t1 earn_r
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
+
+// want to QA data so let's pull out unique couples here - then will pull out from the other file and see what's up (there are slightly less couples here)
+preserve
+collapse (max) rel_start_all rel_end_all status_all min_dur dissolve ever_dissolve, by(unique_id partner_unique_id)
+restore
 
 ********************************************************************************
 * Overall trends
