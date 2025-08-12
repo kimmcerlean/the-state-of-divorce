@@ -43,7 +43,8 @@ tab current_rel_number matrix_rel_num
 tab current_rel_number matrix_marr_num
 
 // keep if matrix_marr_num==1
-keep if current_rel_number==1 // | current_rel_number==2 // now this is overdoing it, but let's see...
+// keep if current_rel_number==1 // | current_rel_number==2 // now this is overdoing it, but let's see...
+keep if current_marr_number==1
 keep if (AGE_HEAD_>=18 & AGE_HEAD_<=55) &  (AGE_WIFE_>=18 & AGE_WIFE_<=55)
 
 gen age_flag_2554=0

@@ -120,6 +120,22 @@ tab current_rel_number MX8, m col
 tab matrix_rel_num current_rel_number, m // matrix rel num doesn't include relationships prior to survey, so makes sense some of those are lower than here
 // browse unique_id survey_yr relationship MX8 partner_unique_id enter_rel exit_rel current_rel_number master_rel_start1 master_rel_end1 master_rel_type1 master_rel_start2 master_rel_end2 master_rel_type2 master_rel_start3 master_rel_end3 master_rel_type3
 
+// want to also make a marriage version bc want to keep first marriages for that sample
+	// browse unique_id survey_yr in_marital_history relationship MX8 partner_unique_id current_rel_number yr_married1 yr_end1 yr_married2 yr_end2 yr_married3 yr_end3
+	// can't use mater rel type because the relationships are not ranked just for marriage. SInce I later drop people with early relationship starts, it is fine to use marital history (bc all of the people in my sample have to be in marital history)
+gen current_marr_number=.
+forvalues r=1/13{
+	capture replace current_marr_number = `r' if survey_yr >= yr_married`r' & survey_yr<= yr_end`r' & MX8 == 20 // use MX8 or the relationship type in history? I think prio what is observed in PSID...
+}
+
+tab current_rel_number current_marr_number, m
+tab matrix_marr_num current_marr_number, m
+tab current_marr_number relationship, m col
+tab current_marr_number MX8, m col
+tab num_marriages current_marr_number, m
+
+// browse unique_id survey_yr in_marital_history relationship MX8 partner_unique_id current_rel_number current_marr_number yr_married1 yr_end1 yr_married2 yr_end2 yr_married3 yr_end3 master_rel_start1 master_rel_end1 master_rel_type1 master_rel_start2 master_rel_end2 master_rel_type2 master_rel_start3 master_rel_end3 master_rel_type3
+
 gen rel_start_all=.
 gen rel_end_all=.
 gen rel_type_all=.
@@ -1449,8 +1465,9 @@ rename partner_unique_id_wife partner_unique_id
 
 // now create the cohab history variables (this used to come later but moved up)
 sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr marital_status_updated ever_cohab_head rel_start_yr_couple rel_end_yr_couple partner_unique_id*_head partner_unique_id*_wife // okay not all of these make sense anymore if I keep cohabitors, but the pre / other ones do. should I only make the "with wife" ones for married couples? well, these are all pre rel, so think might only end up applying to married? can check at end
+browse unique_id partner_unique_id survey_yr marital_status_updated current_rel_number ever_cohab_head rel_start_yr_couple rel_end_yr_couple partner_unique_id*_head partner_unique_id*_wife // okay not all of these make sense anymore if I keep cohabitors, but the pre / other ones do. should I only make the "with wife" ones for married couples? well, these are all pre rel, so think might only end up applying to married? can check at end
 drop if rel_start_yr_couple==. // small amount - this will mess up below code and also I can't use these couples anyway, so drop here
+// example of someone who should have a cohab other: 5559001
 
 // okay, now that I am adding cohab, this is a little trickier - because actually, if I observed their transition from cohab to marriage, they are not captured here, because the relationship start date is for cohab, not marriage.
 
