@@ -141,10 +141,24 @@ gen non_pure_male_bw_rate = 1 - married_pure_male_bw_rate // not *quite* a direc
 // low_inc_prem_pct
 
 // then standardize variables
-foreach var in paid_leave cc_pct_income prek_enrolled_public cc_pct_served headstart_pct_totalpop earlyhs_pct_totalpop policy_lib_all abortion_protected married_women_pt_rate_wt maternal_u5_pt_rate gender_factor_reg avg_egal_reg gender_factor_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all cc_pct_inc_neg married_wom_pt_rate_neg mom_u5_pt_rate_neg non_evang_lds_rate non_pure_male_bw_rate{
+foreach var in paid_leave cc_pct_income prek_enrolled_public cc_pct_served headstart_pct_totalpop earlyhs_pct_totalpop policy_lib_all abortion_protected married_women_pt_rate_wt maternal_u5_pt_rate gender_factor_reg avg_egal_reg gender_factor_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all cc_pct_inc_neg married_wom_pt_rate_neg mom_u5_pt_rate_neg non_evang_lds_rate non_pure_male_bw_rate{
 	sum `var'
 	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
 }
+
+// duh - let's just make the basic original scale for now as well for some robustness / preliminary exploration
+alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st
+
+egen structural_familism = rowtotal(paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st)
+pwcorr structural_familism policy_lib_all policy_lib_econ policy_lib_soc
+
+// try factor based on current also
+factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st, ipf
+predict f1
+rename f1 structural_factor
+pwcorr structural_factor structural_familism // so if I make a factor variable, also VERY correlated (~0.95)
+
+gen year_t1 = year // to get t-1 measures
 
 save "$temp/data_for_scale.dta", replace
 
@@ -212,8 +226,64 @@ factormat r, n($N) factors(3) forcepsd // okay I am getting this error: r not po
 // okay, I am doing all of this. Is there a world where I use my ORIGINAL scale (maybe with small variable and / or construction tweaks) and I just control for other possible factors - including attitudes, dual earning rate, religiosity, women's employment rate, etc? I am possibly losing the plot a bit
 // MAYBE make a factor for like "Diffusion" of gender rev, but that's it?
 alpha avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st // 0.6116
-factor avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st , ipf
-rotate // okay but attitudes and religiosity quite unique. so attitudinal diffusion + behavioral diffusion might not be the same?
+alpha avg_egal_reg_st non_evang_lds_rate_st non_pure_male_bw_rate_st married_women_emp_rate_wt_st //  0.6616
+alpha gender_factor_reg_st non_evang_lds_rate_st non_pure_male_bw_rate_st married_women_emp_rate_wt_st //   0.6531
+pwcorr avg_egal_reg_st gender_factor_reg_st fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg non_evang_lds_rate_st non_pure_male_bw_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st // so all positively correlated - but maybe not as much as I thought? Like attitudes and behavior (male BW) not highly correlated
+
+factor avg_egal_reg_st non_evang_lds_rate_st non_pure_male_bw_rate_st married_women_emp_rate_wt_st , ipf // okay but attitudes and religiosity quite unique. so attitudinal diffusion + behavioral diffusion might not be the same?
+predict f1
+rename f1 diffusion
+
+pwcorr diffusion avg_egal_reg_st non_evang_lds_rate_st non_pure_male_bw_rate_st married_women_emp_rate_wt_st
+pwcorr diffusion avg_egal_reg policy_lib_all policy_lib_soc // like - they are not really correlated at all....I mean, they are positive, but it's clear they are not at all the same...
+
+// should I try this 2x2 indicator again??
+sum avg_egal_reg, det
+gen egal_attitudes = 0 if avg_egal_reg < `r(p50)'
+replace egal_attitudes = 1 if avg_egal_reg >= `r(p50)'
+
+sum diffusion, det
+gen diffusion_yn = 0 if diffusion < `r(p50)'
+replace diffusion_yn = 1 if diffusion >= `r(p50)'
+
+tab egal_attitudes diffusion_yn, m row // actually less congruent than policy
+
+sum policy_lib_all, det
+gen policy_support = 0 if policy_lib_all < `r(p50)'
+replace policy_support = 1 if policy_lib_all >= `r(p50)'
+
+sum structural_familism, det
+gen family_support = 0 if structural_familism < `r(p50)'
+replace family_support = 1 if structural_familism >= `r(p50)'
+
+tab policy_support family_support, m row // def not super congruent either (but my scale is much more limited than theirs)
+
+gen policy_group_v1 = . 
+replace policy_group_v1 = 1 if egal_attitudes==1 & policy_support==1
+replace policy_group_v1 = 2 if egal_attitudes==1 & policy_support==0
+replace policy_group_v1 = 3 if egal_attitudes==0 & policy_support==1
+replace policy_group_v1 = 4 if egal_attitudes==0 & policy_support==0
+
+gen policy_group_v2 = . 
+replace policy_group_v2 = 1 if egal_attitudes==1 & family_support==1
+replace policy_group_v2 = 2 if egal_attitudes==1 & family_support==0
+replace policy_group_v2 = 3 if egal_attitudes==0 & family_support==1
+replace policy_group_v2 = 4 if egal_attitudes==0 & family_support==0
+
+gen policy_group_v3 = . 
+replace policy_group_v3 = 1 if diffusion_yn==1 & family_support==1
+replace policy_group_v3 = 2 if diffusion_yn==1 & family_support==0
+replace policy_group_v3 = 3 if diffusion_yn==0 & family_support==1
+replace policy_group_v3 = 4 if diffusion_yn==0 & family_support==0
+
+label define policy_group 1 "Egal, support" 2 "Egal, no" 3 "Traditional, support" 4 "Traditional, no"
+label values policy_group_v1 policy_group_v2 policy_group_v3 policy_group
+
+tab policy_group_v1, m // like...this is kind of a crazy distribution (in that it's roughly 25/25/25/25)
+tab policy_group_v2, m // this actually makes a bit more sense - bc egal attitudes / supportive policy and trad attitudes / unsupportive policy are more clustered (which is what I would have expected...)
+tab policy_group_v3, m // this is also very even, which is crazy...
+
+save "$created_data/scale_refresh.dta", replace
 
 ********************************************************************************
 **# Exploring PCA

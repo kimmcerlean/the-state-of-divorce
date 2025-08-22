@@ -60,6 +60,7 @@ if `"`c(hostname)'"' == "LAPTOP-TP2VHI6B"{
 	*outputs
 	global created_data "$homedir/created data"
 	global state_data "$homedir/created data"
+	global raw_state_data "G:\Other computers\My Laptop\Documents\Dissertation\Policy data\Structural support measure"
 	global results "$homedir/results"
 	global logdir "$homedir/logs"
 	global temp "$homedir/temp data"
