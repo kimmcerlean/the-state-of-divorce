@@ -4,11 +4,11 @@
 * Kim McErlean
 ********************************************************************************
 // ssc install marginscontplot - have to make sure you have this pckage
+// ssc install firthlogit, replace
 
 ********************************************************************************
 * First just get data and do final sample restrictions
 ********************************************************************************
-
 use "$created_data/PSID_union_sample_dedup.dta", clear // created in step 3 in main folder
 
 // Final sample restrictions
@@ -61,13 +61,37 @@ gen marr_dur = survey_yr - marriage_start_yr // duh these are negative for the c
 tab marr_dur, m
 tab marr_dur if current_rel_type==20, m
 
+	// need to group long durations because of collinearity as well. Even worse of a problem for restricting to parents of young children, so needs to be closer to 15+
+	gen marr_dur_raw = marr_dur
+	replace marr_dur = 16 if marr_dur>=16 & marr_dur<1000
+
 browse unique_id survey_yr partner_unique_id ever_transition current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple dur marr_dur marriage_start_yr transition_year
+
+// because I am estimating cohab based on observed transitions, there are not many in odd numbers, and some small durs becoming collinear. Need to aggregate in some wave (make based on wave?)
+browse unique_id survey_yr wave current_rel_type rel_start_yr_couple dur
+tab dur if current_rel_type==22, m
+gen coh_dur = dur
+replace coh_dur = dur - 1 if inlist(dur,1,3,5,7,9,11,13)
+replace coh_dur = 15 if dur >=15 & dur < =100
+
+gen cohab_flag = .
+replace cohab_flag = flag if current_rel_type==22
+
+// okay, need to create a combined duration indicator? so I can use for when I combine the samples (bc want dur to restart for marriage so treat as two different relationship contributions?? So can't use existing plain dur variable). Is this the right logic?
+browse unique_id survey_yr wave current_rel_type rel_start_yr_couple marriage_start_yr dur marr_dur coh_dur ever_transition
+
+gen combined_dur = .
+replace combined_dur = coh_dur if current_rel_type==22
+replace combined_dur = marr_dur if current_rel_type==20
 
 // let's get a sense of sample NOW  - this needs to be revisited based on how I want to think about relationship order...but just want an initial sense
 unique unique_id partner_unique_id, by(current_rel_type)
 unique unique_id partner_unique_id if flag==0, by(current_rel_type) // no left-censor. this removes shockingless less than expected (think bc of using the later years)
 unique unique_id partner_unique_id if dissolve==1, by(current_rel_type)
 unique unique_id partner_unique_id if flag==0 & dissolve==1, by(current_rel_type) // real concern is # of divorces - except i guess bc cohab is more unstable, this might not actually be as bad as I think??
+// unique unique_id partner_unique_id if children_under6==1, by(current_rel_type) // I wonder if THIS is the problem...
+// unique unique_id partner_unique_id if children_under6==1 & dissolve==1, by(current_rel_type) // there are 230 divorces here for cohab, and 417 for married couples - so really not like...that much less?
+// tab current_rel_type children_under6, row m // and actually - almost equally likely to have a kid under 6, regardless of relationship type..
 
 // drop those with no earnings or housework hours the whole time
 bysort unique_id: egen min_type = min(hh_earn_type_t1) // since no earners is 4, if the minimum is 4, means that was it the whole time
@@ -339,6 +363,17 @@ replace division_bucket_hrs_t1 = . if hh_hours_type_t1== . | housework_bkt_t== .
 
 label values division_bucket_hrs_t1 division_bucket
 
+* hours - need to put counter-traditional in all others because it's not estimating on its own for most data views
+gen division_bucket_hrs_gp_t1=4
+replace division_bucket_hrs_gp_t1 = 1 if hh_hours_type_t1== 1 & housework_bkt_t== 1 // dual, dual
+replace division_bucket_hrs_gp_t1 = 2 if hh_hours_type_t1== 2 & housework_bkt_t== 2 // male bw, female hw
+replace division_bucket_hrs_gp_t1 = 4 if hh_hours_type_t1== 3 & housework_bkt_t== 3 // female bw, male hw
+replace division_bucket_hrs_gp_t1 = 3 if hh_hours_type_t1== 1 & housework_bkt_t== 2 // dual, female hw
+replace division_bucket_hrs_gp_t1 = . if hh_hours_type_t1== . | housework_bkt_t== .
+
+label define div_gp 1 "Dual" 2 "Traditional" 3 "Second shift" 4 "All Other"
+label values division_bucket_hrs_gp_t1 div_gp
+
 // this doesn't capture OVERWORK
 sum weekly_hrs_t1_head if ft_pt_t1_head==2, detail
 sum weekly_hrs_t1_wife if ft_pt_t1_wife==2, detail
@@ -422,7 +457,6 @@ label values earnings_bucket_t1 earnings_bucket_t1
 
 *Spline
 mkspline knot1 0 knot2 20 knot3 = earnings_1000s
-
 
 // want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?) well, this then doesn't mean it's year of marriage if not observed, so it should be blank
 bysort unique_id (survey_yr): egen yr_rank=rank(survey_yr)
@@ -541,19 +575,55 @@ gen interval=.
 replace interval=1 if inrange(survey_yr,1968,1997)
 replace interval=2 if inrange(survey_yr,1999,2021)
 
+********************************************************************************
+* Last checks and data cleaning / set-up
+********************************************************************************
+
+* Final sample restrictions based on missing values and division of labor to divide
 // missing value inspect
-inspect age_mar_wife
-inspect age_mar_head
-inspect raceth_head
-inspect raceth_head_fixed
-inspect same_race
-inspect either_enrolled
-inspect region
-inspect cohab_with_partner 
-inspect cohab_with_other
-inspect pre_marital_birth
-inspect home_owner
-inspect couple_joint_religion // this has the most missing (about 3.5%)
+inspect age_mar_wife // 18
+inspect age_mar_head // 3
+// inspect raceth_head
+inspect raceth_head_fixed // 39
+inspect same_race // 0
+inspect either_enrolled // 0
+inspect region // 0 
+inspect STATE_ // 0
+inspect cohab_with_partner // 0
+inspect cohab_with_other // 0 
+inspect pre_marital_birth // 0
+inspect home_owner // 0
+inspect couple_joint_religion // this has the most missing (502 - about 3.5%)
+inspect earnings_bucket_t1 // 0
+inspect couple_earnings_t1 // 0 (underlying variable)
+inspect couple_educ_gp // 360 (2.5%)
+inspect moved_last2 // 0
+inspect num_children // 0
+inspect hh_hours_type_t1 // 0
+inspect housework_bkt_t // 196
+inspect division_bucket_hrs_t1 // 196
+
+// create flag
+gen any_missing = 0
+replace any_missing = 1 if age_mar_wife==. | age_mar_head==. | raceth_head_fixed==. | couple_joint_religion ==. | couple_educ_gp==. | housework_bkt_t==. | division_bucket_hrs_t1==.
+tab any_missing , m // this is closer to 7% Is this too high?
+
+// flag for no paid or unpaid labor to observe
+gen no_labor = 0 
+replace no_labor = 1 if hh_hours_type_t1==4 | housework_bkt_t ==4
+tab no_labor, m
+
+tab any_missing no_labor, m // so this is about 10%.
+
+// some states cannot be estimated on their own so are being dropped - do I group these? Need to figure out what to do...
+// cc: https://academicweb.nd.edu/~rwilliam/stats3/RareEvents.pdf - do I need to consider firthlogit??
+// for married couples, it's 30, 35, 44, 50, 54
+// for cohab, it's 2, 23, 30, 31, 35, 38, 44, 46, 49, 50, 54, 56 // is this too many?
+
+* Small things needed for analysis (run through this so you have controls and for figures)
+set scheme cleanplots
+
+global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
 
 /* QA
 preserve
@@ -564,9 +634,30 @@ restore
 ********************************************************************************
 **# Merge onto policy data
 ********************************************************************************
+local scale_vars "structural_familism structural_factor cc_pct_income_orig prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2" 
+
 rename STATE_ state_fips
 rename survey_yr year
 
+//merge m:1 state_fips year using "$raw_state_data/structural_familism_jue25_int.dta" // merging on this file for now to explore - so commenting out the below while I sort this out
+merge m:1 state_fips year using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
+drop if _merge==2
+drop _merge
+
+foreach var in `scale_vars'{
+	rename `var' `var'_t
+}
+
+gen year_t1 = year - 1
+merge m:1 year_t1 state_fips using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
+drop if _merge==2
+drop _merge
+
+foreach var in `scale_vars'{
+	rename `var' `var'_t1
+}
+
+/*
 local scale_vars "structural_familism structural_familism_v0 paid_leave_st paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st paid_leave paid_leave_length prek_enrolled_public min_amt_above_fed min_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all sf_centered" // f1 
 
 merge m:1 state_fips year using "$state_data/structural_familism.dta", keepusing(`scale_vars')
@@ -606,11 +697,10 @@ replace sf_centered_alt_t1 = structural_familism_t1 - `r(mean)'
 browse structural_familism_t structural_familism_v0_t sf_centered_t sf_centered_alt_t
 sum structural_familism_t sf_centered_t sf_centered_alt_t, detail
 
-set scheme cleanplots
-
 alpha paid_leave_length_st_t1 prek_enrolled_public_st_t1 min_amt_above_fed_st_t1 earn_ratio_neg_st_t1 unemployment_percap_st_t1 abortion_protected_st_t1 welfare_all_st_t1 // structural familism. 0.70 0.716 now
 alpha paid_leave_st_t1 prek_enrolled_public_st_t1 min_above_fed_st_t1 earn_ratio_neg_st_t1 unemployment_percap_st_t1 abortion_protected_st_t1 welfare_all_st_t1 
 alpha paid_leave_st_t1 prek_enrolled_public_st_t1 min_amt_above_fed_st_t1 earn_ratio_neg_st_t1 unemployment_percap_st_t1 abortion_protected_st_t1 welfare_all_st_t1 
+*/
 
 ********************************************************************************
 ********************************************************************************
@@ -668,7 +758,7 @@ margins, at(earnings_1000s=(0(10)200))
 marginsplot
 
 ////////////////////////////////////////////////////////////////////////////////
-// Let's first explore basic trends across different samples
+**# // Let's first explore basic trends across different samples
 ////////////////////////////////////////////////////////////////////////////////
 
 ********************************************************************************
@@ -947,14 +1037,706 @@ coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female 
 coefplot (est7d, offset(.20) nokey) (est9d, offset(-.20) nokey) (est10d, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
 coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
  headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
+ 
+ 
+////////////////////////////////////////////////////////////////////////////////
+**# Now let's look at individual scale indicators across different samples
+////////////////////////////////////////////////////////////////////////////////
 
+
+********************************************************************************
+* Married Couples
+********************************************************************************
+
+*************
+* Continuous
+*************
+
+local scale_vars_cont "structural_familism_t structural_factor_t policy_lib_all_t prek_enrolled_public_t min_amt_above_fed_t earn_ratio_t unemployment_percap_t welfare_all_t cc_pct_income_orig_t cc_pct_served_t headstart_pct_t earlyhs_pct_t total_headstart_pct_t educ_spend_percap_t genderroles_egal_reg_t avg_egal_reg_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t evang_lds_rate_t diffusion_t"
+
+foreach var in `scale_vars_cont'{
+	
+* Total sample
+logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+}
+
+*************
+* Binary
+*************
+// for the binary variables - I cannot get counter-traditional to estimate on its own. In some cases, I also cannot get all others to estimate on own. Considering "no labor" as all others for these purposes and using this new variable: division_bucket_hrs_gp_t1 - where counter-trad is grouped into all other
+
+local scale_vars_binary "paid_leave_t abortion_protected_t"
+
+foreach var in `scale_vars_binary'{
+	
+* Total sample
+logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post //  3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0, or // & no_labor==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0, or // & no_labor==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0, or // & no_labor==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+}
+
+*************
+* Categorical
+*************
+// here also need to combine 3 and 5
+
+local scale_vars_cat "policy_group_v1_t  policy_group_v2_t"
+
+foreach var in `scale_vars_cat'{
+	
+* Total sample
+logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+}
+
+*************
+* Can't use FE
+*************
+// state-level attitudes - can't have fixed effects. want to see if effect direction same as regional (then can justify using regional bc time varying)
+local scale_vars_nofe "genderroles_egal_state_t avg_egal_state_t"
+
+local nofe "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
+
+foreach var in `scale_vars_nofe'{
+	
+* Total sample
+logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+}
+
+*************
+* Miscellaneous
+*************
+// this is mostly incorporated above, just leaving for reference
+
+// do I actually need to do childfree SEPARATELY?! let's use the policy liberalism as a test because quite broad (and has moderation effect similar to my original scale)
+// because isn't *this* really the test of the effect of parenthood? Like total sample results mask the differences (if there are any)
+logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
+sum policy_lib_all, detail
+margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if children==0 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
+sum policy_lib_all, detail
+margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// just under 6
+logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
+sum policy_lib_all, detail
+margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if children_under6==0 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
+sum policy_lib_all, detail
+margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// is there also a possibility this is an age effect? (This is spurred by Hook and Li 2025). I think I just need to better understand WHY - is it truly the presence of children? Like I think something like this probably needs to go into appendix?
+tab AGE_HEAD_ children_under6, row
+twoway (histogram AGE_HEAD_ if children_under6==0, width(1) color(pink%30)) (histogram AGE_HEAD_ if children_under6==1, width(1) color(blue%30)), legend(order(1 "No Kids u6" 2 "Kids u6") rows(1) position(6))
+twoway (histogram AGE_WIFE_ if children_under6==0, width(1) color(pink%30)) (histogram AGE_WIFE_ if children_under6==1, width(1) color(blue%30)), legend(order(1 "No Kids u6" 2 "Kids u6") rows(1) position(6))
+
+// just those under 40 (this is cutoff Hook and Li use - their goals are different, but actually quite aligns with the distro anyway)
+logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if AGE_HEAD_<=40 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or // somewhat more moderation, but nothing sig.
+sum policy_lib_all, detail
+margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))	
+
+logit dissolve i.marr_dur c.min_amt_above_fed i.hh_hours_type_t1 c.min_amt_above_fed#i.hh_hours_type_t1 $controls if AGE_HEAD_<=40 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or // this one more similar to overall sample, though, not kids
+sum min_amt_above_fed, detail
+margins, dydx(hh_hours_type_t1) at(min_amt_above_fed=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))	
+
+//// quick exploration of VERY quick bck of the envelope indicator... (v1 = montez policy liberalism; v2 = kim's structural familism)
+// married, total sample
+logit dissolve i.marr_dur i.policy_group_v1 i.hh_hours_type_t1 i.policy_group_v1#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
+margins policy_group_v1, dydx(hh_hours_type_t1) // male BW is significantly negative in trad / no
+
+logit dissolve i.marr_dur i.policy_group_v2 i.hh_hours_type_t1 i.policy_group_v2#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
+margins policy_group_v2, dydx(hh_hours_type_t1) // see here, it is diff - male BW sig negative with trad attitudes, regardless of policy (but only marginally sig)
+
+// married, young kids
+logit dissolve i.marr_dur i.policy_group_v1 i.hh_hours_type_t1 i.policy_group_v1#i.hh_hours_type_t1 $controls if children_under6==1 &  hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
+margins policy_group_v1, dydx(hh_hours_type_t1) // effects even stronger here
+
+logit dissolve i.marr_dur i.policy_group_v2 i.hh_hours_type_t1 i.policy_group_v2#i.hh_hours_type_t1 $controls if children_under6==1 &  hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
+margins policy_group_v2, dydx(hh_hours_type_t1) // okay - only the trad, no sig here (trad but supportive is neg but not sig, egal no is also neg but not sig)
+
+// cohab, total sample
+logit dissolve i.coh_dur i.policy_group_v1 i.hh_hours_type_t1 i.policy_group_v1#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==22, or
+margins policy_group_v1, dydx(hh_hours_type_t1) // opposite findings - male BW always positively associated with divorce, but only sig when egal supportive
+
+logit dissolve i.coh_dur i.policy_group_v2 i.hh_hours_type_t1 i.policy_group_v2#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==22, or
+margins policy_group_v2, dydx(hh_hours_type_t1) // nothing sig here (but male BW = always positive)
+
+// cohab, young kids
+logit dissolve i.coh_dur i.policy_group_v1 i.hh_hours_type_t1 i.policy_group_v1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & current_rel_type==22, or
+margins policy_group_v1, dydx(hh_hours_type_t1) // okay here male BW not always positive. I think we're running into sample bc trad no v. negative but not sig (only 796 observations totalS)
+
+logit dissolve i.coh_dur i.policy_group_v2 i.hh_hours_type_t1 i.policy_group_v2#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & current_rel_type==22, or
+margins policy_group_v2, dydx(hh_hours_type_t1) // same here (but confusing things happening with egal + support here
+
+********************************************************************************
+**# Cohabiting Couples
+********************************************************************************
+
+*************
+* Continuous
+*************
+local scale_vars_cont "structural_familism_t structural_factor_t policy_lib_all_t prek_enrolled_public_t min_amt_above_fed_t earn_ratio_t unemployment_percap_t welfare_all_t cc_pct_income_orig_t cc_pct_served_t headstart_pct_t earlyhs_pct_t total_headstart_pct_t educ_spend_percap_t genderroles_egal_reg_t avg_egal_reg_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t evang_lds_rate_t diffusion_t"
+
+foreach var in `scale_vars_cont'{
+	
+* Total sample
+logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+*Childfree couples
+logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+}
+
+*************
+* Binary
+*************
+local scale_vars_binary "paid_leave_t abortion_protected_t"
+
+foreach var in `scale_vars_binary'{
+	
+* Total sample
+logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1 3.hh_hours_type_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+}
+
+*************
+* Categorical
+*************
+local scale_vars_cat "policy_group_v1_t  policy_group_v2_t"
+
+foreach var in `scale_vars_cat'{
+	
+* Total sample
+logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+}
+
+*************
+* Can't use FE
+*************
+// state-level attitudes - can't have fixed effects. want to see if effect direction same as regional (then can justify using regional bc time varying)
+local scale_vars_nofe "genderroles_egal_state_t avg_egal_state_t"
+
+local nofe "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
+
+foreach var in `scale_vars_nofe'{
+	
+* Total sample
+logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+}
+
+********************************************************************************
+**# Combined Married + Cohab
+********************************************************************************
+// should control for relationship type, so need a new set of controls
+
+global combo_controls "i.current_rel_type age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"
+
+*************
+* Continuous
+*************
+
+local scale_vars_cont "structural_familism_t structural_factor_t policy_lib_all_t prek_enrolled_public_t min_amt_above_fed_t earn_ratio_t unemployment_percap_t welfare_all_t cc_pct_income_orig_t cc_pct_served_t headstart_pct_t earlyhs_pct_t total_headstart_pct_t educ_spend_percap_t genderroles_egal_reg_t avg_egal_reg_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t evang_lds_rate_t diffusion_t"
+
+foreach var in `scale_vars_cont'{
+	
+* Total sample
+logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+}
+
+*************
+* Binary
+*************
+// for the binary variables - I cannot get counter-traditional to estimate on its own. In some cases, I also cannot get all others to estimate on own. Using this new variable: division_bucket_hrs_gp_t1 - where counter-trad is grouped into all other
+
+local scale_vars_binary "paid_leave_t abortion_protected_t"
+
+foreach var in `scale_vars_binary'{
+	
+* Total sample
+logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post //  3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+}
+
+*************
+* Categorical
+*************
+// here also need to combine 3 and 5
+
+local scale_vars_cat "policy_group_v1_t  policy_group_v2_t"
+
+foreach var in `scale_vars_cat'{
+	
+* Total sample
+logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+}
+
+
+*************
+* Can't use FE
+*************
+// state-level attitudes - can't have fixed effects. want to see if effect direction same as regional (then can justify using regional bc time varying)
+local scale_vars_nofe "genderroles_egal_state_t avg_egal_state_t"
+
+local nofe "i.current_rel_type age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
+
+foreach var in `scale_vars_nofe'{
+	
+* Total sample
+logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* All Parents
+logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Kids under 6
+logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+* Childfree couples
+logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
+sum `var', detail
+margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// None of the below has been updated - all from SF submission
+////////////////////////////////////////////////////////////////////////////////
 
 ********************************************************************************
 ********************************************************************************
 **# MAIN MODELS (by parental status)
 ********************************************************************************
 ********************************************************************************
-global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
 
 ********************************************************************************
 * Parents of children under the age of 6
