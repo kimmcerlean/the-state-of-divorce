@@ -2,7 +2,7 @@
 ** PRC STATS SERVER
 ********************************************************************************
 
-if `"`c(hostname)'"' == "PPRC-STATS-P01"{
+if `"`c(hostname)'"' == "PPRC-STATS-P02"{
 	
 	global homedir "T:"
 
