@@ -7,16 +7,16 @@
 
 use "$CPS/cps_1988_2023_structuralmeasure.dta", clear
 
-/*
-recode educ (1/71=1)(72/73=2)(80/110=3)(111/125=4)(999=1), gen(education)
-gen college=(education==4)
-*/
-
-
 ********************************************************************************
 *Employment things
 ********************************************************************************
+// education
+recode educ (1/71=1)(72/73=2)(80/110=3)(111/125=4)(999=1), gen(education)
+gen college=(education==4)
+label define education 1 "LTHS" 2 "HS" 3 "Some College" 4 "College Plus"
+label values education education
 
+// employment
 gen employed=.
 replace employed=0 if inlist(labforce,0,1)
 replace employed=1 if inlist(empstat,10,12)
@@ -83,6 +83,33 @@ replace fathers=1 if sex==1 & nchild!=0 & age>=16 & age <=64
 
 gen fathers_u5=0
 replace fathers_u5=1 if sex==1 & nchlt5!=0 & age>=16 & age <=64
+
+* education
+// want to restrict denominator to those 25+
+gen women_25plus = 0
+replace women_25plus = 1 if sex==2 & age>=25 & age!=.
+
+gen married_women_25plus = 0
+replace married_women_25plus = 1 if sex==2 & inlist(marst,1,2) & age>=25 & age!=.
+
+gen men_25plus = 0
+replace men_25plus = 1 if sex==1 & age>=25 & age!=.
+
+gen married_men_25plus = 0
+replace married_men_25plus = 1 if sex==1 & inlist(marst,1,2) & age>=25 & age!=.
+
+// then numerators
+gen college_women = 0
+replace college_women = 1 if sex==2 & age>=25 & age!=. & college==1
+
+gen college_married_women = 0
+replace college_married_women = 1 if sex==2 & inlist(marst,1,2) & age>=25 & age!=. & college==1
+
+gen college_men = 0
+replace college_men = 1 if sex==1 & age>=25 & age!=. & college==1
+
+gen college_married_men = 0
+replace college_married_men = 1 if sex==1 & inlist(marst,1,2) & age>=25 & age!=. & college==1
 
 * for LFP ratio
 gen men_lfp=0
@@ -210,6 +237,9 @@ replace child_u6=1 if age <6
 gen child_0to2=0
 replace child_0to2=1 if age >=0 & age <=2
 
+gen child_3to4=0
+replace child_3to4=1 if age >=3 & age <=4
+
 gen child_3to5=0
 replace child_3to5=1 if age >=3 & age <=5
 
@@ -221,6 +251,9 @@ replace child_u6_in_pov=1 if child_u6==1 & offpov==1
 
 gen child_0to2_in_pov=0
 replace child_0to2_in_pov=1 if child_0to2==1 & offpov==1
+
+gen child_3to4_in_pov=0
+replace child_3to4_in_pov=1 if child_3to4==1 & offpov==1
 
 gen child_3to5_in_pov=0
 replace child_3to5_in_pov=1 if child_3to5==1 & offpov==1
@@ -240,7 +273,7 @@ tab srcwelfr, m
 gen welfare_income = incwelfr if incwelfr > 0 & incwelfr < 900000 // okay so 0 is NONE, 999999 is truly not in universe (those under 15)
 gen ssi_income = incssi if incssi > 0 & incssi < 900000
 
-tabstat welfare_income, by(srcwelfr)
+// tabstat welfare_income, by(srcwelfr)
 browse serial pernum age year welfare_income ssi_income srcwelfr srcwelfr_mom srcwelfr_mom2 srcwelfr_pop srcwelfr_pop2 incwelfr incssi
 
 foreach var in mom mom2 pop pop2{
@@ -366,9 +399,9 @@ So, I am planning to use both...
 */
 
 // quickly validate all binary before I do this math
-sum total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp
+sum total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp women_25plus married_women_25plus men_25plus married_men_25plus college_women college_married_women college_men college_married_men
 
-foreach var in total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp{
+foreach var in total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp women_25plus married_women_25plus men_25plus married_men_25plus college_women college_married_women college_men college_married_men{
 	gen `var'_wt = `var' * asecwt if hflag==. | hflag== 0 // using 5/8 sample for 2014 for now...
 }
 
@@ -385,23 +418,27 @@ collapse 	(sum) 	total men women work_age_men work_age_women married_women marri
 					women_emp married_men_emp married_women_emp mothers_emp mothers_u5_emp ///
 					fathers_emp fathers_u5_emp women_pt_emp married_women_pt_emp mothers_pt_emp ///
 					mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 ///
-					child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov ///
-					child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf ///
+					child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov ///
+					child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf ///
 					child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig ///
 					child_0to2_hs_elig child_3to5_hs_elig married married_male_bw ///
-					married_pure_male_bw married_dual_earn total_wt men_wt women_wt ///
+					married_pure_male_bw married_dual_earn women_25plus married_women_25plus ///
+					men_25plus married_men_25plus college_women college_married_women ///
+					college_men college_married_men total_wt men_wt women_wt ///
 					work_age_men_wt work_age_women_wt married_women_wt married_men_wt ///
 					mothers_wt mothers_u5_wt fathers_wt fathers_u5_wt men_lfp_wt ///
 					women_lfp_wt men_emp_wt women_emp_wt married_men_emp_wt married_women_emp_wt ///
 					mothers_emp_wt mothers_u5_emp_wt fathers_emp_wt fathers_u5_emp_wt ///
 					women_pt_emp_wt married_women_pt_emp_wt mothers_pt_emp_wt ///
 					mothers_u5_pt_emp_wt men_pov_wt women_pov_wt child_u18_wt ///
-					child_u6_wt child_0to2_wt child_3to5_wt child_u18_in_pov_wt child_u6_in_pov_wt ///
-					child_0to2_in_pov_wt child_3to5_in_pov_wt parent_tanf_wt parent_ssi_wt ///
+					child_u6_wt child_0to2_wt child_3to4_wt child_3to5_wt child_u18_in_pov_wt child_u6_in_pov_wt ///
+					child_0to2_in_pov_wt child_3to4_in_pov_wt child_3to5_in_pov_wt parent_tanf_wt parent_ssi_wt ///
 					child_u6_tanf_wt child_0to2_tanf_wt child_3to5_tanf_wt child_u6_ssi_wt ///
 					child_0to2_ssi_wt child_3to5_ssi_wt child_u6_hs_elig_wt child_0to2_hs_elig_wt ///
 					child_3to5_hs_elig_wt married_wt married_male_bw_wt married_pure_male_bw_wt ///
-					married_dual_earn_wt ///
+					married_dual_earn_wt women_25plus_wt married_women_25plus_wt men_25plus_wt ///
+					married_men_25plus_wt college_women_wt college_married_women_wt ///
+					college_men_wt college_married_men_wt ///
 			(p50)	men_earn_ft women_earn_ft men_wage women_wage fathers_earn_ft ///
 					mothers_earn_ft fathers_u5_earn_ft mothers_u5_earn_ft ///
 					married_men_earn_ft married_women_earn_ft, /// 
@@ -456,6 +493,13 @@ gen women_pt_rate_wt = women_pt_emp_wt / women_emp_wt
 gen married_women_pt_rate_wt = married_women_pt_emp_wt / married_women_emp_wt
 gen maternal_pt_rate_wt = mothers_pt_emp_wt / mothers_emp_wt
 gen maternal_u5_pt_rate_wt = mothers_u5_pt_emp_wt / mothers_u5_emp_wt
+
+gen women_college_rate_wt = college_women_wt / women_25plus_wt
+gen married_women_college_rate_wt = college_married_women_wt / married_women_25plus_wt
+gen men_college_rate_wt = college_men_wt / men_25plus_wt
+gen married_men_college_rate_wt = college_married_men_wt / married_men_25plus_wt
+gen college_ratio = women_college_rate_wt / men_college_rate_wt
+gen married_college_ratio = married_women_college_rate_wt / married_men_college_rate_wt
 
 gen men_pov_rate_wt = men_pov_wt / men_wt
 gen women_pov_rate_wt = women_pov_wt / women_wt
