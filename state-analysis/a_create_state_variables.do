@@ -92,6 +92,13 @@ save "$state_data/structural_familism.dta", replace
 // use "$structural/structural_familism_june25_int.dta", clear
 use "$created_data/structural_familism_june25_int.dta", clear
 
+// for now, just merging on the new education variables here (need to add these to above file, but don't want to mess up the interpolation and other things I did) - note from 9/1/25
+merge 1:1 year state_fips using "$created_data/sexism_measures_1988_2023.dta", keepusing(women_college_rate_wt married_women_college_rate_wt college_ratio married_college_ratio)
+drop if _merge==2
+drop _merge
+
+rename married_women_college_rate_wt married_women_college_rt_wt // too long
+
 /*
 Work-family policy: explicit
 - paid_leave
@@ -141,7 +148,7 @@ gen non_pure_male_bw_rate = 1 - married_pure_male_bw_rate // not *quite* a direc
 // low_inc_prem_pct
 
 // then standardize variables
-foreach var in paid_leave cc_pct_income prek_enrolled_public cc_pct_served headstart_pct_totalpop earlyhs_pct_totalpop policy_lib_all abortion_protected married_women_pt_rate_wt maternal_u5_pt_rate gender_factor_reg avg_egal_reg gender_factor_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all cc_pct_inc_neg married_wom_pt_rate_neg mom_u5_pt_rate_neg non_evang_lds_rate non_pure_male_bw_rate{
+foreach var in paid_leave paid_leave_length cc_pct_income_orig prek_enrolled_public cc_pct_served headstart_pct earlyhs_pct total_headstart_pct headstart_pct_totalpop earlyhs_pct_totalpop educ_spend_percap policy_lib_all abortion_protected married_women_pt_rate_wt maternal_u5_pt_rate gender_factor_reg avg_egal_reg gender_factor_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all cc_pct_inc_neg married_wom_pt_rate_neg mom_u5_pt_rate_neg non_evang_lds_rate non_pure_male_bw_rate women_college_rate_wt married_women_college_rt_wt college_ratio married_college_ratio{
 	sum `var'
 	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
 }
@@ -154,11 +161,78 @@ pwcorr structural_familism policy_lib_all policy_lib_econ policy_lib_soc
 
 // try factor based on current also
 factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st, ipf
+// rotate, varimax horst blanks(.3) // from bgsu / ucla 
 predict f1
 rename f1 structural_factor
 pwcorr structural_factor structural_familism // so if I make a factor variable, also VERY correlated (~0.95)
 
+
+// okay, want to explore several ways of doing robustness checks on childcare measure. one way is I want to update the scale to replace (for now; later - possibly add) prek with another indicator. I then need to be careful about timing
+// will create the variable as is here? but I will just not include those years when I use
+tabstat prek_enrolled_public cc_pct_income_orig cc_pct_served headstart_pct earlyhs_pct total_headstart_pct educ_spend_percap, by(year)
+pwcorr prek_enrolled_public cc_pct_income_orig cc_pct_served headstart_pct earlyhs_pct total_headstart_pct educ_spend_percap
+pwcorr  headstart_pct earlyhs_pct total_headstart_pct 
+
+* current
+alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st // 0.71
+
+* cc % income
+alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_income_orig_st // 0.76 (it is concerning to me they don't reverse this...)
+alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_inc_neg_st // reversed here (is this anything to do with years?) 0.76
+alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_inc_neg_st if year >=2009 // okay, no 0.69
+
+egen sf_cc_income = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_inc_neg_st)
+
+* ccdf % served
+alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_served_st // 0.71
+
+egen sf_ccdf_served = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_served_st)
+
+* head start %
+alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st headstart_pct_st // 0.68
+
+egen sf_head_start = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st headstart_pct_st)
+
+* early head start %
+alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st earlyhs_pct_st // 0.76
+
+egen sf_early_hs = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st earlyhs_pct_st)
+
+* head start combined %
+alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st // 0.71
+
+egen sf_total_hs = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st)
+
+* prek-12 educ spending
+alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st educ_spend_percap_st // 0.77
+
+egen sf_educ_spend = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st educ_spend_percap_st)
+
+* what if we added both head starts
+alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st headstart_pct_st earlyhs_pct_st // 0.73
+
+* based on results, could add total HS and spending (but then this becoming HIGHLY childcare oriented) - moving some of this further exploration below with factor analysis
+alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st // 0.76
+
+	// childcare only
+	alpha prek_enrolled_public_st total_headstart_pct_st educ_spend_percap_st // 0.65
+	alpha prek_enrolled_public_st total_headstart_pct_st educ_spend_percap_st paid_leave_st // 0.56 // broadening it actually ruins alpha
+	
+	egen sf_childcare = rowtotal(prek_enrolled_public_st total_headstart_pct_st educ_spend_percap_st)
+	
+	// non-childcare (following Ruppanner argument)
+	alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st // 0.74. okay this is quite interesting...
+	alpha min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st // 0.73
+
+	egen sf_policy = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st)
+		
+// for forwards and lags
 gen year_t1 = year // to get t-1 measures
+gen year_t2 = year // to get t-2 measures (for robustness)
+
+// also going to try a forward lag for policy robustness - so do t+2 and t+4. Here, I just duplicate the variable, but it's in the other file I actually create the +2 / +4 version to merge this on (so, if the divorce is 2010, I want policy info from 2012 to show the causal direction, but I will create that variable next to 2010 - and then just merge on the 2012 info from here as is)
+gen year_tf2 = year
+gen year_tf4 = year 
 
 save "$temp/data_for_scale.dta", replace
 
@@ -176,6 +250,15 @@ high values.
 
 UCLA: https://stats.oarc.ucla.edu/stata/faq/how-can-i-perform-a-factor-analysis-with-categorical-or-categorical-and-continuous-variables/
 Better for continuous variables, realizing some of these (With high uniqueness) are dichotomous - paid leave and abortion
+https://stats.oarc.ucla.edu/stata/output/factor-analysis/ -- also uses horst
+
+also - BGSU recommends horst: https://www.bgsu.edu/content/dam/BGSU/college-of-arts-and-sciences/center-for-family-and-demographic-research/documents/Workshops/2018-Factor-Analysis.pdf
+ In rotating the axes, rows with large initial loadings—that is,
+with high communalities—have more influence than rows with only small values. Kaiser suggested that
+in the computation of the optimal rotation, all rows should have the same weight. This is usually known
+as the Kaiser normalization and sometimes known as the Horst normalization
+
+https://stats.stackexchange.com/questions/82759/is-there-a-reason-to-leave-an-exploratory-factor-analysis-solution-unrotated
 */
 
 // feel like variables that could be dropped include those with uniqueness above 0.6
@@ -183,45 +266,47 @@ Better for continuous variables, realizing some of these (With high uniqueness) 
 
 use "$temp/data_for_scale.dta", clear
 
-// paid_leave_st cc_pct_income_st prek_enrolled_public_st cc_pct_served_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st policy_lib_all_st abortion_protected_st married_women_pt_rate_wt_st maternal_u5_pt_rate_st gender_factor_reg_st avg_egal_reg_st gender_factor_state_st avg_egal_state_st evang_lds_rate_st married_dual_earn_rate_st married_pure_male_bw_rate_st married_women_emp_rate_wt_st maternal_u5_employment_wt_st min_amt_above_fed_st unemployment_percap_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st
-pwcorr gender_factor_reg_st avg_egal_reg_st
+**********************
+* Following RUPPANNER
+**********************
+// diff options:
+factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st
+factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st, pcf 
+factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st, ipf  // this is more similar to pcf I think than not, just is iterative... (per Princeton guide)
 
-alpha paid_leave_st prek_enrolled_public_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st // cc_pct_income_st cc_pct_served_st
-alpha paid_leave_st prek_enrolled_public_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st cc_pct_served_st
-
-factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st policy_lib_all_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf
-// Warning: Solution is a Heywood case; that is, invalid or boundary values of uniqueness.
-// This is because of policy_lib_all, which makes sense if that is already an amalgamation of policies
-
-factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf // policy_lib_all_st
-
-// uniqueness depends on # of factors. This is yielding MANY factors, so let's update
-factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf factors(2) blanks(0.2) // also - don't display extremely low factors. okay but when I do this, uniqueness goes up quite significantly for many...
+// to use
+factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st, ipf factors(2) // blanks(0.3)
+estat kmo // 0.76. SO this one is actually better than below (was toying with no including educ spend bc v correlated with welfare spend)
+rotate, varimax horst blanks(.3) // from bgsu / ucla 
+// rotate, promax horst blanks(.3) // okay, this one makes the spend variables a bit more unique to one factor (i don't hate the idea that they span both though...)
 loadingplot, xlab(-1(.2)1) ylab(0(.2)1.2) aspect(1) yline(0) xline(0)
- 
-rotate, varimax // so in theory, should more easily be able to see that some variables load high on one factor and low on another and vice versa
-loadingplot, xlab(-1(.2)1) ylab(-.2(.2)1.2) aspect(1) yline(0) xline(0)
-estat rotatecompare
-//rotate, quartimax
+predict f1 f2
+rename f1 family_investment
+rename f2 broad_policy
 
-estat kmo // is it worth doing a factor analysis? "small values meaning that overall the variables have too little in common to warrant a factor analysis". >0.9 is "marvelous" but feel like above 0.7 to 0.8 is okay
+pwcorr structural_familism broad_policy family_investment
 
-// do I actually want standardized or non-standardized??
-// Unstandardized is a Heywood case - bc of maternal employment. but the general outcome is similar
-factor paid_leave prek_enrolled_public earlyhs_pct_totalpop abortion_protected maternal_u5_pt_rate avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt min_amt_above_fed wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all, ipf factors(2) blanks(0.2) 
-rotate, varimax
+/*
+factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st, ipf factors(2) blanks(0.3) // the binary variables are generally just low...
+estat kmo // is it worth doing a factor analysis? "small values meaning that overall the variables have too little in common to warrant a factor analysis". >0.9 is "marvelous" but feel like above 0.7 to 0.8 is okay. Average KMO =  0.7390 (ruppanner book has KMO of 0.76)
+rotate, varimax horst blanks(.3)
+loadingplot, xlab(-1(.2)1) ylab(0(.2)1.2) aspect(1) yline(0) xline(0)
 
-// polychoric (https://stats.oarc.ucla.edu/stata/faq/how-can-i-perform-a-factor-analysis-with-categorical-or-categorical-and-continuous-variables/)
-polychoric paid_leave prek_enrolled_public earlyhs_pct_totalpop abortion_protected maternal_u5_pt_rate avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt min_amt_above_fed wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all
+// factor paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st, ipf factors(2) blanks(0.3) // does make it better if i replace with paid leave lenght, but there is so little variation...
+*/
 
+// right so this is where UCLA recos doing polychoric (if you have binary + continuous)
+polychoric paid_leave prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected welfare_all_st total_headstart_pct_st educ_spend_percap_st
 display r(sum_w)
 global N = r(sum_w)
 
 matrix r = r(R)
-factormat r, n($N) factors(3) forcepsd // okay I am getting this error: r not positive (semi)definite
-// (collinear variables specified)
-// okay these are like...very different
-// okay I actually wonder if married dual earn rate and married women employment rate are too collinear (bc women's employment needs to be high)
+factormat r, n($N) factors(2) blanks(0.3)
+rotate, varimax horst blanks(.3) // okay, once I do this, these are actually really similar to the above. so that makes me feel okay...
+
+**********************
+* Exploring DIFFUSION
+**********************
 
 // okay, I am doing all of this. Is there a world where I use my ORIGINAL scale (maybe with small variable and / or construction tweaks) and I just control for other possible factors - including attitudes, dual earning rate, religiosity, women's employment rate, etc? I am possibly losing the plot a bit
 // MAYBE make a factor for like "Diffusion" of gender rev, but that's it?
@@ -283,13 +368,67 @@ tab policy_group_v1, m // like...this is kind of a crazy distribution (in that i
 tab policy_group_v2, m // this actually makes a bit more sense - bc egal attitudes / supportive policy and trad attitudes / unsupportive policy are more clustered (which is what I would have expected...)
 tab policy_group_v3, m // this is also very even, which is crazy...
 
+**********************
+* Save for use
+**********************
+
 save "$created_data/scale_refresh.dta", replace
+
+tabstat structural_familism, by(state_fips)
+tabstat structural_familism if year==1995, by(state_fips)
+tabstat structural_familism if year==2005, by(state_fips)
+tabstat structural_familism if year==2015, by(state_fips)
+tabstat structural_familism, by(year)
+
+/* this was all exploration and a little crazy becuase I was trying to put too many thing in. want to focus on current scale, POSSIBLY only expanding childcare and making two indicators (if that emerges) a la Ruppanner book. Retaining this for now in case any code useful, but not actually using any of this.
+
+// paid_leave_st cc_pct_income_st prek_enrolled_public_st cc_pct_served_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st policy_lib_all_st abortion_protected_st married_women_pt_rate_wt_st maternal_u5_pt_rate_st gender_factor_reg_st avg_egal_reg_st gender_factor_state_st avg_egal_state_st evang_lds_rate_st married_dual_earn_rate_st married_pure_male_bw_rate_st married_women_emp_rate_wt_st maternal_u5_employment_wt_st min_amt_above_fed_st unemployment_percap_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st
+pwcorr gender_factor_reg_st avg_egal_reg_st
+
+alpha paid_leave_st prek_enrolled_public_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st // cc_pct_income_st cc_pct_served_st
+alpha paid_leave_st prek_enrolled_public_st headstart_pct_totalpop_st earlyhs_pct_totalpop_st cc_pct_served_st
+
+factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st policy_lib_all_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf
+// Warning: Solution is a Heywood case; that is, invalid or boundary values of uniqueness.
+// This is because of policy_lib_all, which makes sense if that is already an amalgamation of policies
+
+factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf // policy_lib_all_st
+
+// uniqueness depends on # of factors. This is yielding MANY factors, so let's update
+factor paid_leave_st prek_enrolled_public_st earlyhs_pct_totalpop_st abortion_protected_st maternal_u5_pt_rate_st avg_egal_reg_st non_evang_lds_rate_st married_dual_earn_rate_st married_women_emp_rate_wt_st min_amt_above_fed_st wba_max_st high_inc_prem_pct_st low_inc_prem_pct_st married_earn_ratio_st welfare_all_st, ipf factors(2) blanks(0.2) // also - don't display extremely low factors. okay but when I do this, uniqueness goes up quite significantly for many...
+loadingplot, xlab(-1(.2)1) ylab(0(.2)1.2) aspect(1) yline(0) xline(0)
+ 
+rotate, varimax // so in theory, should more easily be able to see that some variables load high on one factor and low on another and vice versa
+loadingplot, xlab(-1(.2)1) ylab(-.2(.2)1.2) aspect(1) yline(0) xline(0)
+estat rotatecompare
+//rotate, quartimax
+
+estat kmo // is it worth doing a factor analysis? "small values meaning that overall the variables have too little in common to warrant a factor analysis". >0.9 is "marvelous" but feel like above 0.7 to 0.8 is okay
+
+// do I actually want standardized or non-standardized??
+// Unstandardized is a Heywood case - bc of maternal employment. but the general outcome is similar
+factor paid_leave prek_enrolled_public earlyhs_pct_totalpop abortion_protected maternal_u5_pt_rate avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt min_amt_above_fed wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all, ipf factors(2) blanks(0.2) 
+rotate, varimax
+
+// polychoric (https://stats.oarc.ucla.edu/stata/faq/how-can-i-perform-a-factor-analysis-with-categorical-or-categorical-and-continuous-variables/)
+polychoric paid_leave prek_enrolled_public earlyhs_pct_totalpop abortion_protected maternal_u5_pt_rate avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt min_amt_above_fed wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all
+
+display r(sum_w)
+global N = r(sum_w)
+
+matrix r = r(R)
+factormat r, n($N) factors(3) forcepsd // okay I am getting this error: r not positive (semi)definite
+// (collinear variables specified)
+// okay these are like...very different
+// okay I actually wonder if married dual earn rate and married women employment rate are too collinear (bc women's employment needs to be high)
+*/
 
 ********************************************************************************
 **# Exploring PCA
 ********************************************************************************
 // https://www.stata.com/manuals/mvpca.pdf
 // I *think* this might actually be better robustness for testing how to better aggregate my variables in my original scale? rather than a simple addition?// 
+// BUT the factor analysis is really about latent construct and that is what I want. So, factor is definitely right (and is what Ruppanner does)
 /*
 but is it problematic again that my data are mostly continuous or dichtomous, none of these are like...scales (which i feel like all of these methods assume)
 (from manual):
@@ -301,7 +440,10 @@ data—otherwise taking linear combinations is meaningless."
 pca paid_leave_st prek_enrolled_public_st min_amt_above_fed_st married_earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st
 pca paid_leave prek_enrolled_public min_amt_above_fed married_earn_ratio unemployment_percap abortion_protected welfare_all // okay, exactly the same standardized or not
 
-// new variables
+// just adding more childcare, but no other changes
+pca paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st
+
+// new variables: prob too many
 pca paid_leave prek_enrolled_public earlyhs_pct_totalpop abortion_protected maternal_u5_pt_rate avg_egal_reg non_evang_lds_rate married_dual_earn_rate married_women_emp_rate_wt min_amt_above_fed wba_max high_inc_prem_pct low_inc_prem_pct married_earn_ratio welfare_all
 
 ********************************************************************************

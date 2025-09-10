@@ -639,7 +639,7 @@ local scale_vars "structural_familism structural_factor cc_pct_income_orig prek_
 rename STATE_ state_fips
 rename survey_yr year
 
-//merge m:1 state_fips year using "$raw_state_data/structural_familism_jue25_int.dta" // merging on this file for now to explore - so commenting out the below while I sort this out
+//merge m:1 state_fips year using "$raw_state_data/structural_familism_june25_int.dta" // merging on this file for now to explore - so commenting out the below while I sort this out
 merge m:1 state_fips year using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
 drop if _merge==2
 drop _merge
@@ -656,6 +656,28 @@ drop _merge
 foreach var in `scale_vars'{
 	rename `var' `var'_t1
 }
+
+// forward lags
+gen year_tf2 = year + 2
+gen year_tf4 = year + 4 // some of these won't have matches because I only have data through 2021, but 2019 + 4 = 2023
+
+merge m:1 year_tf2 state_fips using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
+drop if _merge==2
+drop _merge
+
+foreach var in `scale_vars'{
+	rename `var' `var'_tf2
+}
+
+merge m:1 year_tf4 state_fips using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
+drop if _merge==2
+tab year _merge // should be 2019 - yes okay
+drop _merge
+
+foreach var in `scale_vars'{
+	rename `var' `var'_tf4
+}
+
 
 /*
 local scale_vars "structural_familism structural_familism_v0 paid_leave_st paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st paid_leave paid_leave_length prek_enrolled_public min_amt_above_fed min_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all sf_centered" // f1 
