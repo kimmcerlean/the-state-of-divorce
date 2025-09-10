@@ -771,7 +771,7 @@ gen hh_hours_type_t1=.
 replace hh_hours_type_t1=1 if female_hours_pct_t1 >=.4000 & female_hours_pct_t1 <=.6000
 replace hh_hours_type_t1=2 if female_hours_pct_t1 <.4000
 replace hh_hours_type_t1=3 if female_hours_pct_t1 >.6000 & female_hours_pct_t1!=.
-replace hh_hours_type_t1=4 if weekly_hrs_t1_head==0 & weekly_hrs_t1_head==0
+replace hh_hours_type_t1=4 if weekly_hrs_t1_wife==0 & weekly_hrs_t1_head==0
 
 label define hh_hours_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
 label values hh_hours_type_t1 hh_hours_type
