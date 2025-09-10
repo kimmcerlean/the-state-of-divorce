@@ -53,6 +53,10 @@ drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
 drop if STATE_==0
 drop if STATE_==99
 
+// re: age
+tab educ_type age_flag_2055, row // oh this is very interesting
+tab current_rel_type age_flag_2055, row // this also. I mean, it's still small, but there is a demographic / relationship type selection into young parenthood for sure
+
 // okay, let's create marriage specific start year and duration for now
 gen marriage_start_yr = rel_start_yr_couple
 replace marriage_start_yr = transition_year if ever_transition==1
@@ -75,6 +79,7 @@ replace coh_dur = dur - 1 if inlist(dur,1,3,5,7,9,11,13)
 replace coh_dur = 15 if dur >=15 & dur < =100
 
 gen cohab_flag = .
+replace cohab_flag = 0 if current_rel_type==20
 replace cohab_flag = flag if current_rel_type==22
 
 // okay, need to create a combined duration indicator? so I can use for when I combine the samples (bc want dur to restart for marriage so treat as two different relationship contributions?? So can't use existing plain dur variable). Is this the right logic?
@@ -305,38 +310,6 @@ replace bw_type_t1_gp_alt=4 if ft_pt_t1_wife==0 & ft_pt_t1_head==0
 
 label define bw_type_gp_alt 1 "Dual" 2 "Male BW" 3 "Female BW"  4 "Neither works"
 label values bw_type_t1_gp_alt bw_type_gp_alt
-
-/* combined
-* employment
-gen hours_type_hw_t1=.
-replace hours_type_hw_t1=1 if bw_type==3 & housework_bkt==1
-replace hours_type_hw_t1=2 if bw_type==3 & housework_bkt==2
-replace hours_type_hw_t1=3 if bw_type==3 & housework_bkt==3
-replace hours_type_hw_t1=4 if inlist(bw_type,1,2) & housework_bkt==1
-replace hours_type_hw_t1=5 if inlist(bw_type,1,2) & housework_bkt==2
-replace hours_type_hw_t1=6 if inlist(bw_type,1,2) & housework_bkt==3
-replace hours_type_hw_t1=7 if inlist(bw_type,4,5) & housework_bkt==1
-replace hours_type_hw_t1=8 if inlist(bw_type,4,5) & housework_bkt==2
-replace hours_type_hw_t1=9 if inlist(bw_type,4,5) & housework_bkt==3
-
-label define hours_type_hw 1 "Dual: Equal" 2 "Dual: Woman" 3 "Dual: Man" 4 "Male BW: Equal" 5 "Male BW: Woman" 6 "Male BW: Man" 7 "Female BW: Equal" 8 "Female BW: Woman" 9 "Female BW: Man"
-label values hours_type_hw_t1 hours_type_hw
-
-* earnings
-gen earn_type_hw=.
-replace earn_type_hw=1 if hh_earn_type==1 & housework_bkt==1
-replace earn_type_hw=2 if hh_earn_type==1 & housework_bkt==2
-replace earn_type_hw=3 if hh_earn_type==1 & housework_bkt==3
-replace earn_type_hw=4 if hh_earn_type==2 & housework_bkt==1
-replace earn_type_hw=5 if hh_earn_type==2 & housework_bkt==2
-replace earn_type_hw=6 if hh_earn_type==2 & housework_bkt==3
-replace earn_type_hw=7 if hh_earn_type==3 & housework_bkt==1
-replace earn_type_hw=8 if hh_earn_type==3 & housework_bkt==2
-replace earn_type_hw=9 if hh_earn_type==3 & housework_bkt==3
-
-label define earn_type_hw 1 "Dual: Equal" 2 "Dual: Woman" 3 "Dual: Man" 4 "Male BW: Equal" 5 "Male BW: Woman" 6 "Male BW: Man" 7 "Female BW: Equal" 8 "Female BW: Woman" 9 "Female BW: Man"
-label values earn_type_hw earn_type_hw
-*/
 
 gen division_bucket_t1=5
 replace division_bucket_t1 = 1 if hh_earn_type_t1== 1 & housework_bkt_t== 1 // dual, dual
@@ -575,6 +548,11 @@ gen interval=.
 replace interval=1 if inrange(survey_yr,1968,1997)
 replace interval=2 if inrange(survey_yr,1999,2021)
 
+// need to combine weight variables
+gen weight=.
+replace weight=CORE_WEIGHT_ if inrange(survey_yr,1968,1992)
+replace weight=COR_IMM_WT_ if inrange(survey_yr,1993,2021)
+
 ********************************************************************************
 * Last checks and data cleaning / set-up
 ********************************************************************************
@@ -597,6 +575,7 @@ inspect couple_joint_religion // this has the most missing (502 - about 3.5%)
 inspect earnings_bucket_t1 // 0
 inspect couple_earnings_t1 // 0 (underlying variable)
 inspect couple_educ_gp // 360 (2.5%)
+inspect educ_type // 424
 inspect moved_last2 // 0
 inspect num_children // 0
 inspect hh_hours_type_t1 // 0
@@ -605,7 +584,7 @@ inspect division_bucket_hrs_t1 // 196
 
 // create flag
 gen any_missing = 0
-replace any_missing = 1 if age_mar_wife==. | age_mar_head==. | raceth_head_fixed==. | couple_joint_religion ==. | couple_educ_gp==. | housework_bkt_t==. | division_bucket_hrs_t1==.
+replace any_missing = 1 if age_mar_wife==. | age_mar_head==. | raceth_head_fixed==. | couple_joint_religion ==. | educ_type==. | housework_bkt_t==. | division_bucket_hrs_t1==.
 tab any_missing , m // this is closer to 7% Is this too high?
 
 // flag for no paid or unpaid labor to observe
@@ -623,7 +602,9 @@ tab any_missing no_labor, m // so this is about 10%.
 * Small things needed for analysis (run through this so you have controls and for figures)
 set scheme cleanplots
 
-global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
+global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
+
+global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t"
 
 /* QA
 preserve
@@ -634,7 +615,7 @@ restore
 ********************************************************************************
 **# Merge onto policy data
 ********************************************************************************
-local scale_vars "structural_familism structural_factor cc_pct_income_orig prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2" 
+local scale_vars "structural_familism structural_factor cc_pct_income_orig prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate women_emp_rate_wt married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2 policy_group_v3 women_college_rate_wt married_women_college_rt_wt college_ratio married_college_ratio sf_cc_income sf_ccdf_served sf_head_start sf_early_hs sf_total_hs sf_educ_spend broad_policy family_investment sf_childcare sf_policy" 
 
 rename STATE_ state_fips
 rename survey_yr year
@@ -655,6 +636,15 @@ drop _merge
 
 foreach var in `scale_vars'{
 	rename `var' `var'_t1
+}
+
+gen year_t2 = year - 2
+merge m:1 year_t2 state_fips using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
+drop if _merge==2
+drop _merge
+
+foreach var in `scale_vars'{
+	rename `var' `var'_t2
 }
 
 // forward lags
@@ -678,52 +668,9 @@ foreach var in `scale_vars'{
 	rename `var' `var'_tf4
 }
 
+pwcorr structural_familism_t structural_familism_t1 structural_familism_t2 structural_familism_tf2 structural_familism_tf4
 
-/*
-local scale_vars "structural_familism structural_familism_v0 paid_leave_st paid_leave_length_st prek_enrolled_public_st min_amt_above_fed_st min_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st paid_leave paid_leave_length prek_enrolled_public min_amt_above_fed min_above_fed earn_ratio_neg unemployment_percap abortion_protected welfare_all sf_centered" // f1 
-
-merge m:1 state_fips year using "$state_data/structural_familism.dta", keepusing(`scale_vars')
-drop if _merge==2
-drop _merge
-
-foreach var in `scale_vars'{
-	rename `var' `var'_t
-}
-
-// rename structural_familism structural_familism_t
-capture drop year_t1 year_t2
-
-gen year_t1 = year - 1
-merge m:1 year_t1 state_fips using "$state_data/structural_familism.dta", keepusing(`scale_vars')
-drop if _merge==2
-drop _merge
-
-foreach var in `scale_vars'{
-	rename `var' `var'_t1
-}
-// rename structural_familism structural_familism_t1
-
-label values state_fips .
-sort unique_id year
-browse unique_id year state_fips structural_familism_t structural_familism_t1 structural_familism_v0_t structural_familism_v0_t1
-
-// do I center the main data or here? in main data, no real need to center (already essentially at 0)
-gen sf_centered_alt_t=.
-sum structural_familism_t, detail
-replace sf_centered_alt_t = structural_familism_t - `r(mean)'
-
-gen sf_centered_alt_t1=.
-sum structural_familism_t1, detail
-replace sf_centered_alt_t1 = structural_familism_t1 - `r(mean)'
-
-browse structural_familism_t structural_familism_v0_t sf_centered_t sf_centered_alt_t
-sum structural_familism_t sf_centered_t sf_centered_alt_t, detail
-
-alpha paid_leave_length_st_t1 prek_enrolled_public_st_t1 min_amt_above_fed_st_t1 earn_ratio_neg_st_t1 unemployment_percap_st_t1 abortion_protected_st_t1 welfare_all_st_t1 // structural familism. 0.70 0.716 now
-alpha paid_leave_st_t1 prek_enrolled_public_st_t1 min_above_fed_st_t1 earn_ratio_neg_st_t1 unemployment_percap_st_t1 abortion_protected_st_t1 welfare_all_st_t1 
-alpha paid_leave_st_t1 prek_enrolled_public_st_t1 min_amt_above_fed_st_t1 earn_ratio_neg_st_t1 unemployment_percap_st_t1 abortion_protected_st_t1 welfare_all_st_t1 
-*/
-
+////////////////////////////////////////////////////////////////////////////////
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
@@ -731,62 +678,13 @@ alpha paid_leave_st_t1 prek_enrolled_public_st_t1 min_amt_above_fed_st_t1 earn_r
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
-
-********************************************************************************
-* Overall trends
-********************************************************************************
-logit dissolve i.dur i.couple_educ_gp i.current_rel_type, or
-logit dissolve i.dur i.couple_educ_gp##i.current_rel_type, or
-
-// Got some questions about earnings, revisit this
-* Parents
-logit dissolve i.dur i.hh_earn_type_t1 knot1 knot2 knot3 if children_under6==1 & hh_earn_type_t1 <4 , or
-logit dissolve i.dur i.hh_earn_type_t1 earnings_ln if children_under6==1 & hh_earn_type_t1 <4 , or
-margins, at(earnings_ln=(0(1)12))
-marginsplot
-
-logit dissolve i.dur i.hh_earn_type_t1 earnings_1000s if children_under6==1 & hh_earn_type_t1 <4 , or
-margins, at(earnings_1000s=(0(10)200))
-marginsplot
-
-logit dissolve i.dur i.hh_earn_type_t1 earnings_1000s c.earnings_1000s#c.earnings_1000s if children_under6==1 & hh_earn_type_t1 <4 , or
-margins, at(earnings_1000s=(0(10)200))
-marginsplot
-
-logit dissolve i.dur i.hh_earn_type_t1 i.earnings_bucket_t1 if children_under6==1 & hh_earn_type_t1 <4 , or
-margins i.earnings_bucket_t1
-marginsplot
-
-* All
-logit dissolve i.dur i.hh_earn_type_t1 knot1 knot2 knot3 if hh_earn_type_t1 <4 , or
-logit dissolve i.dur i.hh_earn_type_t1 earnings_ln if hh_earn_type_t1 <4 , or
-margins, at(earnings_ln=(0(1)12))
-marginsplot
-
-logit dissolve i.dur i.hh_earn_type_t1 earnings_1000s if hh_earn_type_t1 <4 , or
-margins, at(earnings_1000s=(0(10)200))
-marginsplot
-
-logit dissolve i.dur i.hh_earn_type_t1 earnings_1000s c.earnings_1000s#c.earnings_1000s if hh_earn_type_t1 <4 , or
-margins, at(earnings_1000s=(0(10)200))
-marginsplot
-
-logit dissolve i.dur i.hh_earn_type_t1 i.earnings_bucket_t1 if hh_earn_type_t1 <4 , or
-margins i.earnings_bucket_t1
-marginsplot
-
-logit dissolve i.dur i.hh_earn_type_t1 earnings_1000s c.earnings_1000s#c.earnings_1000s c.earnings_1000s#c.earnings_1000s#c.earnings_1000s  if hh_earn_type_t1 <4 , or
-margins, at(earnings_1000s=(0(10)200))
-marginsplot
-
-////////////////////////////////////////////////////////////////////////////////
-**# // Let's first explore basic trends across different samples
 ////////////////////////////////////////////////////////////////////////////////
 
+
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
-**# Married Couples
+**# Main Effects (Married Couples Only)
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
@@ -794,1490 +692,421 @@ marginsplot
 ********************************************************************************
 * Total Sample
 ********************************************************************************
-logit dissolve i.marr_dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if hh_earn_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(hh_earn_type_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) level(95) post
 estimates store est1a
 
-logit dissolve i.marr_dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(hh_hours_type_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store est2a
 
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_t1 $controls if current_rel_type==20 & marr_dur>=0, or
-margins, dydx(division_bucket_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(structural_familism_t) post
 estimates store est3a
 
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if current_rel_type==20 & marr_dur>=0, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est4a
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if current_rel_type==20 & marr_dur>=0, or
-margins, dydx(structural_familism_t1) post
-estimates store est5a
-
-coefplot est1a est2a est3a est4a,  drop(_cons) nolabel xline(0) levels(95) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners" 2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others") ///
- headings(2.hh_hours_type_t1= "{bf:Division of Work Hours}" 2.hh_earn_type_t1= `"{bf:Division of Earnings}"' 2.division_bucket_hrs_t1 = `"{bf:Combined (hours)}"' 2.division_bucket_t1 = `"{bf:Combined (earnings)}"')
-
  // just hours and maybe add structural support
-coefplot (est2a, offset(.20) nokey) (est4a, offset(-.20) nokey) (est5a, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
+coefplot (est1a, offset(.20) nokey) (est2a, offset(-.20) nokey) (est3a, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t = "Structural Support Scale") ///
  headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
  
 
 ********************************************************************************
 * All parents
 ********************************************************************************
-logit dissolve i.marr_dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children==1 & hh_earn_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(hh_earn_type_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) level(95) post
 estimates store est1b
 
-logit dissolve i.marr_dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(hh_hours_type_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store est2b
 
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(division_bucket_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(structural_familism_t) post
 estimates store est3b
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est4b
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(structural_familism_t1) post
-estimates store est5b
-
-coefplot est1b est2b est3b est4b,  drop(_cons) nolabel xline(0) levels(95) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners" 2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others") ///
- headings(2.hh_hours_type_t1= "{bf:Division of Work Hours}" 2.hh_earn_type_t1= `"{bf:Division of Earnings}"' 2.division_bucket_hrs_t1 = `"{bf:Combined (hours)}"' 2.division_bucket_t1 = `"{bf:Combined (earnings)}"')
  
  // just hours and maybe add structural support
-coefplot (est2b, offset(.20) nokey) (est4b, offset(-.20) nokey) (est5b, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
+coefplot (est1b, offset(.20) nokey) (est2b, offset(-.20) nokey) (est3b, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t = "Structural Support Scale") ///
  headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
  
 ********************************************************************************
 * All Parents of children under the age of 6
 ********************************************************************************
-logit dissolve i.marr_dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(hh_earn_type_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) level(95) post
 estimates store est1c
 
-logit dissolve i.marr_dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(hh_hours_type_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store est2c
 
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(division_bucket_t1) level(95) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(structural_familism_t) post
 estimates store est3c
 
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est4c
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(structural_familism_t1) post
-estimates store est5c
-
-coefplot est1c est2c est3c est4c,  drop(_cons) nolabel xline(0) levels(95) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners" 2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others") ///
- headings(2.hh_hours_type_t1= "{bf:Division of Work Hours}" 2.hh_earn_type_t1= `"{bf:Division of Earnings}"' 2.division_bucket_hrs_t1 = `"{bf:Combined (hours)}"' 2.division_bucket_t1 = `"{bf:Combined (earnings)}"')
-
  // just hours and maybe add structural support
-coefplot (est2c, offset(.20) nokey) (est4c, offset(-.20) nokey) (est5c, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
-
-********************************************************************************
-* All Parents of children under the age of 6 - start = dur 0 
-********************************************************************************
-tab children_under6_flag children_under6, m 
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children_under6_flag==1 & hh_earn_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(hh_earn_type_t1) level(95) post
-estimates store est1d
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6_flag==1 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(hh_hours_type_t1) level(95) post
-estimates store est2d
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_t1 $controls if children_under6_flag==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(division_bucket_t1) level(95) post
-estimates store est3d
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6_flag==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est4d
-
-logit dissolve i.marr_dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6_flag==1 & current_rel_type==20 & marr_dur>=0, or
-margins, dydx(structural_familism_t1) post
-estimates store est5d
-
-coefplot est1d est2d est3d est4d,  drop(_cons) nolabel xline(0) levels(95) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners" 2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others") ///
- headings(2.hh_hours_type_t1= "{bf:Division of Work Hours}" 2.hh_earn_type_t1= `"{bf:Division of Earnings}"' 2.division_bucket_hrs_t1 = `"{bf:Combined (hours)}"' 2.division_bucket_t1 = `"{bf:Combined (earnings)}"')
-
- // just hours and maybe add structural support
-coefplot (est2d, offset(.20) nokey) (est4d, offset(-.20) nokey) (est5d, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
-
-
-********************************************************************************
-********************************************************************************
-********************************************************************************
-**# Cohabiting Couples
-********************************************************************************
-********************************************************************************
-********************************************************************************
-
-********************************************************************************
-* Total Sample
-********************************************************************************
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if hh_earn_type_t1 < 4 & current_rel_type==22, or
-margins, dydx(hh_earn_type_t1) level(95) post
-estimates store est6a
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==22, or
-margins, dydx(hh_hours_type_t1) level(95) post
-estimates store est7a
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 $controls if current_rel_type==22, or
-margins, dydx(division_bucket_t1) level(95) post
-estimates store est8a
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if current_rel_type==22, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est9a
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if current_rel_type==22, or
-margins, dydx(structural_familism_t1) post
-estimates store est10a
-
-coefplot est6a est7a est8a est9a,  drop(_cons) nolabel xline(0) levels(95) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners" 2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others") ///
- headings(2.hh_hours_type_t1= "{bf:Division of Work Hours}" 2.hh_earn_type_t1= `"{bf:Division of Earnings}"' 2.division_bucket_hrs_t1 = `"{bf:Combined (hours)}"' 2.division_bucket_t1 = `"{bf:Combined (earnings)}"')
-
- // just hours and maybe add structural support
-coefplot (est7a, offset(.20) nokey) (est9a, offset(-.20) nokey) (est10a, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
- 
-
-********************************************************************************
-* All parents
-********************************************************************************
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children==1 & hh_earn_type_t1 < 4 & current_rel_type==22, or
-margins, dydx(hh_earn_type_t1) level(95) post
-estimates store est6b
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1 < 4 & current_rel_type==22, or
-margins, dydx(hh_hours_type_t1) level(95) post
-estimates store est7b
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 $controls if children==1 & current_rel_type==22, or
-margins, dydx(division_bucket_t1) level(95) post
-estimates store est8b
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children==1 & current_rel_type==22, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est9b
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children==1 & current_rel_type==22, or
-margins, dydx(structural_familism_t1) post
-estimates store est10b
-
-coefplot est6b est7b est8b est9b,  drop(_cons) nolabel xline(0) levels(95) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners" 2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others") ///
- headings(2.hh_hours_type_t1= "{bf:Division of Work Hours}" 2.hh_earn_type_t1= `"{bf:Division of Earnings}"' 2.division_bucket_hrs_t1 = `"{bf:Combined (hours)}"' 2.division_bucket_t1 = `"{bf:Combined (earnings)}"')
-
- // just hours and maybe add structural support
-coefplot (est7b, offset(.20) nokey) (est9b, offset(-.20) nokey) (est10b, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
+coefplot (est1c, offset(.20) nokey) (est2c, offset(-.20) nokey) (est3c, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t = "Structural Support Scale") ///
+ headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
  
 ********************************************************************************
-* All Parents of children under the age of 6
+* Create a figure across all three
 ********************************************************************************
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 & current_rel_type==22, or
-margins, dydx(hh_earn_type_t1) level(95) post
-estimates store est6c
+// https://www.statalist.org/forums/forum/general-stata-discussion/general/1488181-title-size-in-coefplot-graphs
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & current_rel_type==22, or
-margins, dydx(hh_hours_type_t1) level(95) post
-estimates store est7c
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 $controls if children_under6==1 & current_rel_type==22, or
-margins, dydx(division_bucket_t1) level(95) post
-estimates store est8c
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & current_rel_type==22, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est9c
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & current_rel_type==22, or
-margins, dydx(structural_familism_t1) post
-estimates store est10c
-
-coefplot est6c est7c est8c est9c,  drop(_cons) nolabel xline(0) levels(95) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners" 2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others") ///
- headings(2.hh_hours_type_t1= "{bf:Division of Work Hours}" 2.hh_earn_type_t1= `"{bf:Division of Earnings}"' 2.division_bucket_hrs_t1 = `"{bf:Combined (hours)}"' 2.division_bucket_t1 = `"{bf:Combined (earnings)}"')
-
- // just hours and maybe add structural support
-coefplot (est7c, offset(.20) nokey) (est9c, offset(-.20) nokey) (est10c, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
-
-********************************************************************************
-* All Parents of children under the age of 6 - start = dur 0 
-********************************************************************************
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children_under6_flag==1 & hh_earn_type_t1 < 4 & current_rel_type==22, or
-margins, dydx(hh_earn_type_t1) level(95) post
-estimates store est6d
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6_flag==1 & hh_hours_type_t1 < 4 & current_rel_type==22, or
-margins, dydx(hh_hours_type_t1) level(95) post
-estimates store est7d
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 $controls if children_under6_flag==1 & current_rel_type==22, or
-margins, dydx(division_bucket_t1) level(95) post
-estimates store est8d
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6_flag==1 & current_rel_type==22, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est9d
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6_flag==1 & current_rel_type==22, or
-margins, dydx(structural_familism_t1) post
-estimates store est10d
-
-coefplot est6d est7d est8d est9d,  drop(_cons) nolabel xline(0) levels(95) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners" 2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others") ///
- headings(2.hh_hours_type_t1= "{bf:Division of Work Hours}" 2.hh_earn_type_t1= `"{bf:Division of Earnings}"' 2.division_bucket_hrs_t1 = `"{bf:Combined (hours)}"' 2.division_bucket_t1 = `"{bf:Combined (earnings)}"')
-
- // just hours and maybe add structural support
-coefplot (est7d, offset(.20) nokey) (est9d, offset(-.20) nokey) (est10d, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
+coefplot (est1a, nokey) (est2a, nokey) (est3a, nokey), bylabel("Total Sample")  || ///
+		est1b est2b est3b, bylabel("All Parents")  || ///
+		est1c est2c est3c, bylabel("Parents of Young Children"),  ///
+, byopts(rows(1) xrescale) drop(_cons 1.hh_hours_type_t1 1.division_bucket_hrs_t1) legend(position(bottom) rows(1)) ///
+xline(0, lstyle(solid) lwidth(thin)) levels(90) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t = "Structural Support Scale", labsize(small)) ///
+ headings(2.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  2.division_bucket_hrs_t1 = `""{bf:Combined Division of Labor}" "{it:(Model 2)}""' structural_familism_t = `""{bf:Structural Support}" "{it:(Model 2)}"', labsize(small)) ///
+ subtitle(, size(small))
  
- 
-////////////////////////////////////////////////////////////////////////////////
-**# Now let's look at individual scale indicators across different samples
-////////////////////////////////////////////////////////////////////////////////
-
-
 ********************************************************************************
-* Married Couples
+* Export ORs for Table 3
 ********************************************************************************
+label values marr_dur $macro_controls . 
 
-*************
-* Continuous
-*************
+// total sample
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Total Sample 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace // label
 
-local scale_vars_cont "structural_familism_t structural_factor_t policy_lib_all_t prek_enrolled_public_t min_amt_above_fed_t earn_ratio_t unemployment_percap_t welfare_all_t cc_pct_income_orig_t cc_pct_served_t headstart_pct_t earlyhs_pct_t total_headstart_pct_t educ_spend_percap_t genderroles_egal_reg_t avg_egal_reg_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t evang_lds_rate_t diffusion_t"
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Total Sample 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-foreach var in `scale_vars_cont'{
-	
-* Total sample
-logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+// all parents
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Parents 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-* All Parents
-logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+// child under 6
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1)
+outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Under6 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-}
-
-*************
-* Binary
-*************
-// for the binary variables - I cannot get counter-traditional to estimate on its own. In some cases, I also cannot get all others to estimate on own. Considering "no labor" as all others for these purposes and using this new variable: division_bucket_hrs_gp_t1 - where counter-trad is grouped into all other
-
-local scale_vars_binary "paid_leave_t abortion_protected_t"
-
-foreach var in `scale_vars_binary'{
-	
-* Total sample
-logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post //  3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0, or // & no_labor==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0, or // & no_labor==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0, or // & no_labor==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-}
-
-*************
-* Categorical
-*************
-// here also need to combine 3 and 5
-
-local scale_vars_cat "policy_group_v1_t  policy_group_v2_t"
-
-foreach var in `scale_vars_cat'{
-	
-* Total sample
-logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.marr_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-}
-
-*************
-* Can't use FE
-*************
-// state-level attitudes - can't have fixed effects. want to see if effect direction same as regional (then can justify using regional bc time varying)
-local scale_vars_nofe "genderroles_egal_state_t avg_egal_state_t"
-
-local nofe "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
-
-foreach var in `scale_vars_nofe'{
-	
-* Total sample
-logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.marr_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.marr_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==0 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_marriage.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-}
-
-*************
-* Miscellaneous
-*************
-// this is mostly incorporated above, just leaving for reference
-
-// do I actually need to do childfree SEPARATELY?! let's use the policy liberalism as a test because quite broad (and has moderation effect similar to my original scale)
-// because isn't *this* really the test of the effect of parenthood? Like total sample results mask the differences (if there are any)
-logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-sum policy_lib_all, detail
-margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
-
-logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if children==0 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-sum policy_lib_all, detail
-margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
-
-// just under 6
-logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-sum policy_lib_all, detail
-margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
-
-logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if children_under6==0 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-sum policy_lib_all, detail
-margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
-
-// is there also a possibility this is an age effect? (This is spurred by Hook and Li 2025). I think I just need to better understand WHY - is it truly the presence of children? Like I think something like this probably needs to go into appendix?
-tab AGE_HEAD_ children_under6, row
-twoway (histogram AGE_HEAD_ if children_under6==0, width(1) color(pink%30)) (histogram AGE_HEAD_ if children_under6==1, width(1) color(blue%30)), legend(order(1 "No Kids u6" 2 "Kids u6") rows(1) position(6))
-twoway (histogram AGE_WIFE_ if children_under6==0, width(1) color(pink%30)) (histogram AGE_WIFE_ if children_under6==1, width(1) color(blue%30)), legend(order(1 "No Kids u6" 2 "Kids u6") rows(1) position(6))
-
-// just those under 40 (this is cutoff Hook and Li use - their goals are different, but actually quite aligns with the distro anyway)
-logit dissolve i.marr_dur c.policy_lib_all i.hh_hours_type_t1 c.policy_lib_all#i.hh_hours_type_t1 $controls if AGE_HEAD_<=40 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or // somewhat more moderation, but nothing sig.
-sum policy_lib_all, detail
-margins, dydx(hh_hours_type_t1) at(policy_lib_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))	
-
-logit dissolve i.marr_dur c.min_amt_above_fed i.hh_hours_type_t1 c.min_amt_above_fed#i.hh_hours_type_t1 $controls if AGE_HEAD_<=40 & hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or // this one more similar to overall sample, though, not kids
-sum min_amt_above_fed, detail
-margins, dydx(hh_hours_type_t1) at(min_amt_above_fed=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))	
-
-//// quick exploration of VERY quick bck of the envelope indicator... (v1 = montez policy liberalism; v2 = kim's structural familism)
-// married, total sample
-logit dissolve i.marr_dur i.policy_group_v1 i.hh_hours_type_t1 i.policy_group_v1#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins policy_group_v1, dydx(hh_hours_type_t1) // male BW is significantly negative in trad / no
-
-logit dissolve i.marr_dur i.policy_group_v2 i.hh_hours_type_t1 i.policy_group_v2#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins policy_group_v2, dydx(hh_hours_type_t1) // see here, it is diff - male BW sig negative with trad attitudes, regardless of policy (but only marginally sig)
-
-// married, young kids
-logit dissolve i.marr_dur i.policy_group_v1 i.hh_hours_type_t1 i.policy_group_v1#i.hh_hours_type_t1 $controls if children_under6==1 &  hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins policy_group_v1, dydx(hh_hours_type_t1) // effects even stronger here
-
-logit dissolve i.marr_dur i.policy_group_v2 i.hh_hours_type_t1 i.policy_group_v2#i.hh_hours_type_t1 $controls if children_under6==1 &  hh_hours_type_t1 < 4 & current_rel_type==20 & marr_dur>=0, or
-margins policy_group_v2, dydx(hh_hours_type_t1) // okay - only the trad, no sig here (trad but supportive is neg but not sig, egal no is also neg but not sig)
-
-// cohab, total sample
-logit dissolve i.coh_dur i.policy_group_v1 i.hh_hours_type_t1 i.policy_group_v1#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==22, or
-margins policy_group_v1, dydx(hh_hours_type_t1) // opposite findings - male BW always positively associated with divorce, but only sig when egal supportive
-
-logit dissolve i.coh_dur i.policy_group_v2 i.hh_hours_type_t1 i.policy_group_v2#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4 & current_rel_type==22, or
-margins policy_group_v2, dydx(hh_hours_type_t1) // nothing sig here (but male BW = always positive)
-
-// cohab, young kids
-logit dissolve i.coh_dur i.policy_group_v1 i.hh_hours_type_t1 i.policy_group_v1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & current_rel_type==22, or
-margins policy_group_v1, dydx(hh_hours_type_t1) // okay here male BW not always positive. I think we're running into sample bc trad no v. negative but not sig (only 796 observations totalS)
-
-logit dissolve i.coh_dur i.policy_group_v2 i.hh_hours_type_t1 i.policy_group_v2#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & current_rel_type==22, or
-margins policy_group_v2, dydx(hh_hours_type_t1) // same here (but confusing things happening with egal + support here
-
-********************************************************************************
-**# Cohabiting Couples
-********************************************************************************
-
-*************
-* Continuous
-*************
-local scale_vars_cont "structural_familism_t structural_factor_t policy_lib_all_t prek_enrolled_public_t min_amt_above_fed_t earn_ratio_t unemployment_percap_t welfare_all_t cc_pct_income_orig_t cc_pct_served_t headstart_pct_t earlyhs_pct_t total_headstart_pct_t educ_spend_percap_t genderroles_egal_reg_t avg_egal_reg_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t evang_lds_rate_t diffusion_t"
-
-foreach var in `scale_vars_cont'{
-	
-* Total sample
-logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-*Childfree couples
-logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-}
-
-*************
-* Binary
-*************
-local scale_vars_binary "paid_leave_t abortion_protected_t"
-
-foreach var in `scale_vars_binary'{
-	
-* Total sample
-logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1 3.hh_hours_type_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-}
-
-*************
-* Categorical
-*************
-local scale_vars_cat "policy_group_v1_t  policy_group_v2_t"
-
-foreach var in `scale_vars_cat'{
-	
-* Total sample
-logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.coh_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $controls if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-}
-
-*************
-* Can't use FE
-*************
-// state-level attitudes - can't have fixed effects. want to see if effect direction same as regional (then can justify using regional bc time varying)
-local scale_vars_nofe "genderroles_egal_state_t avg_egal_state_t"
-
-local nofe "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
-
-foreach var in `scale_vars_nofe'{
-	
-* Total sample
-logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children_under6==1 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.coh_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.coh_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==0 & current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_cohab.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-}
-
-********************************************************************************
-**# Combined Married + Cohab
-********************************************************************************
-// should control for relationship type, so need a new set of controls
-
-global combo_controls "i.current_rel_type age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"
-
-*************
-* Continuous
-*************
-
-local scale_vars_cont "structural_familism_t structural_factor_t policy_lib_all_t prek_enrolled_public_t min_amt_above_fed_t earn_ratio_t unemployment_percap_t welfare_all_t cc_pct_income_orig_t cc_pct_served_t headstart_pct_t earlyhs_pct_t total_headstart_pct_t educ_spend_percap_t genderroles_egal_reg_t avg_egal_reg_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t evang_lds_rate_t diffusion_t"
-
-foreach var in `scale_vars_cont'{
-	
-* Total sample
-logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-}
-
-*************
-* Binary
-*************
-// for the binary variables - I cannot get counter-traditional to estimate on its own. In some cases, I also cannot get all others to estimate on own. Using this new variable: division_bucket_hrs_gp_t1 - where counter-trad is grouped into all other
-
-local scale_vars_binary "paid_leave_t abortion_protected_t"
-
-foreach var in `scale_vars_binary'{
-	
-* Total sample
-logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post //  3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(0 1)) post // 3.hh_hours_type_t1
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(0 1)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-}
-
-*************
-* Categorical
-*************
-// here also need to combine 3 and 5
-
-local scale_vars_cat "policy_group_v1_t  policy_group_v2_t"
-
-foreach var in `scale_vars_cat'{
-	
-* Total sample
-logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.combined_dur i.`var' i.hh_hours_type_t1 i.`var'#i.hh_hours_type_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(2.hh_hours_type_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur i.`var' i.division_bucket_hrs_gp_t1 i.`var'#i.division_bucket_hrs_gp_t1 $combo_controls if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-margins, dydx(division_bucket_hrs_gp_t1) at(`var'=(1 2 3 4)) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-}
-
-
-*************
-* Can't use FE
-*************
-// state-level attitudes - can't have fixed effects. want to see if effect direction same as regional (then can justify using regional bc time varying)
-local scale_vars_nofe "genderroles_egal_state_t avg_egal_state_t"
-
-local nofe "i.current_rel_type age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 
-
-foreach var in `scale_vars_nofe'{
-	
-* Total sample
-logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(all `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* All Parents
-logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(par `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Kids under 6
-logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(u6 `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Childfree couples
-logit dissolve i.combined_dur c.`var' i.hh_hours_type_t1 c.`var'#i.hh_hours_type_t1 `nofe' if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(hh_hours_type_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-logit dissolve i.combined_dur c.`var' i.division_bucket_hrs_t1 c.`var'#i.division_bucket_hrs_t1 `nofe' if children==0 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or
-sum `var', detail
-margins, dydx(division_bucket_hrs_t1) at(`var'=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/scale_exploration_combined.xls", ctitle(cf `var') dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// None of the below has been updated - all from SF submission
-////////////////////////////////////////////////////////////////////////////////
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Under6 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 ********************************************************************************
 ********************************************************************************
-**# MAIN MODELS (by parental status)
+********************************************************************************
+**# Interactions (Parents of Children under 6)
+********************************************************************************
 ********************************************************************************
 ********************************************************************************
 
 ********************************************************************************
-* Parents of children under the age of 6
-********************************************************************************
-/* Main Effects */
-*Earnings
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1!=4, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-
-* Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1!=4, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-*Combined Earnings
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 $controls if children_under6==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-/* Interactions */
-*Earnings
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 1a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(Parents 1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 2a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(Parents 2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Combined Earnings
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 c.structural_familism_t1#i.division_bucket_t1 $controls if children_under6==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 3a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(Parents 3b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 4a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(Parents 4b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* First 10 years of marriage (robustness)
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 & dur<=10, or
-// outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(dur) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-// outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(dur) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-/*
-* Alt DoL (robustness) - "under"-earners. ignoring for now
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1_alt c.structural_familism_t1#i.hh_earn_type_t1_alt $controls if children_under6==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", sideway stats(coef pval) label ctitle(Parents 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1_alt) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents.xls", ctitle(alt dol) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-*/
-
-// Predicted Probabilities for Key Models
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion"
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1!=4, or
-margins hh_hours_type_t1
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1, or
-margins division_bucket_hrs_t1
-margins, at(structural_familism_t1=(-10(1)15))
-
-********************************************************************************
-* All parents
-********************************************************************************
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion"  // i.num_children i.region knot1 knot2 knot3 
-
-/* Main Effects */
-*Earnings
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children==1 & hh_earn_type_t1!=4, or
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", sideway stats(coef pval) label ctitle(All Par 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-
-* Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1!=4, or
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", sideway stats(coef pval) label ctitle(All Par 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-*Combined Earnings
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 $controls if children==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", sideway stats(coef pval) label ctitle(All Par 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", sideway stats(coef pval) label ctitle(All Par 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-/* Interactions */
-*Earnings
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children==1 & hh_earn_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", sideway stats(coef pval) label ctitle(All Par 1a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", ctitle(All Par 1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", sideway stats(coef pval) label ctitle(All Par 2a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", ctitle(All Par 2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Combined Earnings
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 c.structural_familism_t1#i.division_bucket_t1 $controls if children==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", sideway stats(coef pval) label ctitle(All Par 3a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", ctitle(All Par 3b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children==1, or
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", sideway stats(coef pval) label ctitle(All Par 4a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_parents_all.xls", ctitle(All Par 4b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-********************************************************************************
-* Total sample
-********************************************************************************
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children" 
-
-/* Main Effects */
-*Earnings
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if hh_earn_type_t1!=4, or
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", sideway stats(coef pval) label ctitle(All 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-
-* Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if hh_hours_type_t1!=4, or
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", sideway stats(coef pval) label ctitle(All 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-*Combined Earnings
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 $controls, or
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", sideway stats(coef pval) label ctitle(All 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls, or
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", sideway stats(coef pval) label ctitle(All 4) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-/* Interactions */
-*Earnings
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if hh_earn_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", sideway stats(coef pval) label ctitle(All 1a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", ctitle(All 1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4, or
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", sideway stats(coef pval) label ctitle(All 2a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", ctitle(All 2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Combined Earnings
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 c.structural_familism_t1#i.division_bucket_t1 $controls, or
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", sideway stats(coef pval) label ctitle(All 3a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", ctitle(All 3b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls, or
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", sideway stats(coef pval) label ctitle(All 4a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_sample_all.xls", ctitle(All 4b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-********************************************************************************
-********************************************************************************
-**# * Figures to use (ASR and SF submission)
-********************************************************************************
+* Let's do Male BW first
 ********************************************************************************
 
-********************************************************************************
-* Main Effects
-********************************************************************************
+// Main model - just control for macro factors, but not yet interacted
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(Main Model) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+// Interact women's degree attainment
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.women_college_rate_wt_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(college: familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4, or
-margins, dydx(hh_earn_type_t1) level(95) post
-estimates store est1
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.women_college_rate_wt_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum women_college_rate_wt_t, detail
+margins, dydx(hh_hours_type_t1) at(women_college_rate_wt_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(college: college) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-margins, dydx(hh_hours_type_t1) level(95) post
-estimates store est2
+// women's employment
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.married_women_emp_rate_wt_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(emp: familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 $controls if children_under6==1, or
-margins, dydx(division_bucket_t1) level(95) post
-estimates store est3
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.married_women_emp_rate_wt_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum married_women_emp_rate_wt_t, detail
+margins, dydx(hh_hours_type_t1) at(married_women_emp_rate_wt_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(emp: emp) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1, or
-margins, dydx(division_bucket_hrs_t1) level(95) post
-estimates store est4
+// male BW rate
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.married_pure_male_bw_rate_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(male bw: familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-coefplot est1 est2 est3 est4,  drop(_cons) nolabel xline(0) levels(95)
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.married_pure_male_bw_rate_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum married_pure_male_bw_rate_t, detail
+margins, dydx(hh_hours_type_t1) at(married_pure_male_bw_rate_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(male bw: male bw) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-set scheme cleanplots
+// regional gender norms
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.avg_egal_reg_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(norms: familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-coefplot (est1, offset(.20) nokey) (est2, offset(.20) nokey) (est3, offset(-.20) nokey) (est4, offset(-.20) nokey), drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_earn_type_t1 = "Male Breadwinner" 3.hh_earn_type_t1 = "Female Breadwinner" 4.hh_earn_type_t1 = "No Earners" 2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_t1 = "Egalitarian" 2.division_bucket_t1 = "Traditional" 3.division_bucket_t1 = "Counter Traditional" 4.division_bucket_t1 = "Her Second Shift" 5.division_bucket_t1 = "All Others" 1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others") ///
- headings(1.hh_earn_type_t1 = "{bf:Division of Earnings}" 1.hh_hours_type_t1= "{bf:Division of Work Hours}"  1.division_bucket_t1 = "{bf:Combined (Earnings)}"  1.division_bucket_hrs_t1 = "{bf:Combined (Hours)}")
- // (est3, offset(-.20) label(College)) 
- // coefplot (est1, offset(.20) nokey lcolor("dkgreen") mcolor("dkgreen") ciopts(color("dkgreen")))
- 
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.avg_egal_reg_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum avg_egal_reg_t, detail
+margins, dydx(hh_hours_type_t1) at(avg_egal_reg_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(norms: norms) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1, or
-margins, at(structural_familism_t1=(-5(1)10))
-marginsplot, ytitle(Predicted Probability of Divorce) xtitle(Structural Support for Working Families) plot1opts(lcolor("black") mcolor("black")) ci1opts(color("black"))
-margins, dydx(structural_familism_t1) post
-estimates store esta
+** OH should I add main effects GAH
+// main
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) 
 
- // just hours and maybe add structural support
-coefplot (est2, offset(.20) nokey) (est4, offset(-.20) nokey) (esta, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
+// women's degree attainment
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.women_college_rate_wt_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) 
 
-********************************************************************************
-* Earnings Interaction
-********************************************************************************
-/* parents of kids under 6 */
-*Predicted Probabilities (no CI) -- see if I can do what Mize 2019 does (Figure 14) - make dotted when not significant
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion"  // i.num_children 
+// women's employment
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.married_women_emp_rate_wt_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) 
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins hh_earn_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue"))   // plot1opts(lcolor("gray") mcolor("gray")) xlabel(-3.12 "5th" -0.64 "25th" 1.27 "50th" 3.57 "75th" 12.48 "95th") ci1opts(color("navy")) ci2opts(color("ltblue")) yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
+// male BW rate
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.married_pure_male_bw_rate_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) 
 
-* AMEs with CI
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) // level(90)
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%40)) //  yscale(range(-.1 .1)) ylabel(-.1(.05).1, angle(0))
-
-/* all parents */
-*Predicted Probabilities (no CI)
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" // i.num_children 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children==1 & hh_earn_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins hh_earn_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue")) 
-
-* AMEs with CI
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children==1 & hh_earn_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) // level(90)
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%40))
-
-/* total sample */
-*Predicted Probabilities (no CI)
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if hh_earn_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins hh_earn_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue")) 
-
-* AMEs with CI
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion i.num_children" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if hh_earn_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) // level(90)
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%40))
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.avg_egal_reg_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) 
 
 ********************************************************************************
-**# Hours instead of earnings
+* Then combined DoL
 ********************************************************************************
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+// Main model - just control for macro factors, but not yet interacted
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(Main Model) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-/* parents of kids under 6 */
-* Predicted Probabilities
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
+// Interact women's degree attainment
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.women_college_rate_wt_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(college: familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-sum structural_familism_t1, detail
-margins hh_hours_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue"))  
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.women_college_rate_wt_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum women_college_rate_wt_t, detail
+margins, dydx(division_bucket_hrs_t1) at(women_college_rate_wt_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(college: college) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-// AMEs
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+// women's employment
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.married_women_emp_rate_wt_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(emp: familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.married_women_emp_rate_wt_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum married_women_emp_rate_wt_t, detail
+margins, dydx(division_bucket_hrs_t1) at(married_women_emp_rate_wt_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(emp: emp) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) // level(90)
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%40))
+// male BW rate
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.married_pure_male_bw_rate_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(male bw: familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-// Test alternate interaction charts
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.married_pure_male_bw_rate_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum married_pure_male_bw_rate_t, detail
+margins, dydx(division_bucket_hrs_t1) at(married_pure_male_bw_rate_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(male bw: male bw) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(2.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-estimates store est5
+// regional gender norms
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.avg_egal_reg_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(norms: familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(3.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-estimates store est6
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.avg_egal_reg_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum avg_egal_reg_t, detail
+margins, dydx(division_bucket_hrs_t1) at(avg_egal_reg_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_parentsu6.xls", ctitle(norms: norms) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-coefplot (est5, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6, label("Female BW")),  drop(_cons) nolabel xline(0) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) headings(1._at = "{bf:Structural Support: Percentiles}", nogap offset(0.30))
+** OH should I add main effects GAH
+// main
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) 
 
-coefplot (est5, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6, label("Female BW")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical))
+// women's degree attainment
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.women_college_rate_wt_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) 
 
-// trying to get predicted prob
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+// women's employment
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.married_women_emp_rate_wt_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) 
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins 1.hh_hours_type_t1, at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-estimates store est7
+// male BW rate
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.married_pure_male_bw_rate_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) 
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins 2.hh_hours_type_t1, at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-estimates store est8
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins 3.hh_hours_type_t1, at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-estimates store est9
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins hh_hours_type_t1, at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-estimates store est10
-
-coefplot est7 est8 est9
-coefplot est10
-
-********************************************************************************
-**# Combined paid and unpaid labor: based on earnings
-********************************************************************************
-/* parents of kids under 6 */
-* Predicted probabilities
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 c.structural_familism_t1#i.division_bucket_t1 $controls if children_under6==1, or
-sum structural_familism_t1, detail
-margins division_bucket_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("blue") mcolor("blue")) plot3opts(lcolor("ltblue") mcolor("ltblue")) plot4opts(lcolor("navy") mcolor("navy"))   plot5opts(lcolor("gs8") mcolor("gs8")) 
-
-* AMEs with CI
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion"  
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_t1 c.structural_familism_t1#i.division_bucket_t1 $controls if children_under6==1, or
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Traditional" 2 "Counter" 3 "Second Shift" 4 "Other") rows(1)) xlabel(#10) recast(line)  recastci(rarea) plot1opts(lcolor("blue") mcolor("blue")) ci1opts(color(blue%40)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(none)) plot3opts(lcolor("green") mcolor("green")) ci3opts(color(green%40)) plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(none)) // recastci(rarea)
-
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.avg_egal_reg_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) 
 
 ********************************************************************************
-**# Combined paid and unpaid labor: based on hours
+* Then I want the two normal figures (interaction - each type of labor)
 ********************************************************************************
-/* parents of kids under 6 */
-* Predicted probabilities
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
+* Paid Labor: Predicted Probability
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins hh_hours_type_t1, at(structural_familism_t=(`r(min)'(1)`r(max)'))
+marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue"))
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or // & division_bucket_hrs_t1!=3, or
-sum structural_familism_t1, detail
-margins division_bucket_hrs_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
+* Paid Labor: AMEs
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+estimates store paid_m
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(3.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+estimates store paid_f
+
+coefplot (paid_m, mcolor(navy) ciopts(color(navy)) label("Male BW")) (paid_f, label("Female BW")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical))
+
+* Combined: Predicted Probability
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins division_bucket_hrs_t1, at(structural_familism_t=(`r(min)'(1)`r(max)'))
 marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("blue") mcolor("blue")) plot3opts(lcolor("ltblue") mcolor("ltblue")) plot4opts(lcolor("gs8") mcolor("gs8")) plot5opts(lcolor("black") mcolor("black"))  
 
-**AMEs with CIs
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & division_bucket_hrs_t1!=3, or
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Traditional" 2 "Second Shift" 3 "Other") rows(1)) xlabel(#10) recast(line)  recastci(rarea) plot1opts(lcolor("blue") mcolor("blue")) ci1opts(color(blue%40)) plot2opts(lcolor("green") mcolor("green")) ci2opts(color(green%40)) plot3opts(lcolor("gs12") mcolor("gs12")) ci3opts(color(none)) // recastci(rarea) plot2opts(lcolor("bluishgray") mcolor("ltblue"))
-
-// Test alternate interaction charts
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum structural_familism_t1, detail
-margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+* Combined: AMEs
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est10
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum structural_familism_t1, detail
-margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est11
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum structural_familism_t1, detail
-margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est12
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum structural_familism_t1, detail
-margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est13
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum structural_familism_t1, detail
-margins division_bucket_hrs_t1, at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
 
 coefplot (est10, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11, label("Counter-Traditional")) (est12, label("Second Shift"))  (est13, label("All Others")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1))
 
+
+////////////////////////////////////////////////////////////////////////////////
+// Appendix but discussed in main text
+////////////////////////////////////////////////////////////////////////////////
+
 ********************************************************************************
-**# Figures for alternative samples
 ********************************************************************************
+********************************************************************************
+**# Figures for Alternative Samples
+* (these technically appendix but considering main results since I mention)
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
 *******************************
 * All Parents
 *******************************
-** Main effects
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1!=4, or
+** Main effects (did above, but need to see how I will display, so let's just do again)
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
 margins, dydx(hh_hours_type_t1) level(95) post
 estimates store p_esta
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children==1 & hh_hours_type_t1!=4, or
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
 margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store p_estb
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children==1 & hh_hours_type_t1!=4, or
-margins, dydx(structural_familism_t1) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(structural_familism_t) post
 estimates store p_estc
 
 * Interaction with Paid Labor
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(2.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 estimates store p_est1
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(3.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(3.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 estimates store p_est2
 
 ** Combined DoL (Hours)
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children==1, or
-sum structural_familism_t1, detail
-margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store p_est3
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children==1, or
-sum structural_familism_t1, detail
-margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store p_est4
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children==1, or
-sum structural_familism_t1, detail
-margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store p_est5
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children==1, or
-sum structural_familism_t1, detail
-margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store p_est6
 
 *******************************
 * Total Sample
 *******************************
 ** Main effects
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if hh_hours_type_t1!=4, or
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
 margins, dydx(hh_hours_type_t1) level(95) post
 estimates store t_esta
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if hh_hours_type_t1!=4, or
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
 margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store t_estb
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if hh_hours_type_t1!=4, or
-margins, dydx(structural_familism_t1) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(structural_familism_t) post
 estimates store t_estc
 
 * Interaction with Paid Labor
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(2.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 estimates store t_est1
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(3.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(3.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 estimates store t_est2
 
 ** Combined DoL (Hours)
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls, or
-sum structural_familism_t1, detail
-margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store t_est3
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls, or
-sum structural_familism_t1, detail
-margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store t_est4
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls, or
-sum structural_familism_t1, detail
-margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store t_est5
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls, or
-sum structural_familism_t1, detail
-margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store t_est6
 
 *******************************
@@ -2289,15 +1118,15 @@ estimates store t_est6
 coefplot (p_esta, offset(.20) nokey) (p_estb, offset(-.20) nokey) (p_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))), bylabel("All Parents")  || ///
 (t_esta, offset(.20) nokey) (t_estb, offset(-.20) nokey) (t_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))), bylabel("Total Sample") || ///
 , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effects, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") xsize(8) ///
- headings(1.hh_hours_type_t1= "{bf:Division of Work Hours}" 1.division_bucket_hrs_t1 = "{bf:Combined DoL}" structural_familism_t1 = "{bf:Structural Support}")
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t = "Structural Support Scale") xsize(8) ///
+ headings(1.hh_hours_type_t1= "{bf:Division of Work Hours}" 1.division_bucket_hrs_t1 = "{bf:Combined DoL}" structural_familism_t = "{bf:Structural Support}")
  
 * Paid Labor
 coefplot (p_est1, mcolor(navy) ciopts(color(navy)) label("Male BW")) (p_est2, label("Female BW")), bylabel("All Parents") || ///
 		(t_est1, mcolor(navy) ciopts(color(navy)) label("Male BW")) (t_est2, label("Female BW")), bylabel("Total Sample") || ///
 ,  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xsize(8)
 
-* Combined p_est3
+* Combined DoL
 coefplot (p_est3, mcolor(blue) ciopts(color(blue)) label("Traditional")) (p_est4, label("Counter-Traditional")) (p_est5, label("Second Shift"))  (p_est6, label("All Others")), bylabel("All Parents") || ///
 (t_est3, mcolor(blue) ciopts(color(blue)) label("Traditional")) (t_est4, label("Counter-Traditional")) (t_est5, label("Second Shift") mcolor(gs8) ciopts(color(gs8)))  (t_est6, label("All Others") mcolor(black) ciopts(color(black))), bylabel("Total Sample")  || ///
 ,  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1)) xsize(8)
@@ -2305,402 +1134,236 @@ coefplot (p_est3, mcolor(blue) ciopts(color(blue)) label("Traditional")) (p_est4
 
 ********************************************************************************
 ********************************************************************************
+********************************************************************************
 **# Individual indicators of scale
 ********************************************************************************
 ********************************************************************************
-// scale, for reference: paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_neg_st unemployment_percap_st abortion_protected_st welfare_all_st
+********************************************************************************
 
-*****************
+// scale, for reference: paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st
+
+
+********************************************************************************
 *Paid Work Hours
-*****************
-global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion"  // i.num_children i.region knot1 knot2 knot3 
-
+********************************************************************************
 * Main model
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(Parents main) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-estimates store hrs_est1
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(main) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
 
 * Paid Leave
-logit dissolve i.dur i.paid_leave_t1 i.hh_hours_type_t1 i.paid_leave_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-margins, dydx(2.hh_hours_type_t1) at(paid_leave_t1=(0 1)) post // had to update bc #3 is collinnear
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store hrs_est2
+logit dissolve i.marr_dur i.paid_leave_t i.hh_hours_type_t1 i.paid_leave_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.hh_hours_type_t1) at(paid_leave_t=(0 1)) post // had to update bc #3 is collinnear
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * PreK Enrollment
-logit dissolve i.dur c.prek_enrolled_public_t1 i.hh_hours_type_t1 c.prek_enrolled_public_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum prek_enrolled_public_t1, detail
-margins, dydx(hh_hours_type_t1) at(prek_enrolled_public_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store hrs_est3
+logit dissolve i.marr_dur c.prek_enrolled_public_t i.hh_hours_type_t1 c.prek_enrolled_public_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum prek_enrolled_public_t, detail
+margins, dydx(hh_hours_type_t1) at(prek_enrolled_public_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Min Wage
-logit dissolve i.dur c.min_amt_above_fed_t1 i.hh_hours_type_t1 c.min_amt_above_fed_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum min_amt_above_fed_t1, detail
-margins, dydx(hh_hours_type_t1) at(min_amt_above_fed_t1=(`r(p5)' `r(p50)' `r(p75)' `r(p95)' `r(p99)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store hrs_est4
+logit dissolve i.marr_dur c.min_amt_above_fed_t i.hh_hours_type_t1 c.min_amt_above_fed_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum min_amt_above_fed_t, detail
+margins, dydx(hh_hours_type_t1) at(min_amt_above_fed_t=(`r(p5)' `r(p50)' `r(p75)' `r(p95)' `r(p99)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Earnings Ratio
-logit dissolve i.dur c.earn_ratio_neg_t1 i.hh_hours_type_t1 c.earn_ratio_neg_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum earn_ratio_neg_t1, detail
-margins, dydx(hh_hours_type_t1) at(earn_ratio_neg_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store hrs_est5
+logit dissolve i.marr_dur c.earn_ratio_t i.hh_hours_type_t1 c.earn_ratio_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum earn_ratio_t, detail
+margins, dydx(hh_hours_type_t1) at(earn_ratio_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Unemployment Compensation
-logit dissolve i.dur c.unemployment_percap_t1 i.hh_hours_type_t1 c.unemployment_percap_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum unemployment_percap_t1, detail
-margins, dydx(hh_hours_type_t1) at(unemployment_percap_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store hrs_est6
+logit dissolve i.marr_dur c.unemployment_percap_t i.hh_hours_type_t1 c.unemployment_percap_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum unemployment_percap_t, detail
+margins, dydx(hh_hours_type_t1) at(unemployment_percap_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Abortion protected
-logit dissolve i.dur i.abortion_protected_t1 i.hh_hours_type_t1 i.abortion_protected_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-// margins, dydx(2.hh_hours_type_t1) at(abortion_protected_t1=(0 1)) post // had to update bc #3 is collinnear
-margins, dydx(hh_hours_type_t1) at(abortion_protected_t1=(0 1)) post // had to update bc #3 is collinnear
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent abortion) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store hrs_est7
+logit dissolve i.marr_dur i.abortion_protected_t i.hh_hours_type_t1 i.abortion_protected_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) at(abortion_protected_t=(0 1)) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(abortion) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Welfare Expenditures
-logit dissolve i.dur c.welfare_all_t1 i.hh_hours_type_t1 c.welfare_all_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4, or
-sum welfare_all_t1, detail
-margins, dydx(hh_hours_type_t1) at(welfare_all_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store hrs_est8
+logit dissolve i.marr_dur c.welfare_all_t i.hh_hours_type_t1 c.welfare_all_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum welfare_all_t, detail
+margins, dydx(hh_hours_type_t1) at(welfare_all_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-// Percentiles
-coefplot hrs_est1, bylabel("Structural Support") || hrs_est3, bylabel("Pre-K Enrollment")  || hrs_est4, bylabel("Relative Minimum Wage")  ///
-		|| hrs_est5, bylabel("Earnings Ratio")  || hrs_est6, bylabel("Unemployment Compensation")  || hrs_est8, bylabel("Welfare Expenditures") ||,  ///
-		drop(_cons) nolabel xline(0, lcolor("red"))  levels(95) ///
-		coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") ///	
-		xtitle(Average Marginal Effects of Male-BW Relative to Dual-Earning, size(small)) ///
-		mcolor(navy) ciopts(color(navy))
-
-// 0 and 1
-coefplot hrs_est2, bylabel("Paid Leave") || hrs_est7, bylabel("Abortion Protected") ||, ///
-		drop(_cons) nolabel xline(0, lcolor("red"))  levels(95) ///
-		coeflabels(1._at = "No" 2._at = "Yes") ///	
-		xtitle(Average Marginal Effects of Male-BW Relative to Dual-Earning, size(small)) ///
-		mcolor(navy) ciopts(color(navy)) byopts(rows(2)) xsize(3) 
-
-*****************
+********************************************************************************
 *Combined DoL
-*****************
-* Main Model
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(Parents 4b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store dol_est1
+********************************************************************************
+* Main model
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(main) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Paid Leave
-logit dissolve i.dur i.paid_leave_t1 i.division_bucket_hrs_t1 i.paid_leave_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-margins, dydx(2.division_bucket_hrs_t1 4.division_bucket_hrs_t1 5.division_bucket_hrs_t1) at(paid_leave_t1=(0 1)) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store dol_est2
+logit dissolve i.marr_dur i.paid_leave_t i.division_bucket_hrs_t1 i.paid_leave_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.division_bucket_hrs_t1 4.division_bucket_hrs_t1) at(paid_leave_t=(0 1)) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * PreK Enrollment
-logit dissolve i.dur c.prek_enrolled_public_t1 i.division_bucket_hrs_t1 c.prek_enrolled_public_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum prek_enrolled_public_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(prek_enrolled_public_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store dol_est3
+logit dissolve i.marr_dur c.prek_enrolled_public_t i.division_bucket_hrs_t1 c.prek_enrolled_public_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum prek_enrolled_public_t, detail
+margins, dydx(division_bucket_hrs_t1) at(prek_enrolled_public_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Min Wage
-logit dissolve i.dur c.min_amt_above_fed_t1 i.division_bucket_hrs_t1 c.min_amt_above_fed_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum min_amt_above_fed_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(min_amt_above_fed_t1=(`r(p5)' `r(p50)' `r(p75)' `r(p95)' `r(p99)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store dol_est4
+logit dissolve i.marr_dur c.min_amt_above_fed_t i.division_bucket_hrs_t1 c.min_amt_above_fed_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum min_amt_above_fed_t, detail
+margins, dydx(division_bucket_hrs_t1) at(min_amt_above_fed_t=(`r(p5)' `r(p50)' `r(p75)' `r(p95)' `r(p99)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Earnings Ratio
-logit dissolve i.dur c.earn_ratio_neg_t1 i.division_bucket_hrs_t1 c.earn_ratio_neg_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum earn_ratio_neg_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(earn_ratio_neg_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store dol_est5
+logit dissolve i.marr_dur c.earn_ratio_t i.division_bucket_hrs_t1 c.earn_ratio_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum earn_ratio_t, detail
+margins, dydx(division_bucket_hrs_t1) at(earn_ratio_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Unemployment Compensation
-logit dissolve i.dur c.unemployment_percap_t1 i.division_bucket_hrs_t1 c.unemployment_percap_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum unemployment_percap_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(unemployment_percap_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store dol_est6
+logit dissolve i.marr_dur c.unemployment_percap_t i.division_bucket_hrs_t1 c.unemployment_percap_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum unemployment_percap_t, detail
+margins, dydx(division_bucket_hrs_t1) at(unemployment_percap_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Abortion protected
-logit dissolve i.dur i.abortion_protected_t1 i.division_bucket_hrs_t1 i.abortion_protected_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-margins, dydx(2.division_bucket_hrs_t1 4.division_bucket_hrs_t1 5.division_bucket_hrs_t1) at(abortion_protected_t1=(0 1)) post // had to update bc #3 is collinnear
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent abortion) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store dol_est7
+logit dissolve i.marr_dur i.abortion_protected_t i.division_bucket_hrs_t1 i.abortion_protected_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(2.division_bucket_hrs_t1 4.division_bucket_hrs_t1 5.division_bucket_hrs_t1) at(abortion_protected_t=(0 1)) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(abortion) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 * Welfare Expenditures
-logit dissolve i.dur c.welfare_all_t1 i.division_bucket_hrs_t1 c.welfare_all_t1#i.division_bucket_hrs_t1 $controls if children_under6==1, or
-sum welfare_all_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(welfare_all_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_scale_details.xls", ctitle(parent welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-estimates store dol_est8
-
-// Percentiles
-coefplot dol_est1, bylabel("Structural Support") || dol_est3, bylabel("Pre-K Enrollment")  || dol_est4, bylabel("Relative Minimum Wage")  ///
-		|| dol_est5, bylabel("Earnings Ratio")  || dol_est6, bylabel("Unemployment Compensation")  || dol_est8, bylabel("Welfare Expenditures") ||,  ///
-		drop(_cons) nolabel xline(0, lcolor("red"))  levels(95) ///
-		coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") ///	
-		xtitle(Average Marginal Effects of Traditional Relative to Egalitarian, size(small)) ///
-		mcolor(blue) ciopts(color(blue))
-
-// 0 and 1
-coefplot dol_est2, bylabel("Paid Leave") || dol_est7, bylabel("Abortion Protected") ||, ///
-		drop(_cons) nolabel xline(0, lcolor("red"))  levels(95) ///
-		coeflabels(1._at = "No" 2._at = "Yes") ///	
-		xtitle(Average Marginal Effects of Traditional Relative to Egalitarian, size(small)) ///
-		mcolor(blue) ciopts(color(blue)) byopts(rows(2)) xsize(3) 
-
-********************************************************************************
-********************************************************************************
-**# Results by level of education
-********************************************************************************
-********************************************************************************
-
-*******************************
-* College
-*******************************
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-/* Main Effects */
-* Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==1, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-
-* Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==1, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-/* Interactions */
-*Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4  & couple_educ_gp==1, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll 1a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(Coll 1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1  & hh_hours_type_t1!=4 & couple_educ_gp==1, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(Coll 2a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(Coll 2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*******************************
-* No College
-*******************************
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-/* Main Effects */
-* Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==0, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Coll 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-* Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==0, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Coll 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-
-/* Interactions */
-*Hours
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4  & couple_educ_gp==0, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Coll 1a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(No Coll 1b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-*Combined Hours
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1  & hh_hours_type_t1!=4 & couple_educ_gp==0, or
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", sideway stats(coef pval) label ctitle(No Coll 2a) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_educ.xls", ctitle(No Coll 2b) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
+logit dissolve i.marr_dur c.welfare_all_t i.division_bucket_hrs_t1 c.welfare_all_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum welfare_all_t, detail
+margins, dydx(division_bucket_hrs_t1) at(welfare_all_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_scale_details.xls", ctitle(welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 
 ********************************************************************************
-* Figures
 ********************************************************************************
-*******************************
-* College
-*******************************
+********************************************************************************
+**# Results by level of education (Figures)
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+********************************************************************************
+* College (At least one)
+* Okay, attempted to add both but sample is far too small (bc too much becomes collinear or perfectly predictive)
+********************************************************************************
 ** Main effects
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==1, or
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0  & couple_educ_gp==1, or
 margins, dydx(hh_hours_type_t1) level(95) post
 estimates store c_esta
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==1, or
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or
 margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store c_estb
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==1, or
-margins, dydx(structural_familism_t1) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or
+margins, dydx(structural_familism_t) post
 estimates store c_estc
 
- // just hours and maybe add structural support
-coefplot (c_esta, offset(.20) nokey) (c_estb, offset(-.20) nokey) (c_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
- 
-** Hours
-// Predicted Probabilities
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==1, or
-
-sum structural_familism_t1, detail
-margins hh_hours_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue"))  
-
-// AMEs
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==1, or
-
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) // level(90)
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%40))
-
-// Test alternate interaction charts
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==1, or
-sum structural_familism_t1, detail
-margins, dydx(2.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+** Paid Labor interaction
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 estimates store est5c
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==1, or
-sum structural_familism_t1, detail
-margins, dydx(3.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or
+sum structural_familism_t, detail
+margins, dydx(3.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 estimates store est6c
 
 coefplot (est5c, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6c, label("Female BW")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical))
 
-** Combined DoL (Hours)
-// Test alternate interaction charts
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & couple_educ_gp==1, or
-sum structural_familism_t1, detail
-margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+** Combined DoL (Hours) Interaction
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est10c
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & couple_educ_gp==1, or
-sum structural_familism_t1, detail
-margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or
+sum structural_familism_t, detail
+margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est11c
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & couple_educ_gp==1, or
-sum structural_familism_t1, detail
-margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or
+sum structural_familism_t, detail
+margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est12c
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & couple_educ_gp==1, or
-sum structural_familism_t1, detail
-margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or
+sum structural_familism_t, detail
+margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est13c
 
 coefplot (est10c, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est12c, label("Second Shift") mcolor(gs8) ciopts(color(gs8)))  (est13c, label("All Others") mcolor(black) ciopts(color(black))),  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1)) // (est11c, label("Counter-Traditional"))
 
-
-*******************************
+********************************************************************************
 * No College
-*******************************
+********************************************************************************
 ** Main effects
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==0, or
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0  & couple_educ_gp==0, or
 margins, dydx(hh_hours_type_t1) level(95) post
 estimates store n_esta
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==0, or
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or
 margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store n_estb
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 $controls if children_under6==1 & hh_hours_type_t1!=4 & couple_educ_gp==0, or
-margins, dydx(structural_familism_t1) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or
+margins, dydx(structural_familism_t) post
 estimates store n_estc
 
- // just hours and maybe add structural support
-coefplot (n_esta, offset(.20) nokey) (n_estb, offset(-.20) nokey) (n_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))) , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") ///
- headings(1.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  1.division_bucket_hrs_t1 = `""{bf:Combined Paid and Unpaid Labor}" "{it:(Model 2)}""' structural_familism_t1 = `""{bf:Structural Support for Working Families}" "{it:(Model 2)}"')
- 
-** Hours
-// Predicted Probabilities
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==0, or
-
-sum structural_familism_t1, detail
-margins hh_hours_type_t1, at(structural_familism_t1=(`r(min)'(1)`r(max)'))
-marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) noci recast(line) xlabel(#10) plot2opts(lcolor("navy") mcolor("navy")) plot3opts(lcolor("ltblue") mcolor("ltblue"))  
-
-// AMEs
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==0, or
-
-sum structural_familism_t1, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_t1=(`r(min)'(1)`r(max)')) // level(90)
-marginsplot, xtitle("Structural Support for Dual-Earning") yline(0,lcolor(red))  ytitle("Average Marginal Effects (relative to dual-earning)") title("") legend(position(6) ring(3) order(1 "Male BW" 2 "Female BW") rows(1)) xlabel(#10) recast(line) recastci(rarea) plot1opts(lcolor("navy") mcolor("navy")) ci1opts(color(navy%70)) plot2opts(lcolor("bluishgray") mcolor("ltblue")) ci2opts(color(ltblue%40))
-
-// Test alternate interaction charts
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==0, or
-sum structural_familism_t1, detail
-margins, dydx(2.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+** Paid Labor interaction
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 estimates store est5n
 
-logit dissolve i.dur c.structural_familism_t1 i.hh_hours_type_t1 c.structural_familism_t1#i.hh_hours_type_t1 $controls if children_under6==1 & hh_hours_type_t1 < 4 & couple_educ_gp==0, or
-sum structural_familism_t1, detail
-margins, dydx(3.hh_hours_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or
+sum structural_familism_t, detail
+margins, dydx(3.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 estimates store est6n
 
 coefplot (est5n, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6n, label("Female BW")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical))
 
-** Combined DoL (Hours)
-// Test alternate interaction charts
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
-
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & couple_educ_gp==0, or
-sum structural_familism_t1, detail
-margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+** Combined DoL (Hours) Interaction
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est10n
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & couple_educ_gp==0, or
-sum structural_familism_t1, detail
-margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or
+sum structural_familism_t, detail
+margins, dydx(3.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est11n
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & couple_educ_gp==0, or
-sum structural_familism_t1, detail
-margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or
+sum structural_familism_t, detail
+margins, dydx(4.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est12n
 
-logit dissolve i.dur c.structural_familism_t1 i.division_bucket_hrs_t1 c.structural_familism_t1#i.division_bucket_hrs_t1 $controls if children_under6==1 & couple_educ_gp==0, or
-sum structural_familism_t1, detail
-margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or
+sum structural_familism_t, detail
+margins, dydx(5.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) level(90) post
 estimates store est13n
 
 coefplot (est10n, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11n, label("Counter-Traditional")) (est12n, label("Second Shift"))  (est13n, label("All Others")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1))
 
-*******************************
+********************************************************************************
 * Combined Figures
-*******************************
+********************************************************************************
 * Main effects
 coefplot (n_esta, offset(.20) nokey) (n_estb, offset(-.20) nokey) (n_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))), bylabel("No College Degree")  || ///
 (c_esta, offset(.20) nokey) (c_estb, offset(-.20) nokey) (c_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))), bylabel("One Partner Has College Degree") || ///
 , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effects, size(small)) ///
-coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t1 = "Structural Support Scale") xsize(8) ///
- headings(1.hh_hours_type_t1= "{bf:Division of Work Hours}" 1.division_bucket_hrs_t1 = "{bf:Combined DoL}" structural_familism_t1 = "{bf:Structural Support}")
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t = "Structural Support Scale") xsize(8) ///
+ headings(1.hh_hours_type_t1= "{bf:Division of Work Hours}" 1.division_bucket_hrs_t1 = "{bf:Combined DoL}" structural_familism_t = "{bf:Structural Support}")
  
 * Paid Labor
 coefplot (est5n, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6n, label("Female BW")), bylabel("No College Degree") || ///
@@ -2712,142 +1375,35 @@ coefplot (est10n, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11n
 (est10c, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11c, label("Counter-Traditional")) (est12c, label("Second Shift") mcolor(gs8) ciopts(color(gs8)))  (est13c, label("All Others") mcolor(black) ciopts(color(black))), bylabel("One Partner Has College  Degree")  || ///
 ,  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) legend(position(bottom) rows(1)) xsize(8)
 
-
 ********************************************************************************
-********************************************************************************
-**# Other analyses / metrics
-********************************************************************************
-********************************************************************************
-
-********************************************************************************
-* Median centered
-********************************************************************************
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children i.region
-
-/* Parents */
-*Baseline model
-logit dissolve i.dur c.sf_centered_alt i.hh_earn_type $controls if children_under6==1 & hh_earn_type < 4, or
-outreg2 using "$results/dissolution_AMES_familism_centered.xls", sideway stats(coef pval) label ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-
-* Structural familism
-logit dissolve i.dur c.sf_centered_alt i.hh_earn_type c.sf_centered_alt#i.hh_earn_type $controls if children_under6==1 & hh_earn_type < 4, or
-outreg2 using "$results/dissolution_AMES_familism_centered.xls", sideway stats(coef pval) label ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum sf_centered_alt, detail
-margins, dydx(hh_earn_type) at(sf_centered_alt=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_centered.xls", ctitle(parent familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* All parents (robustness)
-logit dissolve i.dur c.sf_centered_alt i.hh_earn_type c.sf_centered_alt#i.hh_earn_type $controls if children==1 & hh_earn_type < 4, or
-sum sf_centered_alt, detail
-margins, dydx(hh_earn_type) at(sf_centered_alt=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_centered.xls", ctitle(allparent familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Full sample (robustness)
-logit dissolve i.dur c.sf_centered_alt i.hh_earn_type c.sf_centered_alt#i.hh_earn_type i.num_children $controls if hh_earn_type < 4, or
-sum sf_centered_alt, detail
-margins, dydx(hh_earn_type) at(sf_centered_alt=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_familism_centered.xls", ctitle(all familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-********************************************************************************
-* Mixed effects
-* Not using because they are exactly the same 
-********************************************************************************
-/*
-local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.race_head i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp"  // i.num_children i.region
-
-/* Mixed effects */
-*Baseline model
-melogit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-outreg2 using "$results/dissolution_AMES_melogit.xls", sideway stats(coef pval) label ctitle(Parents 1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
-
-* Structural familism
-melogit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-outreg2 using "$results/dissolution_AMES_melogit.xls", sideway stats(coef pval) label ctitle(Parents 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(parent familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Paid Leave
-melogit dissolve i.dur i.paid_leave i.hh_earn_type_t1 i.paid_leave#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-margins, dydx(hh_earn_type_t1) at(paid_leave=(0 1)) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(parent paidleave) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* PreK Enrollment
-melogit dissolve i.dur c.prek_enrolled_public i.hh_earn_type_t1 c.prek_enrolled_public#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-sum prek_enrolled_public, detail
-margins, dydx(hh_earn_type_t1) at(prek_enrolled_public=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(parent prek) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Min Wage
-melogit dissolve i.dur i.min_above_fed i.hh_earn_type_t1 i.min_above_fed#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-margins, dydx(hh_earn_type_t1) at(min_above_fed=(0 1)) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(parent minwage) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Earnings Ratio
-melogit dissolve i.dur c.earn_ratio i.hh_earn_type_t1 c.earn_ratio#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-sum earn_ratio, detail
-margins, dydx(hh_earn_type_t1) at(earn_ratio=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(parent earnings) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Unemployment Compensation
-melogit dissolve i.dur c.unemployment_percap i.hh_earn_type_t1 c.unemployment_percap#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-sum unemployment_percap, detail
-margins, dydx(hh_earn_type_t1) at(unemployment_percap=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(parent unemployment) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Abortion protected
-melogit dissolve i.dur i.abortion_protected i.hh_earn_type_t1 i.abortion_protected#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-margins, dydx(2.hh_earn_type_t1) at(abortion_protected=(0 1)) post // had to update bc #3 is collinnear
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(parent abortion) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Welfare Expenditures
-melogit dissolve i.dur c.welfare_all i.hh_earn_type_t1 c.welfare_all#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 || state_fips: , or
-sum welfare_all, detail
-margins, dydx(hh_earn_type_t1) at(welfare_all=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(parent welfare) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* All parents (robustness)
-melogit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children==1 & hh_earn_type_t1 < 4 || state_fips: , or
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(allparent familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Full sample (robustness)
-melogit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 i.num_children $controls if hh_earn_type_t1 < 4 || state_fips: , or
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(all familism) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* First 10 years of marriage (robustness)
-melogit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1 c.structural_familism_t1#i.hh_earn_type_t1 $controls if children_under6==1 & hh_earn_type_t1 < 4 & dur<=10 || state_fips: , or
-outreg2 using "$results/dissolution_AMES_melogit.xls", sideway stats(coef pval) label ctitle(dur) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(dur) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-
-* Alt DoL (robustness)
-melogit dissolve i.dur c.structural_familism_t1 i.hh_earn_type_t1_alt c.structural_familism_t1#i.hh_earn_type_t1_alt $controls if children_under6==1 || state_fips: , or
-outreg2 using "$results/dissolution_AMES_melogit.xls", sideway stats(coef pval) label ctitle(Parents 3) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
-sum structural_familism_t1, detail
-margins, dydx(hh_earn_type_t1_alt) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/dissolution_AMES_melogit.xls", ctitle(alt dol) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +)
-*/
-
 ********************************************************************************
 ********************************************************************************
 **# Descriptive statistics
 ********************************************************************************
 ********************************************************************************
-// for ref: local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" // i.num_children
+********************************************************************************
 
-tab hh_earn_type_t1, gen(earn_type)
+/* for ref:
+global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children"
+
+global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t"
+
+logit dissolve i.marr_dur if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+
+*/
+
 tab hh_hours_type_t1, gen(hours_type)
-// tab division_bucket_t1, gen(combined_earn)
 tab division_bucket_hrs_t1, gen(combined_hours)
+tab educ_type, gen(educ_type)
 tab raceth_head_fixed, gen(race_head)
 tab couple_joint_religion, gen(religion)
 
-putexcel set "$results/Table1_Descriptives_chapter3", replace
+********************************************************************************
+// prob should weight, which was NOT the case before...
+********************************************************************************
+svyset [pweight=weight]
+
+putexcel set "$results/main results/Table1_Descriptives_weighted", replace
 putexcel B1:C1 = "Parents of children under 6", merge border(bottom)
 putexcel D1:E1 = "Total Sample", merge border(bottom)
 putexcel B2 = ("All") C2 = ("Dissolved") D2 = ("All") E2 = ("Dissolved")
@@ -2856,79 +1412,174 @@ putexcel A3 = "Unique Couples"
 putexcel A4 = "Dual Earning HH (Hours)"
 putexcel A5 = "Male Breadwinner (Hours)"
 putexcel A6 = "Female Breadwinner (Hours)"
-putexcel A7 = "Dual Earning HH ($)"
-putexcel A8 = "Male Breadwinner ($)"
-putexcel A9 = "Female Breadwinner ($)"
-putexcel A10 = "Egalitarian"
-putexcel A11 = "Traditional"
-putexcel A12 = "Counter-Traditional"
-putexcel A13 = "Second Shift"
-putexcel A14 = "All Other"
-putexcel A15 = "Structural Support for Working Families"
-putexcel A16 = "Relationship Duration"
-putexcel A17 = "Husband's age at marriage"
-putexcel A18 = "Wife's age at marriage"
-putexcel A19 = "Total Couple Earnings"
-putexcel A20 = "At least one partner has college degree"
-putexcel A21 = "Couple owns home"
-putexcel A22 = "Husband's Race: NH White"
-putexcel A23 = "Husband's Race: Black"
-putexcel A24 = "Husband's Race: Hispanic"
-putexcel A25 = "Husband's Race: NH Asian"
-putexcel A26 = "Husband's Race: NH Other"
-putexcel A27 = "Husband and wife same race"
-putexcel A28 = "Either partner enrolled in school"
-putexcel A29 = "Husband Wife Cohabit"
-putexcel A30 = "Other Premarital Cohabit"
-putexcel A31 = "First Birth Premarital"
-putexcel A32 = "Religion: Both No Religion"
-putexcel A33 = "Religion: Both Catholic"
-putexcel A34 = "Religion: Both Protestant"
-putexcel A35 = "Religion: One Catholic"
-putexcel A36 = "Religion: One No Religion"
-putexcel A37 = "Religion: Other"
-putexcel A38 = "Moved Within 2 Survey Waves"
+putexcel A7 = "Egalitarian"
+putexcel A8 = "Traditional"
+putexcel A9 = "Counter-Traditional"
+putexcel A10 = "Second Shift"
+putexcel A11 = "All Other"
+putexcel A12 = "Structural Support for Working Families"
+putexcel A13 = "% Women with College Degrees"
+putexcel A14 = "Married Women's Employment Rate"
+putexcel A15 = "% Male-Breadwinning Married Couples"
+putexcel A16 = "% Egalitarian Norms (Regional)"
+putexcel A17 = "Relationship Duration"
+putexcel A18 = "Husband's age at marriage"
+putexcel A19 = "Wife's age at marriage"
+putexcel A20 = "Total Couple Earnings"
+putexcel A21 = "Neither partner has college degree"
+putexcel A22 = "He has college degree"
+putexcel A23 = "She has college degree"
+putexcel A24 = "Both have college degree"
+putexcel A25 = "Couple owns home"
+putexcel A26 = "Husband's Race: NH White"
+putexcel A27 = "Husband's Race: Black"
+putexcel A28 = "Husband's Race: Hispanic"
+putexcel A29 = "Husband's Race: NH Asian"
+putexcel A30 = "Husband's Race: NH Other"
+putexcel A31 = "Husband and wife same race"
+putexcel A32 = "Either partner enrolled in school"
+putexcel A33 = "Husband Wife Cohabit"
+putexcel A34 = "Other Premarital Cohabit"
+putexcel A35 = "First Birth Premarital"
+putexcel A36 = "Religion: Both No Religion"
+putexcel A37 = "Religion: Both Catholic"
+putexcel A38 = "Religion: Both Protestant"
+putexcel A39 = "Religion: One Catholic"
+putexcel A40 = "Religion: One No Religion"
+putexcel A41 = "Religion: Other"
+putexcel A42 = "Moved Within 2 Survey Waves"
+putexcel A43 = "Number of Children"
 
-local meanvars "hours_type1 hours_type2 hours_type3 earn_type1 earn_type2 earn_type3 combined_hours1 combined_hours2 combined_hours3 combined_hours4 combined_hours5 structural_familism_t1 dur age_mar_head age_mar_wife couple_earnings_t1 couple_educ_gp home_owner race_head1 race_head2 race_head3 race_head4 race_head5 same_race either_enrolled cohab_with_partner cohab_with_other pre_marital_birth religion1 religion2 religion3 religion4 religion5 religion6 moved_last2"
+local meanvars "hours_type1 hours_type2 hours_type3 combined_hours1 combined_hours2 combined_hours3 combined_hours4 combined_hours5 structural_familism_t women_college_rate_wt_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t avg_egal_reg_t marr_dur age_mar_head age_mar_wife couple_earnings_t1 educ_type1 educ_type2 educ_type3 educ_type4 home_owner race_head1 race_head2 race_head3 race_head4 race_head5 same_race either_enrolled cohab_with_partner cohab_with_other pre_marital_birth religion1 religion2 religion3 religion4 religion5 religion6 moved_last2 NUM_CHILDREN_"
 
 // Parents
-forvalues w=1/35{
+forvalues w=1/40{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
-	mean `var' if children_under6==1
+	svy: mean `var' if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 	matrix t`var'= e(b)
 	putexcel B`row' = matrix(t`var'), nformat(#.#%)
 }
 
 // those who dissolved; value when dissolve==1
-forvalues w=1/35{
+forvalues w=1/40{
 	local row=`w'+3
 	local var: word `w' of `meanvars' 
-	mean `var' if dissolve==1 & children_under6==1
+	svy: mean `var' if dissolve==1 & children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 	matrix t`var'= e(b)
 	putexcel C`row' = matrix(t`var'), nformat(#.#%)
 }
 
 
 // All couples
-forvalues w=1/35{
+forvalues w=1/40{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
-	mean `var'
+	svy: mean `var' if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 	matrix t`var'= e(b)
 	putexcel D`row' = matrix(t`var'), nformat(#.#%)
 }
 
 // those who dissolved; value when dissolve==1
-forvalues w=1/35{
+forvalues w=1/40{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
-	mean `var' if dissolve==1
+	svy: mean `var' if dissolve==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 	matrix t`var'= e(b)
 	putexcel E`row' = matrix(t`var'), nformat(#.#%)
 }
 
-unique unique_id if children_under6==1
-unique unique_id if children_under6==1 & dissolve==1
-unique unique_id 
-unique unique_id if dissolve==1
+unique unique_id if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+unique unique_id if children_under6==1 & dissolve==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+unique unique_id if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+unique unique_id if dissolve==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+
+********************************************************************************
+// Unweighted (for comparison to previous)
+********************************************************************************
+
+putexcel set "$results/main results/Table1_Descriptives_unweighted", replace
+putexcel B1:C1 = "Parents of children under 6", merge border(bottom)
+putexcel D1:E1 = "Total Sample", merge border(bottom)
+putexcel B2 = ("All") C2 = ("Dissolved") D2 = ("All") E2 = ("Dissolved")
+putexcel A3 = "Unique Couples"
+
+putexcel A4 = "Dual Earning HH (Hours)"
+putexcel A5 = "Male Breadwinner (Hours)"
+putexcel A6 = "Female Breadwinner (Hours)"
+putexcel A7 = "Egalitarian"
+putexcel A8 = "Traditional"
+putexcel A9 = "Counter-Traditional"
+putexcel A10 = "Second Shift"
+putexcel A11 = "All Other"
+putexcel A12 = "Structural Support for Working Families"
+putexcel A13 = "% Women with College Degrees"
+putexcel A14 = "Married Women's Employment Rate"
+putexcel A15 = "% Male-Breadwinning Married Couples"
+putexcel A16 = "% Egalitarian Norms (Regional)"
+putexcel A17 = "Relationship Duration"
+putexcel A18 = "Husband's age at marriage"
+putexcel A19 = "Wife's age at marriage"
+putexcel A20 = "Total Couple Earnings"
+putexcel A21 = "Neither partner has college degree"
+putexcel A22 = "He has college degree"
+putexcel A23 = "She has college degree"
+putexcel A24 = "Both have college degree"
+putexcel A25 = "Couple owns home"
+putexcel A26 = "Husband's Race: NH White"
+putexcel A27 = "Husband's Race: Black"
+putexcel A28 = "Husband's Race: Hispanic"
+putexcel A29 = "Husband's Race: NH Asian"
+putexcel A30 = "Husband's Race: NH Other"
+putexcel A31 = "Husband and wife same race"
+putexcel A32 = "Either partner enrolled in school"
+putexcel A33 = "Husband Wife Cohabit"
+putexcel A34 = "Other Premarital Cohabit"
+putexcel A35 = "First Birth Premarital"
+putexcel A36 = "Religion: Both No Religion"
+putexcel A37 = "Religion: Both Catholic"
+putexcel A38 = "Religion: Both Protestant"
+putexcel A39 = "Religion: One Catholic"
+putexcel A40 = "Religion: One No Religion"
+putexcel A41 = "Religion: Other"
+putexcel A42 = "Moved Within 2 Survey Waves"
+putexcel A43 = "Number of Children"
+
+local meanvars "hours_type1 hours_type2 hours_type3 combined_hours1 combined_hours2 combined_hours3 combined_hours4 combined_hours5 structural_familism_t women_college_rate_wt_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t avg_egal_reg_t marr_dur age_mar_head age_mar_wife couple_earnings_t1 educ_type1 educ_type2 educ_type3 educ_type4 home_owner race_head1 race_head2 race_head3 race_head4 race_head5 same_race either_enrolled cohab_with_partner cohab_with_other pre_marital_birth religion1 religion2 religion3 religion4 religion5 religion6 moved_last2 NUM_CHILDREN_"
+
+// Parents
+forvalues w=1/40{
+	local row=`w'+3
+	local var: word `w' of `meanvars'
+	mean `var' if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+	matrix t`var'= e(b)
+	putexcel B`row' = matrix(t`var'), nformat(#.#%)
+}
+
+// those who dissolved; value when dissolve==1
+forvalues w=1/40{
+	local row=`w'+3
+	local var: word `w' of `meanvars' 
+	mean `var' if dissolve==1 & children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+	matrix t`var'= e(b)
+	putexcel C`row' = matrix(t`var'), nformat(#.#%)
+}
+
+
+// All couples
+forvalues w=1/40{
+	local row=`w'+3
+	local var: word `w' of `meanvars'
+	mean `var' if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+	matrix t`var'= e(b)
+	putexcel D`row' = matrix(t`var'), nformat(#.#%)
+}
+
+// those who dissolved; value when dissolve==1
+forvalues w=1/40{
+	local row=`w'+3
+	local var: word `w' of `meanvars'
+	mean `var' if dissolve==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+	matrix t`var'= e(b)
+	putexcel E`row' = matrix(t`var'), nformat(#.#%)
+}

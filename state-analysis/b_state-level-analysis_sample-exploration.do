@@ -12,6 +12,8 @@
 	** Retain focus on parents (and if so - change sample in any way)
 	** Some questions about measures included in scale
 * Eventually - will go back to main step b with final included analyses
+* Then will create new robustness file that is organized by reviewer comment
+* not this chaos
 
 ********************************************************************************
 * First just get data and do final sample restrictions
