@@ -1,4 +1,10 @@
 ********************************************************************************
+* Edit 9/10/25
+* Also archiving this file. This is for SF revision, but this was JUST exploring
+* robustness for married sample. These are now integrated into new main files
+* that include cohbitation
+
+********************************************************************************
 * Robustness checks on main analysis (for SF revision)
 * robustness_checks.do
 * Kim McErlean

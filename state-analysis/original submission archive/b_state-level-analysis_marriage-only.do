@@ -1,4 +1,12 @@
 ********************************************************************************
+* Edit 9/10/25
+* this data file corresponds to my initial Social Forces submission
+* Archiving for now to use the updated file with cohabitation
+* Mostly restricting to married couples, but do some robustness with cohab
+* so want to use that file for posterity
+
+
+********************************************************************************
 * Adding in state-level data
 * state-level-analysis.do
 * Kim McErlean
