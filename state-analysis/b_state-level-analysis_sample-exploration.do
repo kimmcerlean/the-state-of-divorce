@@ -656,7 +656,7 @@ restore
 ********************************************************************************
 **# Merge onto policy data
 ********************************************************************************
-local scale_vars "structural_familism structural_factor cc_pct_income_orig prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate women_emp_rate_wt married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2 policy_group_v3 women_college_rate_wt married_women_college_rt_wt college_ratio married_college_ratio sf_cc_income sf_ccdf_served sf_head_start sf_early_hs sf_total_hs sf_educ_spend broad_policy family_investment sf_childcare sf_policy" 
+local scale_vars "structural_familism structural_factor structural_factor_rot cc_pct_income_orig prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate women_emp_rate_wt married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2 policy_group_v3 women_college_rate_wt married_women_college_rt_wt college_ratio married_college_ratio sf_cc_income sf_ccdf_served sf_head_start sf_early_hs sf_total_hs sf_educ_spend broad_policy family_investment sf_childcare sf_policy" 
 
 rename STATE_ state_fips
 rename survey_yr year
@@ -3539,6 +3539,15 @@ coefplot (est5n, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6n, labe
 		(est5c, mcolor(navy) ciopts(color(navy)) label("Male BW")) (est6c, label("Female BW")), bylabel("One Partner Has College  Degree") || ///
 ,  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) xsize(8)
 
+* Reorg to highlight the effect sizes are basically the same
+coefplot est5n est5c est6n est6c
+
+coefplot (est5n, mcolor(navy) ciopts(color(navy) lpattern(shortdash)) label("No College: Male BW")) (est5c, mcolor(navy) ciopts(color(navy)) label("College: Male BW"))  ///
+		(est6n, mcolor(eltblue) ciopts(color(eltblue) lpattern(shortdash)) label("No College: Female BW")) (est6c, mcolor(eltblue) ciopts(color(eltblue)) label("College: Female BW")) ///
+		,  drop(_cons) nolabel xline(0, lcolor("red")) levels(95)  ///
+		coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) ///
+		legend(position(bottom) rows(2)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical)) // xsize(8)
+
 * Combined DoL
 coefplot (est10n, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11n, label("Counter-Traditional")) (est12n, label("Second Shift"))  (est13n, label("All Others")), bylabel("No College Degree") || ///
 (est10c, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11c, label("Counter-Traditional")) (est12c, label("Second Shift") mcolor(gs8) ciopts(color(gs8)))  (est13c, label("All Others") mcolor(black) ciopts(color(black))), bylabel("One Partner Has College  Degree")  || ///
@@ -3634,6 +3643,30 @@ margins couple_educ_gp, dydx(hh_hours_type_t1) at(current_rel_type=(20 22))
 
 coefplot mar coh // okay I am losing the plot again, because also strugling with what main effects I even expect by level of education at the moment... let's return to this, but think possibly the results stratified by level of education are fine (and possibly show the selection effects into parenthood are same across groups as well?)
 
+// make above cohab plot but for marriage as well
+local cont "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.moved_last2 i.couple_joint_religion i.num_children" // i.educ_type
+
+logit dissolve i.marr_dur i.hh_hours_type_t1##i.couple_educ_gp `cont' $macro_controls if current_rel_type==20 & any_missing==0 & no_labor==0 & marr_dur>=0, or // so I could say the main effects are the same? is that sufficient?
+margins 1.couple_educ_gp, dydx(2.hh_hours_type_t1) level(95) post
+est store col_male1
+
+logit dissolve i.marr_dur i.hh_hours_type_t1##i.couple_educ_gp `cont' $macro_controls if current_rel_type==20 & any_missing==0 & no_labor==0 & marr_dur>=0, or // so I could say the main effects are the same? is that sufficient?
+margins 1.couple_educ_gp, dydx(3.hh_hours_type_t1) level(95) post
+est store col_fem1
+
+logit dissolve i.marr_dur i.hh_hours_type_t1##i.couple_educ_gp `cont' $macro_controls if current_rel_type==20 & any_missing==0 & no_labor==0 & marr_dur>=0, or // so I could say the main effects are the same? is that sufficient?
+margins 0.couple_educ_gp, dydx(2.hh_hours_type_t1) level(95) post
+est store no_male1
+
+logit dissolve i.marr_dur i.hh_hours_type_t1##i.couple_educ_gp `cont' $macro_controls if current_rel_type==20 & any_missing==0 & no_labor==0 & marr_dur>=0, or // so I could say the main effects are the same? is that sufficient?
+margins 0.couple_educ_gp, dydx(3.hh_hours_type_t1) level(95) post
+est store no_fem1
+
+coefplot (col_male1, mcolor(navy) ciopts(color(navy)) label("Male BW")) (col_fem1, mcolor(eltblue) ciopts(color(eltblue)) label("Female BW")) ///
+		(no_male1, mcolor(navy) ciopts(color(navy)) nokey) (no_fem1, mcolor(eltblue) ciopts(color(eltblue)) nokey) ///
+		,  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) ///
+		coeflabels(1.couple_educ_gp = "At Least One Has College Degree" 0.couple_educ_gp = "Neither Has College Degree") legend(position(bottom) rows(1))
+
 /*
 *******************************
 * College: I cannot estimate these...
@@ -3666,6 +3699,59 @@ estimates store coh_est6c
 coefplot (coh_est5c, mcolor(navy) ciopts(color(navy)) label("Male BW")) (coh_est6c, label("Female BW")),  drop(_cons) nolabel xline(0, lcolor("red")) levels(95) coeflabels(1._at = "5th Percentile" 2._at = "25th Percentile" 3._at = "50th Percentile" 4._at = "75th Percentile" 5._at = "95th Percentile") xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support: Percentiles}", angle(vertical))
 */
 
+*******************************
+* Do I need to do the same for race?!
+*******************************
+// Here are the cohab estimates (all, not parents)
+local cont "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.moved_last2 i.couple_joint_religion i.num_children i.educ_type" // i.raceth_head_fixed i.same_race
+
+logit dissolve i.coh_dur i.hh_hours_type_t1##i.raceth_wife `cont' $macro_controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0 & inlist(raceth_wife,1,2), or // so I could say the main effects are the same? is that sufficient?
+margins 1.raceth_wife, dydx(2.hh_hours_type_t1) level(95) post
+est store wh_male
+
+logit dissolve i.coh_dur i.hh_hours_type_t1##i.raceth_wife `cont' $macro_controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0  & inlist(raceth_wife,1,2), or // so I could say the main effects are the same? is that sufficient?
+margins 1.raceth_wife, dydx(3.hh_hours_type_t1) level(95) post
+est store wh_fem
+
+logit dissolve i.coh_dur i.hh_hours_type_t1##i.raceth_wife `cont' $macro_controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0  & inlist(raceth_wife,1,2), or // so I could say the main effects are the same? is that sufficient?
+margins 2.raceth_wife, dydx(2.hh_hours_type_t1) level(95) post
+est store bl_male
+
+logit dissolve i.coh_dur i.hh_hours_type_t1##i.raceth_wife `cont' $macro_controls if current_rel_type==22 & any_missing==0 & no_labor==0 & cohab_flag==0  & inlist(raceth_wife,1,2), or // so I could say the main effects are the same? is that sufficient?
+margins 2.raceth_wife, dydx(3.hh_hours_type_t1) level(95) post
+est store bl_fem
+
+coefplot wh_male wh_fem bl_male bl_fem
+
+coefplot (wh_male, mcolor(navy) ciopts(color(navy)) label("Male BW")) (wh_fem, mcolor(eltblue) ciopts(color(eltblue)) label("Female BW")) ///
+		(bl_male, mcolor(navy) ciopts(color(navy)) nokey) (bl_fem, mcolor(eltblue) ciopts(color(eltblue)) nokey) ///
+		,  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) ///
+		coeflabels(1.raceth_wife = "White Women" 2.raceth_wife = "Black Women") legend(position(bottom) rows(1))
+
+// make above cohab plot but for marriage as well
+local cont "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.moved_last2 i.couple_joint_religion i.num_children i.educ_type" // i.raceth_head_fixed i.same_race
+
+logit dissolve i.marr_dur i.hh_hours_type_t1##i.raceth_wife `cont' $macro_controls if current_rel_type==20 & any_missing==0 & no_labor==0 & marr_dur>=0  & inlist(raceth_wife,1,2), or // so I could say the main effects are the same? is that sufficient?
+margins 1.raceth_wife, dydx(2.hh_hours_type_t1) level(95) post
+est store wh_male1
+
+logit dissolve i.marr_dur i.hh_hours_type_t1##i.raceth_wife `cont' $macro_controls if current_rel_type==20 & any_missing==0 & no_labor==0 & marr_dur>=0  & inlist(raceth_wife,1,2), or // so I could say the main effects are the same? is that sufficient?
+margins 1.raceth_wife, dydx(3.hh_hours_type_t1) level(95) post
+est store wh_fem1
+
+logit dissolve i.marr_dur i.hh_hours_type_t1##i.raceth_wife `cont' $macro_controls if current_rel_type==20 & any_missing==0 & no_labor==0 & marr_dur>=0  & inlist(raceth_wife,1,2), or // so I could say the main effects are the same? is that sufficient?
+margins 2.raceth_wife, dydx(2.hh_hours_type_t1) level(95) post
+est store bl_male1
+
+logit dissolve i.marr_dur i.hh_hours_type_t1##i.raceth_wife `cont' $macro_controls if current_rel_type==20 & any_missing==0 & no_labor==0 & marr_dur>=0  & inlist(raceth_wife,1,2), or // so I could say the main effects are the same? is that sufficient?
+margins 2.raceth_wife, dydx(3.hh_hours_type_t1) level(95) post
+est store bl_fem1
+
+coefplot (wh_male1, mcolor(navy) ciopts(color(navy)) label("Male BW")) (wh_fem1, mcolor(eltblue) ciopts(color(eltblue)) label("Female BW")) ///
+		(bl_male1, mcolor(navy) ciopts(color(navy)) nokey) (bl_fem1, mcolor(eltblue) ciopts(color(eltblue)) nokey) ///
+		,  drop(_cons) nolabel xline(0, lcolor("red")) levels(90) xtitle(Average Marginal Effect Relative to Dual-Earning, size(small)) ///
+		coeflabels(1.raceth_wife = "White Women" 2.raceth_wife = "Black Women") legend(position(bottom) rows(1))
+
 ********************************************************************************
 **# Option 2: Marriage v. Cohabitation
 ********************************************************************************
@@ -3686,6 +3772,50 @@ coefplot (est_m2_u, lcolor("navy") mcolor("navy") ciopts(color("navy")) label("M
 , drop(_cons) xline(0, lcolor(red)) levels(95) base xtitle(Average Marginal Effects Relative to Dual Earning, size(small)) ///
 coeflabels(1._at = "5th Pct" 2._at = "25th Pct" 3._at = "50th Pct" 4._at = "75th Pct" 5._at = "95th Pct") ///
 legend(position(bottom) rows(1)) groups(?._at = "{bf:Structural Support}", angle(vertical)) byopts(xrescale)
+
+********************************************************************************
+**# Attempt to predict transition to marriage?!
+* but is this a question of selection into marriage on basis of DoL?
+* or selection into marriage based on education?
+* I am LOSING THE PLOT
+********************************************************************************
+browse unique_id year current_rel_type marr_trans ever_transition coh_dur
+tab current_rel_type marr_trans // marriage recorded in married year
+
+preserve
+keep if current_rel_type == 22 | marr_trans == 1
+tab educ_type marr_trans, row
+tab hh_hours_type_t1 marr_trans, row
+tab hh_hours_type_t1 marr_trans if couple_educ_gp==0, row
+tab hh_hours_type_t1 marr_trans if couple_educ_gp==1, row
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 i.state_fips  cohab_with_partner cohab_with_other 
+logit marr_trans i.coh_dur i.couple_educ_gp##i.hh_hours_type_t1 earnings_1000s `controls'
+margins, dydx(hh_hours_type_t1) at(couple_educ_gp=(0 1))
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 i.state_fips  cohab_with_partner cohab_with_other 
+
+logit marr_trans i.coh_dur i.hh_hours_type_t1 `controls' if couple_educ_gp==0, or
+logit marr_trans i.coh_dur i.hh_hours_type_t1 `controls' if couple_educ_gp==1, or
+
+logit marr_trans i.coh_dur c.structural_familism_t, or
+logit marr_trans i.coh_dur c.structural_familism_t if couple_educ_gp==0, or
+logit marr_trans i.coh_dur c.structural_familism_t if couple_educ_gp==1, or
+
+
+local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children"  // i.region knot1 knot2 knot3 i.state_fips  cohab_with_partner cohab_with_other 
+
+logit marr_trans i.coh_dur c.structural_familism_t  `controls', or
+logit marr_trans i.coh_dur c.structural_familism_t  `controls' if couple_educ_gp==0, or
+logit marr_trans i.coh_dur c.structural_familism_t  `controls' if couple_educ_gp==1, or
+
+logit marr_trans i.coh_dur c.structural_familism_t##i.couple_educ_gp  `controls', or
+sum structural_familism_t, detail
+margins couple_educ_gp, at(structural_familism_t = (`r(min)'(1)`r(max)')) // can't actually estimate this with controls....
+marginsplot, xtitle("Structural Support for Dual-Earning") ytitle("Predicted Probability of Marital Dissolution") title("") legend(position(6) ring(3) rows(1)) ///
+plot1opts(lcolor("gs8") mcolor("gs8")) plot2opts(lcolor("black") mcolor("black") lstyle(dash)) ci1opts(lcolor("gs8")) ci2opts(lcolor("black")) xlabel(#10) 
+
+restore
 
 ********************************************************************************
 **# Descriptive statistics of married v. cohabiting couples - prob better approach to this?

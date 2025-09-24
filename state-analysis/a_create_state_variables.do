@@ -161,11 +161,9 @@ pwcorr structural_familism policy_lib_all policy_lib_econ policy_lib_soc
 
 // try factor based on current also
 factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st, ipf
-// rotate, varimax horst blanks(.3) // from bgsu / ucla 
 predict f1
 rename f1 structural_factor
 pwcorr structural_factor structural_familism // so if I make a factor variable, also VERY correlated (~0.95)
-
 
 // okay, want to explore several ways of doing robustness checks on childcare measure. one way is I want to update the scale to replace (for now; later - possibly add) prek with another indicator. I then need to be careful about timing
 // will create the variable as is here? but I will just not include those years when I use
@@ -225,7 +223,14 @@ alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st u
 	alpha min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st // 0.73
 
 	egen sf_policy = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st)
-		
+	
+* Going to create an indicator that just combines all three: PreK, Head Start, Spending. This essentially creates higher value weighting because now three childcare variables
+// reminder of current: alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st // 0.71
+alpha paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st // 0.76 (oh duh this is above)
+
+egen sf_childcare_wt = rowtotal(paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st)
+pwcorr sf_childcare_wt structural_familism
+
 // for forwards and lags
 gen year_t1 = year // to get t-1 measures
 gen year_t2 = year // to get t-2 measures (for robustness)
@@ -269,6 +274,17 @@ use "$temp/data_for_scale.dta", clear
 **********************
 * Following RUPPANNER
 **********************
+net from http://www.radyakin.org/stata/labloadingplot/
+label variable paid_leave_st "Paid Leave Y/N"
+label variable prek_enrolled_public_st "Pre-K Enrollment"
+label variable min_amt_above_fed_st "Relative Min. Wage"
+label variable earn_ratio_st "Gender Earnings Ratio"
+label variable unemployment_percap_st "Unemployment Compensation"
+label variable abortion_protected_st "Abortion Protected"
+label variable welfare_all_st "Welfare Expenditures"
+label variable total_headstart_pct_st "Total HS % Enrolled"
+label variable educ_spend_percap_st "PreK-12 Spending"
+
 // diff options:
 factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st
 factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st educ_spend_percap_st, pcf 
@@ -279,12 +295,18 @@ factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st 
 estat kmo // 0.76. SO this one is actually better than below (was toying with no including educ spend bc v correlated with welfare spend)
 rotate, varimax horst blanks(.3) // from bgsu / ucla 
 // rotate, promax horst blanks(.3) // okay, this one makes the spend variables a bit more unique to one factor (i don't hate the idea that they span both though...)
-loadingplot, xlab(-1(.2)1) ylab(0(.2)1.2) aspect(1) yline(0) xline(0)
+
+labloadingplot, xlab(0(.2)1) ylab(0(.2)1) aspect(1) mlabsize(small) /// yline(0) xline(0)
+xtitle(Investments in Children and Families, size(small)) ///
+ytitle(Broad Policy, size(small)) mlabposition(3) 
+
+matrix list e(r_L) // here is where I would need to add the position. how do I do this?! https://www.statalist.org/forums/forum/general-stata-discussion/general/1522966-editing-e-results-and-storing-results
+
 predict f1 f2
 rename f1 family_investment
 rename f2 broad_policy
 
-pwcorr structural_familism broad_policy family_investment
+pwcorr structural_familism family_investment broad_policy sf_childcare_wt
 
 /*
 factor paid_leave_st prek_enrolled_public_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st total_headstart_pct_st, ipf factors(2) blanks(0.3) // the binary variables are generally just low...
@@ -379,6 +401,9 @@ tabstat structural_familism if year==1995, by(state_fips)
 tabstat structural_familism if year==2005, by(state_fips)
 tabstat structural_familism if year==2015, by(state_fips)
 tabstat structural_familism, by(year)
+
+/// Correlation matrix of the macro-level factors. wait do I want these here or at state level? I think I actually want at state-level (so file A)
+pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg
 
 /* this was all exploration and a little crazy becuase I was trying to put too many thing in. want to focus on current scale, POSSIBLY only expanding childcare and making two indicators (if that emerges) a la Ruppanner book. Retaining this for now in case any code useful, but not actually using any of this.
 
