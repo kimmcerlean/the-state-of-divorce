@@ -84,7 +84,7 @@ replace state_mover=1 if inlist(migrate1, 3,4)
 browse serial pernum year migrate1 state_mover statefip migplac1
 gen state_t1 = statefip if state_mover==0
 replace state_t1 = migplac1 if state_mover==1
-label values state_t1 statefip_lbl
+label values state_t1 migplac1_lbl
 
 browse serial pernum year migrate1 state_mover statefip migplac1 state_t1
 
@@ -94,6 +94,7 @@ local scale_vars "structural_familism structural_factor avg_egal_reg married_pur
 
 // First do T
 merge m:1 state_fips year using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
+	// tab state_fips _merge // it's DC that is master only (which makes sense)
 drop if _merge==2
 drop _merge
 
@@ -103,7 +104,10 @@ foreach var in `scale_vars'{
 
 // Then T-1
 gen year_t1 = year - 1 // so in 2019, i want policy from 2018
-merge m:1 year_t1 state_fips using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
+merge m:1 year_t1 state_t1 using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
+		// tab state_t1 _merge // here they could have lived abroad a year ago so there are more non-matches (now DC + Abroad)
+		// tab migrate1 _merge
+		// tab state_t1 if _merge==1 & migrate1 !=4
 drop if _merge==2
 drop _merge
 
@@ -111,14 +115,19 @@ foreach var in `scale_vars'{
 	rename `var' `var'_t1
 }
 
-
+save "$ACS\acs_2000_2021_marriage-composition.dta", replace // save with merged policy data so I don't need to redo this
 
 ********************************************************************************
 * Make some descriptive variables
 ********************************************************************************
+*realizing some of these variables now assume I have restricted to women. right now I do still have two records per HH. Should I just formally drop here? let's explore...
+// sort year serial pernum
+// browse serial pernum year sex sex_sp educ educ_sp
+
 // education
-recode educ (1/71=1)(73=2)(81/92=3)(111/125=4), gen(education)
-recode educ_sp (1/71=1)(73=2)(81/92=3)(111/125=4), gen(education_sp)
+// recode educd (0/61=1)(62/64=2)(65/81=3)(101/116=4), gen(education)
+recode educ (0/5=1)(6=2)(7/9=3)(10/11=4), gen(education)
+recode educ_sp (0/5=1)(6=2)(7/9=3)(10/11=4), gen(education_sp)
 
 label define education 1 "LTHS" 2 "HS" 3 "Some College" 4 "College"
 label values education education_sp education
@@ -128,7 +137,7 @@ replace college=1 if education==4
 gen college_sp=0
 replace college_sp=1 if education_sp==4
 
-tab college college_sp
+tab college college_sp, m
 
 gen educ_type=.
 replace educ_type = 1 if college == 0 & college_sp == 0
@@ -136,8 +145,10 @@ replace educ_type = 2 if college == 0 & college_sp == 1
 replace educ_type = 3 if college == 1 & college_sp == 0
 replace educ_type = 4 if college == 1 & college_sp == 1
 
-label define educ_type 1 "Neither College" 2 "Him College" 3 "Her College" 4 "Both College"
+label define educ_type 1 "Neither College" 2 "Him College" 3 "Her College" 4 "Both College" // this currently assumes just women. should I formally drop?
 label values educ_type educ_type
+
+tab educ_type, m
 
 // race
 gen race_gp = .
