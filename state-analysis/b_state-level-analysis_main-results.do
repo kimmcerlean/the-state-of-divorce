@@ -318,7 +318,7 @@ replace division_bucket_t1 = 3 if hh_earn_type_t1== 3 & housework_bkt_t== 3 // f
 replace division_bucket_t1 = 4 if hh_earn_type_t1== 1 & housework_bkt_t== 2 // dual, female hw
 replace division_bucket_t1 = . if hh_earn_type_t1==. | housework_bkt_t==.
 
-label define division_bucket 1 "Dual" 2 "Traditional" 3 "Counter-traditional" 4 "Second shift" 5 "All Other"
+label define division_bucket 1 "Egalitarian" 2 "Traditional" 3 "Counter-traditional" 4 "Second shift" 5 "All Other"
 label values division_bucket_t1 division_bucket
 
 gen hh_earn_type_t1_alt=.
@@ -670,6 +670,22 @@ foreach var in `scale_vars'{
 
 pwcorr structural_familism_t structural_familism_t1 structural_familism_t2 structural_familism_tf2 structural_familism_tf4
 
+**************************
+* Small Troubleshoot
+**************************
+unique unique_id partner_unique_id if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+unique unique_id partner_unique_id 
+
+browse unique_id partner_unique_id year dissolve ever_dissolve current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple marriage_start_yr transition_year ever_transition dur marr_dur min_dur educ_type couple_educ_gp hh_hours_type_t1 division_bucket_hrs_t1 any_missing no_labor current_rel_status_est
+
+/*
+browse unique_id partner_unique_id year dissolve ever_dissolve current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple marriage_start_yr transition_year ever_transition dur marr_dur min_dur educ_type couple_educ_gp hh_hours_type_t1 division_bucket_hrs_t1 any_missing no_labor current_rel_status_est if inlist(unique_id, 4008,13004,214003,227004,376003,557030,657004,677030,691003,713033,729005,750030,751030,784003,823030,830030,833006,905030,923004,1030004,1083004,1084003,1107030,1241030,1260040,1261003,1306030,1406033,1411013,1462004,1475004,1632001,1762031,1762032,1887004,1945030,1981004,2164030,2302193,2354030,2486031,2496002,2568004,2665007,2679030,2701190,2705030,2727033,2846006,2848030,2897030,5040002,5066008,5077030,5164030,5170030,5287008,5306005,5340008,5420004,5566031,5569177,5569182,5576030,5692004,5712004,5788031,5839030,5898005,5922010,6026005,6166033,6210011,6381007,6433031,6475010,6582003,6583031,6626008)
+
+browse unique_id partner_unique_id year dissolve ever_dissolve current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple marriage_start_yr transition_year ever_transition dur marr_dur min_dur educ_type couple_educ_gp hh_hours_type_t1 division_bucket_hrs_t1 any_missing no_labor current_rel_status_est if inlist(unique_id, 6030, 2727031, 2885032, 214003, 656031, 906004)
+
+
+*/
+
 ////////////////////////////////////////////////////////////////////////////////
 ********************************************************************************
 ********************************************************************************
@@ -693,10 +709,12 @@ pwcorr structural_familism_t structural_familism_t1 structural_familism_t2 struc
 * Total Sample
 ********************************************************************************
 logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins hh_hours_type_t1
 margins, dydx(hh_hours_type_t1) level(95) post
 estimates store est1a
 
 logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins division_bucket_hrs_t1
 margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store est2a
 
@@ -714,10 +732,12 @@ coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female 
 * All parents
 ********************************************************************************
 logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins hh_hours_type_t1
 margins, dydx(hh_hours_type_t1) level(95) post
 estimates store est1b
 
 logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins division_bucket_hrs_t1
 margins, dydx(division_bucket_hrs_t1) level(95) post
 estimates store est2b
 
@@ -755,7 +775,18 @@ coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female 
 ********************************************************************************
 // https://www.statalist.org/forums/forum/general-stata-discussion/general/1488181-title-size-in-coefplot-graphs
 
-coefplot (est1a, nokey) (est2a, nokey) (est3a, nokey), bylabel("Total Sample")  || ///
+// no structural support
+coefplot (est1a, nokey) (est2a, nokey), bylabel("Total Sample")  || ///
+		est1b est2b, bylabel("All Parents")  || ///
+		est1c est2c, bylabel("Parents of Young Children"),  ///
+, byopts(rows(1) xrescale) drop(_cons 1.hh_hours_type_t1 1.division_bucket_hrs_t1) legend(position(bottom) rows(1)) ///
+xline(0, lstyle(solid) lwidth(thin)) levels(90) base xtitle(Average Marginal Effect Relative to Egalitarian Arrangement, size(small)) ///
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others", labsize(small)) ///
+ headings(2.hh_hours_type_t1= `""{bf:Division of Work Hours}" "{it:(Model 1)}""'  2.division_bucket_hrs_t1 = `""{bf:Combined Division of Labor}" "{it:(Model 2)}""', labsize(small)) ///
+ subtitle(, size(small))
+ 
+// with structural support
+ coefplot (est1a, nokey) (est2a, nokey) (est3a, nokey), bylabel("Total Sample")  || ///
 		est1b est2b est3b, bylabel("All Parents")  || ///
 		est1c est2c est3c, bylabel("Parents of Young Children"),  ///
 , byopts(rows(1) xrescale) drop(_cons 1.hh_hours_type_t1 1.division_bucket_hrs_t1) legend(position(bottom) rows(1)) ///
@@ -948,6 +979,25 @@ margins, dydx(division_bucket_hrs_t1)
 
 logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.avg_egal_reg_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
 margins, dydx(division_bucket_hrs_t1) 
+
+********************************************************************************
+* Get  predicted probabilities to discuss in text
+********************************************************************************
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1)
+margins hh_hours_type_t1
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1)
+margins division_bucket_hrs_t1
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins hh_hours_type_t1, at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins division_bucket_hrs_t1, at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
 ********************************************************************************
 * Then I want the two normal figures (interaction - each type of labor)
@@ -1421,7 +1471,15 @@ coefplot (est10n, mcolor(blue) ciopts(color(blue)) label("Traditional")) (est11n
 * Combined Figures
 ********************************************************************************
 * Main effects
-coefplot (n_esta, offset(.20) nokey) (n_estb, offset(-.20) nokey) (n_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))), bylabel("No College Degree")  || ///
+// without scale
+coefplot (n_esta, offset(.20) nokey) (n_estb, offset(-.20) nokey), bylabel("No College Degree")  || ///
+(c_esta, offset(.20) nokey) (c_estb, offset(-.20) nokey), bylabel("One Partner Has College Degree") || ///
+, drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effects, size(small)) ///
+coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others") xsize(8) ///
+ headings(1.hh_hours_type_t1= "{bf:Division of Work Hours}" 1.division_bucket_hrs_t1 = "{bf:Combined DoL}")
+
+// with scale
+ coefplot (n_esta, offset(.20) nokey) (n_estb, offset(-.20) nokey) (n_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))), bylabel("No College Degree")  || ///
 (c_esta, offset(.20) nokey) (c_estb, offset(-.20) nokey) (c_estc, nokey lcolor("black") mcolor("black") ciopts(color("black"))), bylabel("One Partner Has College Degree") || ///
 , drop(_cons) xline(0) levels(95) base xtitle(Average Marginal Effects, size(small)) ///
 coeflabels(2.hh_hours_type_t1 = "Male Breadwinner" 3.hh_hours_type_t1 = "Female Breadwinner" 4.hh_hours_type_t1 = "No Earners"  1.division_bucket_hrs_t1 = "Egalitarian" 2.division_bucket_hrs_t1 = "Traditional" 3.division_bucket_hrs_t1 = "Counter Traditional" 4.division_bucket_hrs_t1 = "Her Second Shift" 5.division_bucket_hrs_t1 = "All Others" structural_familism_t = "Structural Support Scale") xsize(8) ///
