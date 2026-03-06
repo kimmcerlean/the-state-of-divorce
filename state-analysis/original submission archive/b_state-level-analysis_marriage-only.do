@@ -763,6 +763,8 @@ preserve
 collapse (max) rel_start_all rel_end_all status_all min_dur dissolve ever_dissolve, by(unique_id partner_unique_id)
 restore
 
+browse unique_id partner_unique_id year dissolve ever_dissolve relationship_order rel_start_all rel_end_all dur min_dur educ_type couple_educ_gp hh_hours_type_t1 division_bucket_hrs_t1 status_all
+
 ********************************************************************************
 * Overall trends
 ********************************************************************************

@@ -396,6 +396,10 @@ tab policy_group_v3, m // this is also very even, which is crazy...
 
 save "$created_data/scale_refresh.dta", replace
 
+**********************
+* Small descriptives
+**********************
+
 tabstat structural_familism, by(state_fips)
 tabstat structural_familism if year==1995, by(state_fips)
 tabstat structural_familism if year==2005, by(state_fips)
@@ -404,6 +408,26 @@ tabstat structural_familism, by(year)
 
 /// Correlation matrix of the macro-level factors. wait do I want these here or at state level? I think I actually want at state-level (so file A)
 pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg
+
+// summarize inputs: base variable
+tabstat min_amt_above_fed unemployment_percap earn_ratio abortion_protected welfare_all paid_leave prek_enrolled_public structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg, stats(min max mean sd)
+
+// summarize inputs: standardized
+tabstat  min_amt_above_fed_st unemployment_percap_st earn_ratio_st abortion_protected_st welfare_all_st paid_leave_st prek_enrolled_public_st women_college_rate_wt_st married_women_emp_rate_wt_st married_pure_male_bw_rate_st avg_egal_reg_st, stats(min max mean sd)
+
+// to pick example states
+tabstat structural_familism paid_leave_length prek_enrolled_public min_amt_above_fed earn_ratio unemployment_percap abortion_protected welfare_all if year<=2019, by(state_name)
+sum structural_familism, detail // 25th =  -2.780044 ; 50th = -.7112048 ; 75th = 1.749628
+
+// paid leave correlation with broad policy environment
+bysort state_fips: egen paid_leave_state = max(paid_leave)
+tabstat structural_familism, by(paid_leave_state)
+
+********************************************************************************
+********************************************************************************
+* Nothing below this is being used / updated
+********************************************************************************
+********************************************************************************
 
 /* this was all exploration and a little crazy becuase I was trying to put too many thing in. want to focus on current scale, POSSIBLY only expanding childcare and making two indicators (if that emerges) a la Ruppanner book. Retaining this for now in case any code useful, but not actually using any of this.
 
