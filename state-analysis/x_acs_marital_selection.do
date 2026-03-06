@@ -68,6 +68,16 @@ sum structural_familism, detail
 margins college, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 marginsplot
 
+	// Figure to pull for paper use potentially (will pull 6 to decide between) - ugh decide if scale should be 100 or this is fine?
+	logistic currently_married i.college c.structural_familism i.college#c.structural_familism
+	sum structural_familism, detail
+	margins college, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) // noci
+	graph export "$results/women_current_marriage_NOcontrols.png", replace
+	
+	// is this better?
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50))  yscale(range(0 1)) ylabel(0(.1)1)
+
 logistic currently_married i.college c.structural_familism i.college#c.structural_familism /// in this model, main effect of SF goes away - possibly captured by women's education rates?
 women_college_rate_wt i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild
 sum structural_familism, detail
@@ -76,6 +86,17 @@ sum structural_familism, detail
 margins, dydx(college) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // this is helpful to confirm sig
 sum structural_familism, detail
 margins, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+	// Figure to pull for paper use potentially (will pull 6 to decide between) - ugh decide if scale should be 100 or this is fine?
+	logistic currently_married i.college c.structural_familism i.college#c.structural_familism /// in this model, main effect of SF goes away - possibly captured by women's education rates?
+	women_college_rate_wt i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild
+	sum structural_familism, detail
+	margins college, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) // noci
+	graph export "$results/women_current_marriage_controls.png", replace
+	
+	// is this better?
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50))  yscale(range(0 1)) ylabel(0(.1)1)
 
 logistic currently_married i.college c.structural_familism i.college#c.structural_familism /// let's do JUST demo controls
 age i.race i.hispan incwage i.empstat i.nchild
@@ -154,6 +175,16 @@ margins college, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p
 sum structural_familism, detail
 margins, dydx(college) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
+	// potential figure
+	logistic currently_married i.college c.structural_familism i.college#c.structural_familism 
+	sum structural_familism, detail
+	margins college, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) // noci
+	graph export "$results/men_current_marriage_NOcontrols.png", replace
+	
+	// is this scale better?
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1)
+
 logistic currently_married i.college c.structural_familism i.college#c.structural_familism /// in this model, main effect of SF goes away - possibly captured by women's education rates?
 women_college_rate_wt i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild
 sum structural_familism, detail
@@ -163,6 +194,17 @@ margins, dydx(college) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)
 sum structural_familism, detail
 margins, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
+	// potential figure
+	logistic currently_married i.college c.structural_familism i.college#c.structural_familism /// in this model, main effect of SF goes away - possibly captured by women's education rates?
+	women_college_rate_wt i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild
+	sum structural_familism, detail
+	margins college, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) // noci
+	graph export "$results/men_current_marriage_controls.png", replace
+
+	// is this scale better?
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1)
+		
 logistic currently_married i.college c.structural_familism i.college#c.structural_familism /// let's do JUST demo controls
 age i.race i.hispan incwage i.empstat i.nchild
 sum structural_familism, detail
@@ -265,6 +307,13 @@ margins college, at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `
 sum structural_familism_t1, detail
 margins, dydx(college) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
+	// potential figure
+	logistic married i.college c.structural_familism_t1 i.college#c.structural_familism_t1 if sex==2 // c.age
+	sum structural_familism_t1, detail
+	margins college, at(structural_familism_t1=(`r(p5)' (1) `r(p95)'))
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Marriage in Last Year") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) // noci
+	graph export "$results/women_newly_married_NOcontrols.png", replace
+
 // is adding age sufficient to address age structure? do I need to interact age with something?
 logistic married i.college c.structural_familism_t1 i.college#c.structural_familism_t1 c.age if sex==2
 sum structural_familism_t1, detail
@@ -281,6 +330,17 @@ sum structural_familism_t1, detail
 margins, dydx(college) at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // this is helpful to confirm sig
 sum structural_familism_t1, detail
 margins, at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+	// potential figure
+	logistic married i.college c.structural_familism_t1 i.college#c.structural_familism_t1 /// 
+	women_college_rate_wt_t1 i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild if sex==2 
+	sum structural_familism_t1, detail
+	margins college, at(structural_familism_t1=(`r(p5)' (1) `r(p95)'))
+	marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Marriage in Last Year") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) // noci
+	graph export "$results/women_newly_married_controls.png", replace
+	
+	// no this really doesn't work lol
+	// marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Marriage in Last Year") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1)
 
 /* this actually doesn't make sense because I can't net out state education differences - hence why I need to compare to NEVER MARRIED. so it's rate within education not composition of education within married couples [I mean I can look at this in PSID sample but that almost certaintly will vary]
 
