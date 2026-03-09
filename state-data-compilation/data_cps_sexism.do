@@ -63,7 +63,15 @@ gen women = (sex==2)
 gen work_age_men = 1 if sex==1 & age>=16 & age <=64 // empstat asked of those 15+, but more than 90% of 15yos not in LF
 replace work_age_men = 0 if work_age_men==.
 gen work_age_women = 1 if sex==2 & age>=16 & age <=64
-replace work_age_women = 0 if work_age_women==.
+replace work_age_women = 0 if work_age_women==.+
+gen work_age_total = 1 if age>=16 & age <=64
+replace work_age_total = 0 if work_age_total==.
+
+// for MARRIAGE ratios
+gen marriage_age_men = 1 if sex==1 & age>=18 & age <=49
+replace marriage_age_men = 0 if marriage_age_men==.
+gen marriage_age_women = 1 if sex==2 & age>=18 & age <=45
+replace marriage_age_women = 0 if marriage_age_women==.
 
 // will restrict all of these to working age
 gen married_women=0
@@ -112,6 +120,8 @@ gen college_married_men = 0
 replace college_married_men = 1 if sex==1 & inlist(marst,1,2) & age>=25 & age!=. & college==1
 
 * for LFP ratio
+gen total_lfp=0
+replace total_lfp=1 if work_age_total==1 & labforce==2
 gen men_lfp=0
 replace men_lfp=1 if work_age_men==1 & labforce==2
 gen women_lfp=0
@@ -150,6 +160,15 @@ replace mothers_pt_emp=1 if mothers==1 & employed==1 & pt_worker==1
 gen mothers_u5_pt_emp=0
 replace mothers_u5_pt_emp=1 if mothers_u5==1 & employed==1 & pt_worker==1
 
+* To get unemployment
+// should I create total population to validate against BLS? // also is unemployed out of total or out of labor force? I think just labor force? (so denominator is those men_lfp / women_lfp)
+gen men_unemployed=0
+replace men_unemployed=1 if work_age_men==1 & labforce==2 & employed==2
+gen women_unemployed=0
+replace women_unemployed=1 if work_age_women==1 & labforce==2 & employed==2
+gen total_unemployed=0
+replace total_unemployed=1 if work_age_total==1 & labforce==2 & employed==2
+
 * for earnings ratio
 gen men_earn_ft=.
 replace men_earn_ft = weekly_earn_ft if work_age_men==1
@@ -179,7 +198,7 @@ replace mothers_u5_earn_ft = weekly_earn_ft if mothers_u5==1
 // median HH income
 // for cost percentage, they use "median income by state, married couple with children under the age of 18"
 // example table B19126 from ACS 5-year: ""Median Family Income in the Past 12 Months (in 2023 Inflation-Adjusted Dollars) by Family Type by Presence of Own Children Under 18 Years"
-tabstat hhincome, by(year) stats(p50 mean)
+// tabstat hhincome, by(year) stats(p50 mean)
 // tabstat hhincome [aweight=asecwt], by(year) stats(p50 mean)
 
 tab year gqtype, m // not asked all years
@@ -399,9 +418,9 @@ So, I am planning to use both...
 */
 
 // quickly validate all binary before I do this math
-sum total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp women_25plus married_women_25plus men_25plus married_men_25plus college_women college_married_women college_men college_married_men
+sum total men women marriage_age_men marriage_age_women work_age_men work_age_women work_age_total mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp total_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp women_25plus married_women_25plus men_25plus married_men_25plus college_women college_married_women college_men college_married_men men_unemployed women_unemployed total_unemployed
 
-foreach var in total men women work_age_men work_age_women mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp women_25plus married_women_25plus men_25plus married_men_25plus college_women college_married_women college_men college_married_men{
+foreach var in total men women marriage_age_men marriage_age_women work_age_men work_age_women work_age_total mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp total_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp women_25plus married_women_25plus men_25plus married_men_25plus college_women college_married_women college_men college_married_men men_unemployed women_unemployed total_unemployed{
 	gen `var'_wt = `var' * asecwt if hflag==. | hflag== 0 // using 5/8 sample for 2014 for now...
 }
 
