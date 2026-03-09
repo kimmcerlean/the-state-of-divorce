@@ -63,7 +63,7 @@ gen women = (sex==2)
 gen work_age_men = 1 if sex==1 & age>=16 & age <=64 // empstat asked of those 15+, but more than 90% of 15yos not in LF
 replace work_age_men = 0 if work_age_men==.
 gen work_age_women = 1 if sex==2 & age>=16 & age <=64
-replace work_age_women = 0 if work_age_women==.+
+replace work_age_women = 0 if work_age_women==.
 gen work_age_total = 1 if age>=16 & age <=64
 replace work_age_total = 0 if work_age_total==.
 
@@ -421,7 +421,7 @@ So, I am planning to use both...
 sum total men women marriage_age_men marriage_age_women work_age_men work_age_women work_age_total mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp total_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp women_25plus married_women_25plus men_25plus married_men_25plus college_women college_married_women college_men college_married_men men_unemployed women_unemployed total_unemployed
 
 foreach var in total men women marriage_age_men marriage_age_women work_age_men work_age_women work_age_total mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp total_lfp men_emp women_emp mothers_emp mothers_u5_emp fathers_emp fathers_u5_emp women_pt_emp mothers_pt_emp mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 child_3to4 child_3to5 child_u18_in_pov child_u6_in_pov child_0to2_in_pov child_3to4_in_pov child_3to5_in_pov parent_tanf parent_ssi child_u6_tanf child_0to2_tanf child_3to5_tanf child_u6_ssi child_0to2_ssi child_3to5_ssi child_u6_hs_elig child_0to2_hs_elig child_3to5_hs_elig married married_male_bw married_pure_male_bw married_dual_earn married_women married_men married_men_emp married_women_emp married_women_pt_emp women_25plus married_women_25plus men_25plus married_men_25plus college_women college_married_women college_men college_married_men men_unemployed women_unemployed total_unemployed{
-	gen `var'_wt = `var' * asecwt if hflag==. | hflag== 0 // using 5/8 sample for 2014 for now...
+	gen double `var'_wt = `var' * asecwt if hflag==. | hflag== 0 // using 5/8 sample for 2014 for now...
 }
 
 browse serial pernum year sex asecwt men women men_wt women_wt
@@ -432,8 +432,9 @@ browse serial pernum year sex asecwt men women men_wt women_wt
 
 preserve
 
-collapse 	(sum) 	total men women work_age_men work_age_women married_women married_men ///
-					mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp men_emp ///
+collapse 	(sum) 	total men women marriage_age_men marriage_age_women work_age_men ///
+					work_age_women work_age_total married_women married_men ///
+					mothers mothers_u5 fathers fathers_u5 men_lfp women_lfp total_lfp men_emp ///
 					women_emp married_men_emp married_women_emp mothers_emp mothers_u5_emp ///
 					fathers_emp fathers_u5_emp women_pt_emp married_women_pt_emp mothers_pt_emp ///
 					mothers_u5_pt_emp men_pov women_pov child_u18 child_u6 child_0to2 ///
@@ -443,9 +444,10 @@ collapse 	(sum) 	total men women work_age_men work_age_women married_women marri
 					child_0to2_hs_elig child_3to5_hs_elig married married_male_bw ///
 					married_pure_male_bw married_dual_earn women_25plus married_women_25plus ///
 					men_25plus married_men_25plus college_women college_married_women ///
-					college_men college_married_men total_wt men_wt women_wt ///
-					work_age_men_wt work_age_women_wt married_women_wt married_men_wt ///
-					mothers_wt mothers_u5_wt fathers_wt fathers_u5_wt men_lfp_wt ///
+					college_men college_married_men men_unemployed women_unemployed total_unemployed ///
+					total_wt men_wt women_wt marriage_age_men_wt marriage_age_women_wt ///
+					work_age_men_wt work_age_women_wt work_age_total_wt married_women_wt married_men_wt ///
+					mothers_wt mothers_u5_wt fathers_wt fathers_u5_wt total_lfp_wt men_lfp_wt ///
 					women_lfp_wt men_emp_wt women_emp_wt married_men_emp_wt married_women_emp_wt ///
 					mothers_emp_wt mothers_u5_emp_wt fathers_emp_wt fathers_u5_emp_wt ///
 					women_pt_emp_wt married_women_pt_emp_wt mothers_pt_emp_wt ///
@@ -457,7 +459,7 @@ collapse 	(sum) 	total men women work_age_men work_age_women married_women marri
 					child_3to5_hs_elig_wt married_wt married_male_bw_wt married_pure_male_bw_wt ///
 					married_dual_earn_wt women_25plus_wt married_women_25plus_wt men_25plus_wt ///
 					married_men_25plus_wt college_women_wt college_married_women_wt ///
-					college_men_wt college_married_men_wt ///
+					college_men_wt college_married_men_wt men_unemployed_wt women_unemployed_wt total_unemployed_wt ///
 			(p50)	men_earn_ft women_earn_ft men_wage women_wage fathers_earn_ft ///
 					mothers_earn_ft fathers_u5_earn_ft mothers_u5_earn_ft ///
 					married_men_earn_ft married_women_earn_ft, /// 
@@ -478,6 +480,9 @@ gen women_pt_rate = women_pt_emp / women_emp // is base all women or just employ
 gen married_women_pt_rate = married_women_pt_emp / married_women_emp
 gen maternal_pt_rate = mothers_pt_emp / mothers_emp
 gen maternal_u5_pt_rate = mothers_u5_pt_emp / mothers_u5_emp
+gen men_unemp_rate = men_unemployed / men_lfp
+gen women_unemp_rate = women_unemployed / women_lfp
+gen total_unemp_rate = total_unemployed / total_lfp
 
 gen men_pov_rate = men_pov / men
 gen women_pov_rate = women_pov / women
@@ -494,12 +499,15 @@ gen married_dual_earn_rate = married_dual_earn / married
 gen married_male_bw_rate = married_male_bw / married
 gen married_pure_male_bw_rate = married_pure_male_bw / married
 
+gen sex_ratio_all = men / women // just to validate against other stats
+gen sex_ratio_marriage = marriage_age_men / marriage_age_women // use this because more relevant for marriage
 gen earn_ratio = women_earn_ft / men_earn_ft // (note 6/19/25: this used to be men / women, but in the scale, I want higher to be "better" for women, so I have updated)
 gen married_earn_ratio = married_women_earn_ft / married_men_earn_ft
 gen parent_earn_ratio = mothers_earn_ft / fathers_earn_ft
 gen parent_u5_earn_ratio = mothers_u5_earn_ft / fathers_u5_earn_ft
 gen lfp_ratio = women_lfp_rate / men_lfp_rate 
 gen pov_ratio = men_pov_rate / women_pov_rate
+
 
 // create variables: weighted versions
 gen men_lfp_rate_wt = men_lfp_wt / work_age_men_wt
@@ -512,13 +520,19 @@ gen women_pt_rate_wt = women_pt_emp_wt / women_emp_wt
 gen married_women_pt_rate_wt = married_women_pt_emp_wt / married_women_emp_wt
 gen maternal_pt_rate_wt = mothers_pt_emp_wt / mothers_emp_wt
 gen maternal_u5_pt_rate_wt = mothers_u5_pt_emp_wt / mothers_u5_emp_wt
+gen men_unemp_rate_wt = men_unemployed_wt / men_lfp_wt
+gen women_unemp_rate_wt = women_unemployed_wt / women_lfp_wt
+gen total_unemp_rate_wt = total_unemployed_wt / total_lfp_wt
 
 gen women_college_rate_wt = college_women_wt / women_25plus_wt
 gen married_women_college_rate_wt = college_married_women_wt / married_women_25plus_wt
 gen men_college_rate_wt = college_men_wt / men_25plus_wt
 gen married_men_college_rate_wt = college_married_men_wt / married_men_25plus_wt
-gen college_ratio = women_college_rate_wt / men_college_rate_wt
-gen married_college_ratio = married_women_college_rate_wt / married_men_college_rate_wt
+gen college_ratio_wt = women_college_rate_wt / men_college_rate_wt
+gen married_college_ratio_wt = married_women_college_rate_wt / married_men_college_rate_wt
+
+gen sex_ratio_all_wt = men_wt / women_wt // just to validate against other stats
+gen sex_ratio_marriage_wt = marriage_age_men_wt / marriage_age_women_wt // use this because more relevant for marriage
 
 gen men_pov_rate_wt = men_pov_wt / men_wt
 gen women_pov_rate_wt = women_pov_wt / women_wt
@@ -542,6 +556,9 @@ save "$created_data/sexism_measures_1988_2023.dta", replace
 // T:/Research Projects/State data/data_keep/sexism_measures_1990_2019.dta
 
 export excel using "$created_data/sexism_measures_1988_2023", firstrow(variables) replace
+
+// browse state_fips total_wt men_wt women_wt sex_ratio_all_wt total_unemp_rate_wt if year==2000
+// browse state_fips total_wt men_wt women_wt sex_ratio_all_wt total_unemp_rate_wt if year==2010
 
 restore
 
