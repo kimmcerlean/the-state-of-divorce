@@ -43,6 +43,24 @@ label values education education
 gen college=0
 replace college=1 if education==4
 
+tab race hispan
+
+gen hispanic=.
+replace hispanic=0 if hispan==0
+replace hispanic=1 if inrange(hispan,1,4)
+tab hispan hispanic, m
+
+tab race hispanic
+
+gen race_gp = .
+replace race_gp=1 if race==1 & hispanic==0
+replace race_gp=2 if race==2
+replace race_gp=3 if hispanic==1 & race!=2
+replace race_gp=4 if hispanic==0 & inrange(race,3,9)
+
+label define race_gp 1 "NH White" 2 "Black" 3 "Hispanic" 4 "NH Other"
+label values race_gp race_gp
+
 // merge on to policy data - think I only need t in this case?
 rename statefip state_fips
 
@@ -128,6 +146,25 @@ margins college, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p
 
 // might need to export full models - a useful comparison could be effect size - like is this effect size similar to or smaller than other correlates like age or employment status? I think it will be *smaller* - but I also think these are just small differences it should be fine; they are just significant because i have millions of people. i think what i am putting in excel is fine for now. can come back to this.
 
+// check the same for race??
+logistic currently_married i.race_gp
+
+// no controls
+logistic currently_married i.race_gp c.structural_familism i.race_gp#c.structural_familism if race_gp!=4
+sum structural_familism, detail
+margins race_gp, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot))  ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) // yscale(range(0 1)) ylabel(0(.1)1) plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(gray%50))  
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot)) ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1) //  plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(gray%50)) 
+graph export "$results/women_current_marriage_race_NOcontrols.png", replace
+
+// with controls. wait why am i not doing all?? was it too much?
+logistic currently_married i.race_gp c.structural_familism i.race_gp#c.structural_familism /// 
+women_college_rate_wt i.state_fips i.year age i.education i.hispan incwage i.empstat i.nchild if race_gp!=4 // replace race with education as control DUH
+sum structural_familism, detail
+margins race_gp, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot)) ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1) //  plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(gray%50)) 
+graph export "$results/women_current_marriage_race_controls.png", replace
+
 // save "$ACS\acs_2000_2021_women-marriage.dta", replace
 
 ********************************************************************************
@@ -151,6 +188,26 @@ label values education education
 
 gen college=0
 replace college=1 if education==4
+
+tab race hispan
+
+gen hispanic=.
+replace hispanic=0 if hispan==0
+replace hispanic=1 if inrange(hispan,1,4)
+tab hispan hispanic, m
+
+tab race hispanic
+
+gen race_gp = .
+replace race_gp=1 if race==1 & hispanic==0
+replace race_gp=2 if race==2
+replace race_gp=3 if hispanic==1 & race!=2
+replace race_gp=4 if hispanic==0 & inrange(race,3,9)
+
+label define race_gp 1 "NH White" 2 "Black" 3 "Hispanic" 4 "NH Other"
+label values race_gp race_gp
+
+tab race_gp, m
 
 // merge on to policy data - think I only need t in this case?
 rename statefip state_fips
@@ -214,6 +271,26 @@ margins, dydx(college) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)
 sum structural_familism, detail
 margins, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
+// check the same for race??
+logistic currently_married i.race_gp
+
+// no controls
+logistic currently_married i.race_gp c.structural_familism i.race_gp#c.structural_familism if race_gp!=4
+sum structural_familism, detail
+margins race_gp, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot))  ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) // yscale(range(0 1)) ylabel(0(.1)1) plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(gray%50))  
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot)) ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1) //  plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(gray%50)) 
+graph export "$results/men_current_marriage_race_NOcontrols.png", replace
+
+// holding off here for now (3/13/26)
+// with controls. wait why am i not doing all?? was it too much?
+logistic currently_married i.race_gp c.structural_familism i.race_gp#c.structural_familism /// 
+women_college_rate_wt i.state_fips i.year age i.education i.hispan incwage i.empstat i.nchild if race_gp!=4 // replace race with education as control DUH
+sum structural_familism, detail
+margins race_gp, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot)) ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1) //  plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(gray%50)) 
+graph export "$results/men_current_marriage_race_controls.png", replace
+
 log close
 
 ********************************************************************************
@@ -247,6 +324,24 @@ label values education education
 
 gen college=0
 replace college=1 if education==4
+
+tab race hispan
+
+gen hispanic=.
+replace hispanic=0 if hispan==0
+replace hispanic=1 if inrange(hispan,1,4)
+tab hispan hispanic, m
+
+tab race hispanic
+
+gen race_gp = .
+replace race_gp=1 if race==1 & hispanic==0
+replace race_gp=2 if race==2
+replace race_gp=3 if hispanic==1 & race!=2
+replace race_gp=4 if hispanic==0 & inrange(race,3,9)
+
+label define race_gp 1 "NH White" 2 "Black" 3 "Hispanic" 4 "NH Other"
+label values race_gp race_gp
 
 ** merge on to policy data - here, I think I need to do t AND t-1 [and probably USE t-1 given it's married in last year]
 // remember I don't use DC and I stop at 2019 - so could drop those (though I have the policy variables for this whole time period)
@@ -341,6 +436,25 @@ margins, at(structural_familism_t1=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')
 	
 	// no this really doesn't work lol
 	// marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Marriage in Last Year") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1)
+
+** Explore if RACE results same
+logistic married i.race_gp if sex==2
+
+// no controls
+// without controls, the story for race IS a little different than for education. I think also the coefficient for black is larger than for college. BUT the differences are, in fact, smaller when policy is more supportive. this is more driven by the effects on white v. black. like marriage rates decline for all as policy increases - the declines are steeper for whites. so, i guess that DOES change the composition of the population. (less support = bigger gaps, so less blacks respresented). let's see if changes once controls added in next model [because then can say can control away]
+logistic married i.race_gp c.structural_familism_t1 i.race_gp#c.structural_familism_t1 if sex==2 & race_gp!=4 // c.age
+sum structural_familism_t1, detail
+margins race_gp, at(structural_familism_t1=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Marriage in Last Year") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot))  ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) // yscale(range(0 1)) ylabel(0(.1)1) // noci
+graph export "$results/women_newly_married_race_NOcontrols.png", replace
+
+// with controls - okay interesting, so here, white and hispanic become further apart but no gap (hispanic marriage rate declines drastically once adjusted). and then no real change with policy BUT for black women now their risk marriage INCREASEs with policy so the gap becomes narrower with whites. i still don't know that, esp with controls, it's that dramatic - it's like 1ppt. I guess for a base of BLACK it's quite large but for the GAP it's quite small. but there is a more definitely skew here than for education. like in the long-run, not sure dramatic, but okay. it's interesting because the effects don't exist for CURRENTLY married JUST newly married. let's reflect on this
+logistic married i.race_gp c.structural_familism_t1 i.race_gp#c.structural_familism_t1 /// 
+women_college_rate_wt_t1 i.state_fips i.year age i.education i.hispan incwage i.empstat i.nchild if sex==2 & race_gp!=4 // replace race control with education
+sum structural_familism_t1, detail
+margins race_gp, at(structural_familism_t1=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Marriage in Last Year") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot))  ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) // yscale(range(0 1)) ylabel(0(.1)1) // noci 
+graph export "$results/women_newly_married_race_controls.png", replace
 
 /* this actually doesn't make sense because I can't net out state education differences - hence why I need to compare to NEVER MARRIED. so it's rate within education not composition of education within married couples [I mean I can look at this in PSID sample but that almost certaintly will vary]
 
