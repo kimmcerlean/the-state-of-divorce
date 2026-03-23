@@ -1,6 +1,7 @@
 * KM note: 3/2/26. i must have messed up a find and replace somewhere bc women's college degree attainment has been replaced in all code with evangelical rate
 * I fixed code 3/6
 * Need to check results still: I exported all of those robustness checks and those seemed to match the main paper if I have that right aka were not messed up? so did I do this LATER somehow? or should I recheck all of those also anyway JIC? I def compared the main models to old exports and they matched? so eitehr it doesn't matter or I did it later. let's revisit but have more robustness checks to pull so can just update.
+* need to also REALLY clean up this and other file - there are so many extraneous variables and analyses; I need to get rid of the ones not in the paper to avoid confusion
 
 ********************************************************************************
 * Adding in state-level data
@@ -393,6 +394,16 @@ label values hw_diff_t1_bkt hw_diff_bkt
 
 browse hw_diff_t1_bkt hw_diff_t1
 
+* Total work burden (indicator of WFC?)
+browse unique_id survey_yr housework_wife weekly_hrs_t1_wife WEEKLY_HRS_T2_WIFE_ housework_head weekly_hrs_t1_head WEEKLY_HRS_T2_HEAD_
+egen total_work_wife = rowtotal(housework_wife weekly_hrs_t1_wife)
+egen total_work_head = rowtotal(housework_head weekly_hrs_t1_head)
+egen total_work_couple = rowtotal(total_work_head total_work_wife)
+// browse unique_id survey_yr housework_wife weekly_hrs_t1_wife total_work_wife housework_head weekly_hrs_t1_head total_work_head total_work_couple
+// tabstat housework_wife weekly_hrs_t1_wife total_work_wife housework_head weekly_hrs_t1_head total_work_head total_work_couple
+tabstat total_work_wife total_work_head total_work_couple, by(hh_hours_type_t1)
+tabstat total_work_wife total_work_head total_work_couple, by(division_bucket_hrs_t1)
+
 // test spline at 0.5
 mkspline earn_ratio1 0.5 earn_ratio2 = female_earn_pct_t1
 browse female_earn_pct_t1 earn_ratio1 earn_ratio2 
@@ -626,7 +637,7 @@ restore
 ********************************************************************************
 **# Merge onto policy data
 ********************************************************************************
-local scale_vars "structural_familism structural_factor cc_pct_income_orig prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_rate evang_lds_rate relig_rate married_dual_earn_rate married_pure_male_bw_rate women_emp_rate_wt married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2 policy_group_v3 women_college_rate_wt married_women_college_rt_wt college_ratio married_college_ratio sf_cc_income sf_ccdf_served sf_head_start sf_early_hs sf_total_hs sf_educ_spend broad_policy family_investment sf_childcare sf_policy sf_childcare_wt" 
+local scale_vars "structural_familism structural_factor cc_cost_orig cc_pct_income_orig prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_rate evang_lds_rate relig_rate married_dual_earn_rate married_pure_male_bw_rate women_emp_rate_wt married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2 policy_group_v3 women_college_rate_wt married_women_college_rt_wt college_ratio_wt married_college_ratio_wt sf_cc_income sf_ccdf_served sf_head_start sf_early_hs sf_total_hs sf_educ_spend broad_policy family_investment sf_childcare sf_policy sf_childcare_wt sex_ratio_marriage_wt men_unemp_rate_wt" 
 
 rename STATE_ state_fips
 rename survey_yr year
@@ -680,6 +691,20 @@ foreach var in `scale_vars'{
 }
 
 pwcorr structural_familism_t structural_familism_t1 structural_familism_t2 structural_familism_tf2 structural_familism_tf4
+
+// now want to merge on conditions at TIME OF MARRIAGE (just select variables - I guess for funsies I can also merge on structural variable just to have, and all macro?
+local marr_vars "structural_familism women_college_rate_wt married_women_emp_rate_wt avg_egal_reg married_pure_male_bw_rate sex_ratio_marriage_wt men_unemp_rate_wt college_ratio_wt"
+
+merge m:1 rel_start_yr_couple state_fips using "$created_data/scale_refresh.dta", keepusing(`marr_vars')
+drop if _merge==2
+drop _merge
+
+foreach var in `marr_vars'{
+	rename `var' `var'_tmar
+}
+
+// browse id state_fips year rel_start_yr_couple structural_familism_t structural_familism_tmar men_unemp_rate_wt_t men_unemp_rate_wt_tmar // right the tmar ones are CONSTANT but only within couples. i CAN still control for these, though, because people get married at different years within a state so there is still variation. but...this might still cause problems let's see
+tabstat men_unemp_rate_wt_tmar college_ratio_wt_tmar sex_ratio_marriage_wt_tmar, by(year)
 
 ////////////////////////////////////////////////////////////////////////////////
 ********************************************************************************
@@ -1873,6 +1898,11 @@ sum structural_familism_t, detail
 margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/main results/dissolution_AMES_start.xls", ctitle(SF: 2005+) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+********************************************************************************
+*Is there CHANGE over time? (R3, Round 2)
+********************************************************************************
+// Wait I wanted to see what happened if I went back to 1990. BUT i can't do that here because I do the restrictions earlier in file. so need to put this in NEW FILE
+// see: tmp_change-over-time.do
 
 ********************************************************************************
 ********************************************************************************
@@ -1933,9 +1963,12 @@ coefplot (m_1, mcolor(red) ciopts(color(red)) label("Egalitarian")) (m_3, label(
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
+
 // if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 
-// want to look at distribution of DoL across states / at different levels of state policy indicator
+********************************************************************************
+* Distribution of DoL across states / at different levels of state policy indicator
+********************************************************************************
 gen high_policy_support=.
 sum structural_familism_t, detail
 replace high_policy_support=0 if structural_familism_t < = `r(p50)'
@@ -1948,11 +1981,16 @@ tabstat structural_familism_t, by(policy_gp) stats(min max mean)
 
 tab hh_hours_type_t1 high_policy_support if in_analytical_sample==1, col
 tab division_bucket_hrs_t1 high_policy_support if in_analytical_sample==1, col
+tab ft_t1_wife high_policy_support if in_analytical_sample==1, col
+tab ft_t1_head high_policy_support if in_analytical_sample==1, col
 
 tab hh_hours_type_t1 policy_gp if in_analytical_sample==1, col
 tab division_bucket_hrs_t1 policy_gp if in_analytical_sample==1, col
+tab ft_t1_wife policy_gp if in_analytical_sample==1, col
+tab ft_t1_head policy_gp if in_analytical_sample==1, col
 
 tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1, by(high_policy_support) // wait does THIS illustrate the paradox? (from Ruppanner)
+tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1, by(high_policy_support) stats(p50)
 tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1, by(policy_gp) stats(mean p25 p50 p75)
 tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1, by(policy_gp) stats(mean)
 tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1, by(policy_gp) stats(p50)
@@ -1993,15 +2031,91 @@ tab division_bucket_hrs_t1 trad
 ttest trad if in_analytical_sample==1, by(high_policy_support)
 ttest egal if in_analytical_sample==1, by(high_policy_support)
 
+// formally t-test all
+tab division_bucket_hrs_t1, gen(div_labor)
+tab hh_hours_type_t1, gen(paid_labor)
+
+ttest div_labor1 if in_analytical_sample==1, by(high_policy_support) // Egal
+ttest div_labor2 if in_analytical_sample==1, by(high_policy_support) // Trad 
+ttest div_labor3 if in_analytical_sample==1, by(high_policy_support) // Counter
+ttest div_labor4 if in_analytical_sample==1, by(high_policy_support) // Second Shift 
+ttest div_labor5 if in_analytical_sample==1, by(high_policy_support) // Other
+
+ttest paid_labor1 if in_analytical_sample==1, by(high_policy_support) // Dual
+ttest paid_labor2 if in_analytical_sample==1, by(high_policy_support) // Male
+ttest paid_labor3 if in_analytical_sample==1, by(high_policy_support) // Female
+
+ttest ft_t1_wife if in_analytical_sample==1, by(high_policy_support)
+ttest ft_t1_head if in_analytical_sample==1, by(high_policy_support)
+ttest female_hours_pct_t1 if in_analytical_sample==1, by(high_policy_support)
+ttest wife_housework_pct_t if in_analytical_sample==1, by(high_policy_support)
+
 regress female_hours_pct_t1 i.policy_gp if in_analytical_sample==1 // this is just mean differences though. Could adjust for controls?
 regress female_hours_pct_t1 i.policy_gp $controls $macro_controls if in_analytical_sample==1
 
 regress wife_housework_pct_t i.policy_gp if in_analytical_sample==1 // this is just mean differences though. Could adjust for controls?
 regress wife_housework_pct_t i.policy_gp $controls $macro_controls if in_analytical_sample==1
 
+// just two groups (feels easier to compare)
+regress female_hours_pct_t1 i.high_policy_support if in_analytical_sample==1 // this is just mean differences though. Could adjust for controls?
+margins, at(high_policy_support=(0 1))
+regress female_hours_pct_t1 i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+regress wife_housework_pct_t i.high_policy_support if in_analytical_sample==1 // this is just mean differences though. Could adjust for controls?
+regress wife_housework_pct_t i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+// could try logit with JUST egal / trad. I just worry the categorical is too much to attempt to do all at once?
+logit trad i.high_policy_support if in_analytical_sample==1 
+logit trad i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+logit egal i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+logit div_labor3 i.high_policy_support $controls $macro_controls if in_analytical_sample==1 // ugh just do all
+margins, at(high_policy_support=(0 1))
+
+logit div_labor4 i.high_policy_support $controls $macro_controls if in_analytical_sample==1 // let's do her second shift also
+margins, at(high_policy_support=(0 1))
+
+logit div_labor5 i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+logit paid_labor1 i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+logit paid_labor2 i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+logit paid_labor3 i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+logit ft_t1_wife i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+logit ft_t1_wife structural_familism_t if in_analytical_sample==1 // kim duh you could put this in model continuous I AM DUMB
+sum structural_familism_t, detail
+margins, at(structural_familism_t=(`r(p25)' `r(p50)' `r(p75)'))
+
+logit ft_t1_wife structural_familism_t $controls $macro_controls  if in_analytical_sample==1 // kim duh you could put this in model continuous I AM DUMB
+sum structural_familism_t, detail
+margins, at(structural_familism_t=(`r(p25)' `r(p50)' `r(p75)'))
+
+	// differences negligible
+	// mlogit division_bucket_hrs_t1 i.high_policy_support $controls $macro_controls if in_analytical_sample==1 // won't estimate - prob bc of counter-trad
+	// margins, at(high_policy_support=(0 1))
+
+	mlogit hh_hours_type_t1 i.high_policy_support $controls $macro_controls if in_analytical_sample==1 // validate negligible compared to logit each individual - it is
+	margins, at(high_policy_support=(0 1))
+
 pwcorr structural_familism_t trad egal // there is no correlation here either. I could produce 3 side-by-side maps? if that helps...(but really want to show the distribution by group of policies I think)
 
-// then should I see if the egalitarian and traditional samples within different policy groups are different? (aka selection in that way?)
+********************************************************************************
+* then should I see if the egalitarian and traditional samples within different
+* policy groups are different? (aka selection in that way?)
+********************************************************************************
 // tab educ_type high_policy_support, col
 
 putexcel set "$results/DoL_sample_selection_check", replace
@@ -2103,6 +2217,132 @@ forvalues w=1/27{
 	putexcel G`row' = matrix(t`var'), nformat(#.#%)
 }
 
+********************************************************************************
+* To check against Ruppanner:
+* Do childcare costs specifically predict employment??
+********************************************************************************
+// I only have this since 2008
+// tabstat cc_pct_income_orig_t, by(year)
+
+gen high_cc_costs=.
+sum cc_pct_income_orig_t, detail
+replace high_cc_costs=0 if cc_pct_income_orig_t < = `r(p50)'
+replace high_cc_costs=1 if cc_pct_income_orig_t > `r(p50)' & cc_pct_income_orig_t!=.
+
+tabstat cc_pct_income_orig_t, by(high_cc_costs)
+
+tab hh_hours_type_t1 high_cc_costs, col
+tab division_bucket_hrs_t1 high_cc_costs, col
+tab high_cc_costs ft_t1_wife, row // so it does reduce women's employment...
+tab high_policy_support ft_t1_wife, row // compare to here. okay these aren't actually that different...
+
+tabstat female_hours_pct_t1 wife_housework_pct_t, by(high_cc_costs) stats(mean p50)
+
+logit ft_t1_wife i.high_policy_support $controls $macro_controls if in_analytical_sample==1
+margins, at(high_policy_support=(0 1))
+
+logit ft_t1_wife i.high_cc_costs $controls $macro_controls if in_analytical_sample==1
+margins, at(high_cc_costs=(0 1))
+
+pwcorr cc_pct_income_orig_t maternal_u5_employment_wt_t structural_familism_t // but the high-level correlation IS negative
+
+logit ft_t1_wife cc_pct_income_orig_t  $controls $macro_controls if in_analytical_sample==1 // so here, the effects ARE much larger than for SF, just much less sample
+sum cc_pct_income_orig_t, detail
+margins, at(cc_pct_income_orig_t=(`r(p25)' `r(p50)' `r(p75)'))
+
+logit ft_t1_wife structural_familism_t  $controls $macro_controls if in_analytical_sample==1 // compare to here
+sum structural_familism_t, detail
+margins, at(structural_familism_t=(`r(p25)' `r(p50)' `r(p75)'))
+
+gen cc_cost_log = ln(cc_cost_orig_t)
+logit ft_t1_wife cc_cost_log if in_analytical_sample==1
+
+gen cc_cost_1000s = cc_cost_orig_t / 1000
+
+logit ft_t1_wife cc_cost_orig_t  $controls $macro_controls if in_analytical_sample==1 // okay coefficient very small because the scale is different, but actually large effects
+sum cc_cost_orig_t, detail
+margins, at(cc_cost_orig_t=(`r(p25)' `r(p50)' `r(p75)'))
+
+logit ft_t1_wife cc_cost_1000s  $controls $macro_controls if in_analytical_sample==1 // okay I will say that I think CC costs DO negatively predict her employment. and moreso than scale? is takeaway when i use the CONTINUOUS variables
+
+
+************************
+* Did I ever put CC costs and SF in same model?
+************************
+pwcorr structural_familism_t cc_pct_income_orig_t cc_cost_orig_t earn_ratio_t married_earn_ratio_t
+
+// I actually think these results are OPPOSITE to how I have been thinking - so in places where CC costs are higher (which are also more gender empowered - see correlation) - the association is actually opposite to what i'd expect? I'd expect male-BW to be more beneficial when costs HIGH if she needs to leave labor market. BUT it migth be these are capturing something different which is actually what these results are saying? (if higher costs associated with more policy support and smaller gender wage gap - which is what these are saying...). I think I have to revisit if I wrote this up right in paper but I think this makes the case as to why selection into employment doesn't mean SATISFACTION
+logit dissolve i.marr_dur c.cc_pct_income_orig_t c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1  c.cc_pct_income_orig_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & year>=2009, or
+sum cc_pct_income_orig_t, detail
+margins, dydx(division_bucket_hrs_t1) at(cc_pct_income_orig_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// let's check if holds for wife's FT employment (aka the Ruppanner outcome) - so yeah it does. so this is exactly why it's a puzzle. CC costs REDUCES her employemnt - but her employment is WORSE for divorce when state context is poor AND childcare costs are low (because NOT SUPPORTED IN OTHER WAYS). so this directly speaks to how my results speak to ruppanner, okay this is extremely interesting.
+logit dissolve i.marr_dur c.cc_pct_income_orig_t c.structural_familism_t i.ft_t1_wife c.structural_familism_t#i.ft_t1_wife  c.cc_pct_income_orig_t#i.ft_t1_wife $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & year>=2009, or
+sum cc_pct_income_orig_t, detail
+margins, dydx(ft_t1_wife) at(cc_pct_income_orig_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+sum structural_familism_t, detail
+margins, dydx(ft_t1_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# Do I want to control for any conditions at time of marriage?? (R&R Take 2)
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+// This would be to possibly account for selection. I still think lack of selection into DoL is sufficient, but maybe you can argue these associations reflect selection into marriage based on conditions then? (that feeels like a stretch) but this is what would be accounted for. but I still don't have the CF of who didn't marry then [that is sort of the Schneider argument].
+
+global marr_controls "men_unemp_rate_wt_tmar college_ratio_wt_tmar sex_ratio_marriage_wt_tmar"
+
+// pwcorr structural_familism_t men_unemp_rate_wt_tmar college_ratio_wt_tmar sex_ratio_marriage_wt_tmar
+// pwcorr structural_familism_tmar men_unemp_rate_wt_tmar college_ratio_wt_tmar sex_ratio_marriage_wt_tmar
+
+/*Reminder of original models:
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+*/
+
+// Okay, results are virtually identical with ALL as controls
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls $marr_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls $marr_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+// do I also want to interact these? That feels CRAZY. Okay did one example and the results still remain virtually unchanged (men's unemployment at time of marriage)
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.men_unemp_rate_wt_tmar#i.division_bucket_hrs_t1 $controls $macro_controls $marr_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.men_unemp_rate_wt_tmar#i.division_bucket_hrs_t1 $controls $macro_controls $marr_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum men_unemp_rate_wt_tmar, detail
+margins, dydx(division_bucket_hrs_t1) at(men_unemp_rate_wt_tmar=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// what stata list says is I can actually just use regress and then do vif because it's really about right hand side-by-side
+
+/*
+https://stats.oarc.ucla.edu/stata/webbooks/reg/chapter2/stata-webbooksregressionwith-statachapter-2-regression-diagnostics/
+As a rule of thumb, a variable whose VIF values are greater than 10 may merit further investigation. Tolerance, defined as 1/VIF, is used by many researchers to check on the degree of collinearity. A tolerance value lower than 0.1 is comparable to a VIF of 10. It means that the variable could be considered as a linear combination of other independent variables. 
+But see also (re: interactions): https://www.statalist.org/forums/forum/general-stata-discussion/general/1404320-how-to-interpret-different-vif-values-and-coefficients-before-after-introducing-interaction-terms
+*/
+
+regress dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls $marr_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+estat vif
+// variables with high VIF include women's college rates and married women's employment rates (this is probably not surprising)
+// also age at marriage variables which are also not surprising
+// but okay, not like a ton of variables with high VIFs all around (though all of the macro variables at time t are somewhat elevated (6-10))
 
 ********************************************************************************
 ********************************************************************************
@@ -2112,6 +2352,7 @@ forvalues w=1/27{
 ********************************************************************************
 ********************************************************************************
 // thinking this addresses both R2 and R3 point re: selection or if certain states / regions driving results [if variation within similar regions, like the South, exists, suggest robustness - a la Glass and Levchak robustness]. Think need to remove state fixed effects here as well
+tabstat structural_familism_t, by(region) stats(mean p50 min max)
 
 * Add main models to outreg
 logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
@@ -2139,6 +2380,119 @@ logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.str
 sum structural_familism_t, detail
 margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Combined: South) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+*** Do I have to show other regions? G&L just do south. one challenge is that sample is really restricted in some regions. In line with Ruppanner's book, could group NE / West (though really about coastal west I think so we're starting to get less restrictive with just "west"). I guess I have states - even though PSID uses big region, I could use state to get division instead that is more detailed? But again, now I'm just creating arbitrary groups of states. I think the South makes sense because justified by a. G&L 2014 and b. it's the bible belt R3 mentioned. The rest will become a bit arbitrary (but also - even this analysis here supports main findings)
+
+// also if the question, like R3 is about South specifically, not sure this adds value
+tab region if in_analytical_sample==1
+
+// NE and West
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & inlist(region,1,4), or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & inlist(region,1,4), or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+********************************************************************************
+* I wonder if I do at quintiles of norms - this is also somewhat regional because I have regional norms?
+* (again, inspired by G&L 2014)
+********************************************************************************
+// I think I am struggling - in some ways, how is this different to regional? we want to see if variation holding something else constant
+// but now we're conditioning on norms. Is this another way of testing the independent effect of structural support v. norms? 
+// aka can good policy overcome unsupportive norms? BUT - is there REALLY GOOD policy when norms are low (this is why I am concnered this is now telling me something different) - because like yes it's holding norms constant but if we're restricting policy this doesn't necessarily tell us if policy can overcome if not enough additional policy variation (but again - isn't this also true in regional analysis?)
+
+// I think I also have some concerns that low norms are also just HISTORICAL time? 
+tabstat avg_egal_reg_t structural_familism_t, by(year)
+tab year norms_gp, row // okay yeah - this is now about historical time NOT just norms - so this is a problem. dO i do the quantiles WITHIn years? then i really like ... no longer no what I am doing...
+// can I use by or group?
+
+xtile norms_gp = avg_egal_reg_t, nq(4)
+tabstat avg_egal_reg_t, by(norms_gp) stats(min max mean)
+tabstat structural_familism_t, by(norms_gp) stats(mean p50 min max)
+pwcorr avg_egal_reg_t structural_familism_t
+
+gen norms_gp_year=.
+
+forvalues y=1995/1996{
+	capture drop xq
+	xtile xq=avg_egal_reg_t if year==`y', nq(4)
+	replace norms_gp_year=xq if year==`y'
+}
+forvalues y=1997(2)2019{
+	capture drop xq
+	xtile xq=avg_egal_reg_t if year==`y', nq(4)
+	replace norms_gp_year=xq if year==`y'
+}
+
+browse year avg_egal_reg_t norms_gp_year norms_gp
+tab year norms_gp_year, row
+tabstat avg_egal_reg_t, by(norms_gp_year) stats(min max mean)
+
+// basically - the moderation effect exists at all but lowest norms - which makes sense? but still not convinced this is useful given many other confounders
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe if in_analytical_sample==1 & norms_gp==1, or // should I remove macro-controls AND state-fe? is this essentially an interaction?
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe if in_analytical_sample==1 & norms_gp==2, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe if in_analytical_sample==1 & norms_gp==3, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe if in_analytical_sample==1 & norms_gp==4, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// adjusted for YEAR. the problem is this like...still isn't telling me that much? because might be high in a given year but low relatively...
+// honestly, the results are similar. effects same except for in norms group 1
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe if in_analytical_sample==1 & norms_gp_year==1, or // should I remove macro-controls? is this essentially an interaction?
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe if in_analytical_sample==1 & norms_gp_year==2, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe if in_analytical_sample==1 & norms_gp_year==3, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe if in_analytical_sample==1 & norms_gp_year==4, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+********************************************************************************
+* Could also try by women's employment rates? (even further selection argument?) - but is this becoming too endogenous at this point?
+* UNemployment rates might be better, but still need to add those on. let's just see what this does for RN
+********************************************************************************
+tabstat married_women_emp_rate_wt_t structural_familism_t, by(year) // this one is better because not changing as much over time
+
+xtile emp_gp = married_women_emp_rate_wt_t, nq(4)
+tabstat married_women_emp_rate_wt_t, by(emp_gp) stats(min max mean)
+tabstat structural_familism_t, by(emp_gp) stats(mean p50 min max)
+pwcorr married_women_emp_rate_wt_t structural_familism_t
+tab emp_gp division_bucket_hrs_gp_t1, row
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_gp_t1 c.structural_familism_t#i.division_bucket_hrs_gp_t1 $controls_nofe if in_analytical_sample==1 & emp_gp==1, or // I think I need to take out state fixed effects now in case states don't change as much over time with this measure? (I feel like there is less variation. some models weren't estimating and I think maybe that is why
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_gp_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_gp_t1 c.structural_familism_t#i.division_bucket_hrs_gp_t1 $controls_nofe if in_analytical_sample==1 & emp_gp==2, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_gp_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_gp_t1 c.structural_familism_t#i.division_bucket_hrs_gp_t1 $controls_nofe if in_analytical_sample==1 & emp_gp==3, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_gp_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_gp_t1 c.structural_familism_t#i.division_bucket_hrs_gp_t1 $controls_nofe if in_analytical_sample==1 & emp_gp==4, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_gp_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
 
 ********************************************************************************
 ********************************************************************************
@@ -2189,6 +2543,63 @@ logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.str
 sum structural_familism_t, detail
 margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
+********************************************************************************
+* What if I also add time fixed effects
+* Okay none of these results change
+********************************************************************************
+// I need to bin years for this to work because some are getting omitted
+gen year_gp=. 
+replace year_gp=1 if year<2000
+replace year_gp=2 if year >=2000 & year < 2005
+replace year_gp=3 if year >=2005 & year < 2010
+replace year_gp=4 if year >=2010 & year < 2015
+replace year_gp=5 if year >=2015 & year < 2020
+
+label define year_gp 1 "Pre-2000s" 2 "2000-2005" 3 "2005-2010" 4 "2010-2015" 5 "2010-2020"
+label values year_gp year_gp
+tab year_gp
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls i.year_gp if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls i.year_gp if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+
+********************************************************************************
+* OR birth OR marital cohort fixed effects
+* Results still the same
+********************************************************************************
+tab rel_start_yr_couple
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls i.rel_start_yr_couple if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls i.rel_start_yr_couple if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+gen bcohort_head=.
+replace bcohort_head=1 if yr_born_head <1970
+replace bcohort_head=2 if yr_born_head >=1970 & yr_born_head < 1975
+replace bcohort_head=3 if yr_born_head >=1975 & yr_born_head < 1980
+replace bcohort_head=4 if yr_born_head >=1980 & yr_born_head < 1985
+replace bcohort_head=5 if yr_born_head >=1985 & yr_born_head < 1990
+replace bcohort_head=6 if yr_born_head >=1990 & yr_born_head < 2000
+
+label define bcohort 1 "Pre-1970s" 2 "1970-75" 3 "1975-80" 4 "1980-85" 5 "1985-90" 6 "1990s+"
+label values bcohort_head bcohort
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls i.bcohort_head if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls i.bcohort_head if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
 ********************************************************************************
 ********************************************************************************
@@ -2225,13 +2636,22 @@ foreach var of varlist women_college_rate_wt_t married_women_emp_rate_t avg_egal
 }
 
 // Want to eventually try to standardize effects - use 1 SD
+// sum structural_familism_within structural_familism_mean structural_familism_t
 sum structural_familism_within
 global sd_within = `r(sd)'
+global sd2_within = `r(sd)' * 2
 global mean_within = `r(mean)'
 
 sum structural_familism_mean  
 global sd_between = `r(sd)'
+global sd2_between = `r(sd)' * 2
 global mean_between = `r(mean)'
+
+// do I want to create same comparison for the other models?
+sum structural_familism_t
+global sd_main = `r(sd)'
+global sd2_main = `r(sd)' * 2
+global mean_main = `r(mean)'
 
 ****************
 ** Paid DoL
@@ -2289,10 +2709,10 @@ if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no
 vce(cluster state_fips) or 
 
 sum structural_familism_within, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_within=(`r(p1)' `r(p25)' `r(p50)' `r(p75)' `r(p99)') structural_familism_mean=(1)) // do I have to extend scale because different now (not actual but deviation frm mean)?
+margins, dydx(hh_hours_type_t1) at(structural_familism_within=(`r(p1)' `r(p25)' `r(p50)' `r(p75)' `r(p99)') structural_familism_mean=($mean_between)) // do I have to extend scale because different now (not actual but deviation frm mean)?
 
 sum structural_familism_mean, detail
-margins, dydx(hh_hours_type_t1) at(structural_familism_mean=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)') structural_familism_within=(0))
+margins, dydx(hh_hours_type_t1) at(structural_familism_mean=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)') structural_familism_within=($mean_within))
 
 	* Within effect for 1 SD change - BUT the problem is this is on log odds scale not predicted prob
 	display "Within effect (1 SD): " _b[2.hh_hours_type_t1#c.structural_familism_within] * $sd_within
@@ -2304,37 +2724,40 @@ margins, dydx(hh_hours_type_t1) at(structural_familism_mean=(`r(p5)' `r(p25)' `r
 	test (2.hh_hours_type_t1#c.structural_familism_within = 2.hh_hours_type_t1#c.structural_familism_mean) ///
      (3.hh_hours_type_t1#c.structural_familism_within = 3.hh_hours_type_t1#c.structural_familism_mean)
 
-	test (2.hh_hours_type_t1#c.structural_familism_within = 2.hh_hours_type_t1#c.structural_familism_mean), coef
-	test (3.hh_hours_type_t1#c.structural_familism_within = 3.hh_hours_type_t1#c.structural_familism_mean), coef
+	test (2.hh_hours_type_t1#c.structural_familism_within = 2.hh_hours_type_t1#c.structural_familism_mean) // , coef
+	test (3.hh_hours_type_t1#c.structural_familism_within = 3.hh_hours_type_t1#c.structural_familism_mean) // , coef
 	lincom (2.hh_hours_type_t1#c.structural_familism_within - 2.hh_hours_type_t1#c.structural_familism_mean)
 	
 	* Substantive interpretation - but on predicted probability scale
 	
-	margins, dydx(hh_hours_type_t1) at(structural_familism_within=(`=$mean_within-$sd_within' $mean_within `=$mean_within+$sd_within') structural_familism_mean=($mean_between))
+	margins, dydx(hh_hours_type_t1) at(structural_familism_within=(`=$mean_within-$sd2_within' `=$mean_within-$sd_within' $mean_within `=$mean_within+$sd_within' `=$mean_within+$sd2_within') structural_familism_mean=($mean_between))
 
 	matrix w = r(table)
-	scalar w_low = w[1,4] * 100
-	scalar w_high = w[1,6] * 100
+	scalar w_low = w[1,6] * 100
+	scalar w_high = w[1,10] * 100
 	scalar within_mod = w_low - w_high
 	display within_mod
 	
-	margins, dydx(hh_hours_type_t1) at(structural_familism_mean=(`=$mean_between-$sd_between' $mean_between `=$mean_between+$sd_between') structural_familism_within=($mean_within)) 
+	margins, dydx(hh_hours_type_t1) at(structural_familism_mean=(`=$mean_between-$sd2_between' `=$mean_between-$sd_between' $mean_between `=$mean_between+$sd_between' `=$mean_between+$sd2_between') structural_familism_within=($mean_within)) 
 	matrix b = r(table)
-	scalar b_low = b[1,4] * 100
-	scalar b_high = b[1,6] * 100
+	scalar b_low = b[1,6] * 100
+	scalar b_high = b[1,10] * 100
 	scalar between_mod = b_low - b_high
 	display between_mod
 
 	display within_mod w_low w_high between_mod b_low b_high
 
 	
-	// okay this doesn't really matter [if i also split the other macro variables]
+// okay this doesn't really matter [if i also split the other macro variables]
 logit dissolve i.marr_dur i.hh_hours_type_t1##c.structural_familism_within i.hh_hours_type_t1##c.structural_familism_mean ///
 $controls_nofe women_college_rate_wt_t_within women_college_rate_wt_t_mean married_women_emp_rate_t_within married_women_emp_rate_t_mean ///
 avg_egal_reg_t_within avg_egal_reg_t_mean pure_male_bw_rate_t_within pure_male_bw_rate_t_mean ///
 if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, ///
 vce(cluster state_fips) or
 
+margins, dydx(hh_hours_type_t1) at(structural_familism_within=(`=$mean_within-$sd_within' $mean_within `=$mean_within+$sd_within') structural_familism_mean=($mean_between))
+margins, dydx(hh_hours_type_t1) at(structural_familism_mean=(`=$mean_between-$sd_between' $mean_between `=$mean_between+$sd_between') structural_familism_within=($mean_within)) 
+	
 sum structural_familism_t, det
 sum structural_familism_within, detail
 sum structural_familism_mean, detail
@@ -2388,23 +2811,106 @@ margins, dydx(division_bucket_hrs_t1) at(structural_familism_mean=(`r(p5)' `r(p2
 	if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, ///
 	vce(cluster state_fips) or 
 
-	margins, dydx(division_bucket_hrs_t1) at(structural_familism_within=(`=$mean_within-$sd_within' $mean_within `=$mean_within+$sd_within') structural_familism_mean=($mean_between))
+	margins, dydx(division_bucket_hrs_t1) at(structural_familism_within=(`=$mean_within-$sd2_within' `=$mean_within-$sd_within' $mean_within `=$mean_within+$sd_within' `=$mean_within+$sd2_within') structural_familism_mean=($mean_between))
 
 	matrix w = r(table)
-	scalar w_low = w[1,4] * 100
-	scalar w_high = w[1,6] * 100
+	scalar w_low = w[1,6] * 100
+	scalar w_high = w[1,10] * 100
 	scalar within_mod = w_low - w_high
 	display within_mod
 	
-	margins, dydx(division_bucket_hrs_t1) at(structural_familism_mean=(`=$mean_between-$sd_between' $mean_between `=$mean_between+$sd_between') structural_familism_within=($mean_within)) 
+	margins, dydx(division_bucket_hrs_t1) at(structural_familism_mean=(`=$mean_between-$sd2_between' `=$mean_between-$sd_between' $mean_between `=$mean_between+$sd_between' `=$mean_between+$sd2_between') structural_familism_within=($mean_within)) 
 	matrix b = r(table)
-	scalar b_low = b[1,4] * 100
-	scalar b_high = b[1,6] * 100
+	scalar b_low = b[1,6] * 100
+	scalar b_high = b[1,10] * 100
 	scalar between_mod = b_low - b_high
 	display between_mod
 
 	display within_mod w_low w_high between_mod b_low b_high
+	
+****************	
+** Can i get similar output for other comparisons?
+****************
 
+// State FE (main)
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`=$mean_main-$sd2_main' `=$mean_main-$sd_main' $mean_main `=$mean_main+$sd_main' `=$mean_main+$sd2_main'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`=$mean_main-$sd2_main' `=$mean_main-$sd_main' $mean_main `=$mean_main+$sd_main' `=$mean_main+$sd2_main'))
+
+// No FE
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`=$mean_main-$sd2_main' `=$mean_main-$sd_main' $mean_main `=$mean_main+$sd_main' `=$mean_main+$sd2_main'))
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`=$mean_main-$sd2_main' `=$mean_main-$sd_main' $mean_main `=$mean_main+$sd_main' `=$mean_main+$sd2_main'))
+	
+****************
+* Attempting to get FE and Within on same scale
+****************
+logit dissolve i.marr_dur i.hh_hours_type_t1##c.structural_familism_within i.hh_hours_type_t1##c.structural_familism_mean ///
+$controls_nofe $macro_controls ///
+if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, ///
+vce(cluster state_fips) or 
+
+// First, get main percentiles
+sum structural_familism_t, detail
+local p5_total = `r(p5)'
+local p25_total = `r(p25)'
+local p50_total = `r(p50)'
+local p75_total = `r(p75)'
+local p95_total = `r(p95)'
+
+// Get on within scale
+local w_at_p5 = `p5_total' - $mean_between
+local w_at_p25 = `p25_total' - $mean_between
+local w_at_p50 = `p50_total' - $mean_between
+local w_at_p75 = `p75_total' - $mean_between
+local w_at_p95 = `p95_total' - $mean_between
+
+// Validate
+display `p5_total' " " `p25_total' " " `p50_total' " " `p75_total' " " `p95_total'
+display `w_at_p5' " " `w_at_p25' " " `w_at_p50' " " `w_at_p75' " " `w_at_p95' " " $mean_between
+
+// Margins
+margins, dydx(hh_hours_type_t1) at(structural_familism_within=(`w_at_p5' `w_at_p25' `w_at_p50' `w_at_p75' `w_at_p95') structural_familism_mean=($mean_between))
+
+logit dissolve i.marr_dur i.division_bucket_hrs_t1##c.structural_familism_within i.division_bucket_hrs_t1##c.structural_familism_mean ///
+$controls_nofe $macro_controls ///
+if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, ///
+vce(cluster state_fips) or 
+
+// First, get main percentiles
+sum structural_familism_t, detail
+local p5_total = `r(p5)'
+local p25_total = `r(p25)'
+local p50_total = `r(p50)'
+local p75_total = `r(p75)'
+local p95_total = `r(p95)'
+
+// Get on within scale
+local w_at_p5 = `p5_total' - $mean_between
+local w_at_p25 = `p25_total' - $mean_between
+local w_at_p50 = `p50_total' - $mean_between
+local w_at_p75 = `p75_total' - $mean_between
+local w_at_p95 = `p95_total' - $mean_between
+
+// Validate
+display `p5_total' " " `p25_total' " " `p50_total' " " `p75_total' " " `p95_total'
+display `w_at_p5' " " `w_at_p25' " " `w_at_p50' " " `w_at_p75' " " `w_at_p95' " " $mean_between
+
+// Margins
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_within=(`w_at_p5' `w_at_p25' `w_at_p50' `w_at_p75' `w_at_p95') structural_familism_mean=($mean_between))
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_within=(`w_at_p5' `w_at_p25' `w_at_p50' `w_at_p75' `w_at_p95') structural_familism_mean=(0))	
 
 restore
 
@@ -2525,8 +3031,14 @@ outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Combined
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
+
+// I already exported some of these but think I might make this a whole new export just for this to better organize these thoughts and figure out what / how to present
+// I know I am now throwing a lot at a wall and these indicators can all mean so many things and hard to directly compare most.
+
 tab hh_earn_type_t1 if in_analytical_sample==1
 tab hh_hours_type_t1 if in_analytical_sample==1
+
+tabstat female_earn_pct_t1 female_hours_pct_t1 if in_analytical_sample==1, stats(mean p50)
 
 ** Here is the earnings version of hours measure (I think I actually used this originally and moved away to emphasize conflict argument with parenthood)
 // have to use the non-bucketed earnings (the continuous version) to get estimates
@@ -2541,7 +3053,6 @@ sum structural_familism_t, detail
 margins, dydx(hh_earn_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(earnings bucket) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-
 ** Here is her share of earnings - so no main effect the way there is with others BUT same moderation (her share = bad when support is low. wait is this norms? no this can still be economic independence - because she can only leave if she has earnings. In my head i was like would it be negative but no - her LOW SHARE reduces divorce, so we don't know if again dependence or norms violation)
 logit dissolve i.marr_dur c.structural_familism_t c.female_earn_pct_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
 margins, dydx(female_earn_pct_t1)
@@ -2550,6 +3061,21 @@ logit dissolve i.marr_dur c.structural_familism_t c.female_earn_pct_t1 c.structu
 sum structural_familism_t, detail
 margins, dydx(female_earn_pct_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))  post
 outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(earnings share) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** Do I need to complement this with her HOURS share??
+logit dissolve i.marr_dur c.structural_familism_t c.female_hours_pct_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(female_hours_pct_t1)
+
+logit dissolve i.marr_dur c.structural_familism_t c.female_hours_pct_t1 c.structural_familism_t#c.female_hours_pct_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(female_hours_pct_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))  post
+outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(hours share) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// test diffs between her earnings and hours share [See WALD document for now; trying to not make this so long and figure this out elsewhere, need to better organize]
+
+*******************************
+* Employment status
+*******************************
 
 ** Here is her FT employment status - okay yeah and works the exact same way. her FT employment increases risk of divorce when support is low - no effect when high. Is this interesting (and more intuitive?!)
 tab ft_pt_t1_wife
@@ -2573,6 +3099,9 @@ sum structural_familism_t, detail
 margins, dydx(ft_pt_t1_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
 // I guess doing husband is a good antidote - is it NORMS or conflict also [relates to counter-trad / trad also]. effect not SIG but same for husbands. this feels important (just husbands WAY more likely to be working FT hence why non-sig)
+// because if norms, I'd expect his UNemployment to have an effect. I could compare these effect sizes to women's FT employment at least
+tab ft_pt_t1_head if in_analytical_sample==1 // problem is: NO MEN not working. and just over 5% not FT, so I think it's just not enough variation?
+
 logit dissolve i.marr_dur c.structural_familism_t i.ft_t1_head c.structural_familism_t#i.ft_t1_head $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
 sum structural_familism_t, detail
 margins, dydx(ft_t1_head) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
@@ -2582,3 +3111,771 @@ outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(husband 
 logit dissolve i.marr_dur c.structural_familism_t i.ft_pt_t1_head c.structural_familism_t#i.ft_pt_t1_head $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
 sum structural_familism_t, detail
 margins, dydx(ft_pt_t1_head) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+*******************************
+* Absolute levels
+*******************************
+
+** What about her RAW earnings?
+// should probably log?
+gen earnings_wife_ln = ln(earnings_t1_wife+1)
+
+logit dissolve i.marr_dur c.structural_familism_t c.earnings_wife_ln c.structural_familism_t#c.earnings_wife_ln $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_ln) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+** I guess then raw work hours (paid AND housework) - if it's a conflict argument, do higher hours in general lead to divorce?? [I might need to interact HW hours with employment, though?] THis is where this gets tricky...Also, the effects are the same for like all of these operationalizations. It is also hard to compare effect sizes because weekly hours is SO DIFFERENT to annual earnings. I mean on one hand, I think this means my results are robust. On the other, not 100% sure how to interpret
+logit dissolve i.marr_dur c.structural_familism_t c.weekly_hrs_t1_wife c.structural_familism_t#c.weekly_hrs_t1_wife $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(weekly_hrs_t1_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+sum structural_familism_t, detail
+margins, at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)') weekly_hrs_t1_wife=(0 20 40 60) )
+marginsplot
+
+// okay so housework probably has the SMALLEST moderation effect, but still supports this...really her housework just lowers divorce risk always.
+logit dissolve i.marr_dur c.structural_familism_t c.housework_wife c.structural_familism_t#c.housework_wife $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(housework_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+sum structural_familism_t, detail
+margins, at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)') housework_wife=(0 5 10 20) )
+marginsplot
+
+// I don't want toooo many interaction, so what about just among FT employed? (in lieu of an interaction - just do separate)
+tab ft_t1_wife if in_analytical_sample==1 // it is 50/50 so could so like this
+tabstat housework_wife if in_analytical_sample==1, by(ft_t1_wife) stats(p25 p50 p75)
+
+	// really her housework does not have an effect among the FT employed - and not really moderated. so does this suggest NOT about conflict?? (i think this is harder because I don't have childcare. I would feel more comfortable making this argument if I had childcare)
+	logit dissolve i.marr_dur c.structural_familism_t c.housework_wife c.structural_familism_t#c.housework_wife $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & ft_t1_wife==1, or
+	sum structural_familism_t, detail
+	margins, dydx(housework_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+	// but it DOES have a negative effect among those not employed - also not moderated
+	logit dissolve i.marr_dur c.structural_familism_t c.housework_wife c.structural_familism_t#c.housework_wife $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & ft_t1_wife==0, or
+	sum structural_familism_t, detail
+	margins, dydx(housework_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// this is where I'm like - the second shift as a category makes this interesting. That doesn't have an effect when egal is reference, but I think it DOES when male BW is...I mean - the moderator effect is similar - it lowers risk of divorce when support is low (gender deviance neutralization?) but I guess I'd expect it to RAISE risk of divorce when support is low - because most conflict. so this is interesting like...is this evidence of NORMS v. anything else?? OR - is it really just about women's employment but then no because second shift and egal would be more similar. I mean  I guess it's not statistical significant...
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// so okay not sig but is ABOVE male-BW. but not at same level as egal. is it because of gender deviance neutralization? or is it just that HW doesn't matter as much as her employment? (but again hard to say if norms or economic dependence - we're still in the first half of the gender revolution)
+logit dissolve i.marr_dur c.structural_familism_t ib2.division_bucket_hrs_t1 c.structural_familism_t#ib2.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+*******************************
+* Alt: SPLIT male-BW into yes / no her earnings
+*******************************
+gen wife_no_earnings = . 
+replace wife_no_earnings = 0 if earnings_t1_wife > 0 & earnings_t1_wife!=.
+replace wife_no_earnings = 1 if earnings_t1_wife == 0
+
+tab hh_hours_type_t1 wife_no_earnings if in_analytical_sample, row
+
+gen hh_hours_type_t1_alt = .
+replace hh_hours_type_t1_alt = 1 if hh_hours_type_t1==1 // dual
+replace hh_hours_type_t1_alt = 2 if hh_hours_type_t1==2 & wife_no_earnings == 1 // pure male BW
+replace hh_hours_type_t1_alt = 3 if hh_hours_type_t1==2 & wife_no_earnings == 0 // neo trad
+replace hh_hours_type_t1_alt = 4 if hh_hours_type_t1==3 // female BW 
+
+label define hh_hours_type_t1_alt 1 "Dual-Earner" 2 "Pure Male BW" 3 "Neo-Trad" 4 "Female BW"
+label values hh_hours_type_t1_alt hh_hours_type_t1_alt
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+margins, dydx(hh_hours_type_t1)  
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1_alt c.structural_familism_t#i.hh_hours_type_t1_alt $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1_alt) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+margins, dydx(hh_hours_type_t1)
+// what's SUPER interesting here is that the MAIN EFFECT is ONLY for neo-trad BUT the moderation effect is nearly identical. need ot think about what this means but this feels helpful.
+
+********************************************************************************
+* Then need to do some mediation
+********************************************************************************
+** Main models include total couple earnings. What if HER EARNINGS SPECIFICALLY moderate the effects of male-BW
+// okay this is actually very interesting. I think what is cool - but need to quantify better than as is here: is the main effects attenuate but I think the moderation effect actually doesn't as much (though some) - so I think it is some economic dependence for sure - and maybe the MODERATION could help. but not totally?
+
+// how to formally test? I think Wald doesn't work when IVs differ??? do I have to use suest? i go through this EVERY TIME i do things liek this, and then I end up doing by hand LOL (can I revisit Socius paper for how to do by hand? I have an excel, just need to figure out the inputs but might just come from margins).
+
+
+*******************************
+* Just Paid Labor
+*******************************
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+matrix m1 = r(table)
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+matrix m2 = r(table)
+
+matrix list m1
+matrix list m2
+
+forvalues i = 6/10 { // have to start at 6 because 1-5 are the ref category
+	
+    // NO earnings
+	local ame1 = m1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = m1[2, `i'] // se is in row 2
+    
+	// WITH earnings
+	local ame2 = m2[1, `i']
+    local se2 = m2[2, `i']
+    
+    local diff = (`ame2' - `ame1')
+	local wald = (`ame1' - `ame2')^2 / (`se1'^2 + `se2'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+// main effect
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) post
+
+matrix m3 = r(table)
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1) post
+
+matrix m4 = r(table)
+
+local ame3 = m3[1, 2]
+local se3 = m3[2, 2]
+local ame4 = m4[1, 2]
+local se4 = m4[2, 2]
+
+local diff = (`ame4' - `ame3')
+local wald = (`ame3' - `ame4')^2 / (`se3'^2 + `se4'^2)
+local pval = chi2tail(1, `wald')
+
+di "Main effect comparison: Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+
+///
+
+*******************************
+*Combined DoL
+*******************************
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+matrix m1 = r(table)
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+matrix m2 = r(table)
+
+matrix list m1
+matrix list m2
+
+forvalues i = 6/10 { // have to start at 6 because 1-5 are the ref category
+	
+    // NO earnings
+	local ame1 = m1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = m1[2, `i'] // se is in row 2
+    
+	// WITH earnings
+	local ame2 = m2[1, `i']
+    local se2 = m2[2, `i']
+    
+    local diff = (`ame2' - `ame1')
+	local wald = (`ame1' - `ame2')^2 / (`se1'^2 + `se2'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+// main effect // could it change the MAIN effect? so...it actually DOES reduce the main effect to non-sig. whether or not that is a SIG change remains to be seen. so would i need to test the main AND moderator effects? because it could change main effect but not moderation?
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) post
+
+matrix m3 = r(table)
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(division_bucket_hrs_t1) post
+
+matrix m4 = r(table)
+
+local ame3 = m3[1, 2]
+local se3 = m3[2, 2]
+local ame4 = m4[1, 2]
+local se4 = m4[2, 2]
+
+local diff = (`ame4' - `ame3')
+local wald = (`ame3' - `ame4')^2 / (`se3'^2 + `se4'^2)
+local pval = chi2tail(1, `wald')
+
+di "Main effect comparison: Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+
+///
+
+*******************************
+* Her Earnings Share (maybe also interesting a la K&S)
+*******************************
+
+logit dissolve i.marr_dur c.structural_familism_t c.female_earn_pct_t1 c.structural_familism_t#c.female_earn_pct_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(female_earn_pct_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+matrix m1 = r(table)
+
+logit dissolve i.marr_dur c.structural_familism_t c.female_earn_pct_t1 c.structural_familism_t#c.female_earn_pct_t1 $controls $macro_controls earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(female_earn_pct_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+matrix m2 = r(table)
+
+matrix list m1
+matrix list m2
+
+forvalues i = 1/5 {
+	
+    // NO earnings
+	local ame1 = m1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = m1[2, `i'] // se is in row 2
+    
+	// WITH earnings
+	local ame2 = m2[1, `i']
+    local se2 = m2[2, `i']
+    
+    local diff = (`ame2' - `ame1')
+	local wald = (`ame1' - `ame2')^2 / (`se1'^2 + `se2'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+// main effect
+logit dissolve i.marr_dur c.structural_familism_t c.female_earn_pct_t1 c.structural_familism_t#c.female_earn_pct_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(female_earn_pct_t1) post
+
+matrix m3 = r(table)
+
+logit dissolve i.marr_dur c.structural_familism_t c.female_earn_pct_t1 c.structural_familism_t#c.female_earn_pct_t1 $controls $macro_controls earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(female_earn_pct_t1) post
+
+matrix m4 = r(table)
+
+local ame3 = m3[1, 1]
+local se3 = m3[2, 1]
+local ame4 = m4[1, 1]
+local se4 = m4[2, 1]
+
+local diff = (`ame4' - `ame3')
+local wald = (`ame3' - `ame4')^2 / (`se3'^2 + `se4'^2)
+local pval = chi2tail(1, `wald')
+
+di "Main effect comparison: Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+
+********************************************************************************
+* Okay do I actually need to INTERACT her earnings with policy AND the DoL??
+* Because I show her earnings on their own matter - which alone could be 
+* economic dependence. SO then do I need to show that it's not JUST about her earnings
+* BUT also the DoL once earnings accounted for?
+* I am losing the plot. I really want to attempt to follow GP & Gangl and they
+* JUST include as mediator 1x (not interacted, just as is)
+********************************************************************************
+/* Let's show a progression
+1. DoL Main effect (policy interaction)
+1a. Earnings main effect (policy interaction)
+2. DoL with earnings as control - not let earnings differ across policy
+3. DoL with earnings x policy as control - let earnings differ across policy
+*/
+
+gen earnings_wife_1000s = earnings_t1_wife / 1000 // easier to interpret coefficients
+
+log using "$logdir\earnings_mediation.log", replace
+
+*******************************
+* Just Paid Labor
+*******************************
+// M1
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix dol1 = r(table)
+
+// M1 A
+logit dissolve i.marr_dur c.structural_familism_t c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix earn1 = r(table)
+
+// M2
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix dol2 = r(table)
+
+// M3
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix dol3 = r(table)
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix earn3 = r(table)
+
+matrix list dol1
+matrix list dol2
+matrix list dol3
+
+matrix list earn1
+matrix list earn3
+
+// Compare M1 to M2
+forvalues i = 6/10 {
+	
+    // NO earnings
+	local ame1 = dol1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = dol1[2, `i'] // se is in row 2
+    local p1 = dol1[4, `i'] // p is in row 4
+    
+	// WITH earnings
+	local ame2 = dol2[1, `i']
+    local se2 = dol2[2, `i']
+    local p2 = dol2[4, `i'] // p is in row 2
+	
+    local diff = (`ame2' - `ame1')
+	local wald = (`ame1' - `ame2')^2 / (`se1'^2 + `se2'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': M1 = " %6.3f `ame1' " (" %6.3f `p1' ") M2 = " %6.3f `ame2' " (" %6.3f `p2' ") Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+
+// Compare M1 to M3
+forvalues i = 6/10 {
+	
+    // NO earnings
+	local ame1 = dol1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = dol1[2, `i'] // se is in row 2
+    local p1 = dol1[4, `i'] // p is in row 4
+    
+	// WITH earnings
+	local ame3 = dol3[1, `i']
+    local se3 = dol3[2, `i']
+    local p3 = dol3[4, `i']
+	
+    local diff = (`ame3' - `ame1')
+	local wald = (`ame1' - `ame3')^2 / (`se1'^2 + `se3'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': M1 = " %6.3f `ame1' " (" %6.3f `p1' ") M2 = " %6.3f `ame3' " (" %6.3f `p3' ") Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+
+// Earnings: Compare M1 to M3
+forvalues i = 1/5 {
+	
+    // NO earnings
+	local ame1 = earn1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = earn1[2, `i'] // se is in row 2
+    local p1 = earn1[4, `i'] // p is in row 4
+    
+	// WITH earnings
+	local ame3 = earn3[1, `i']
+    local se3 = earn3[2, `i']
+    local p3 = earn3[4, `i']
+	
+    local diff = (`ame3' - `ame1')
+	local wald = (`ame1' - `ame3')^2 / (`se1'^2 + `se3'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': M1 = " %6.4f `ame1' " (" %6.3f `p1' ") M2 = " %6.4f `ame3' " (" %6.3f `p3' ") Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+*******************************
+*Combined DoL
+*******************************
+
+// M1
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix dol1 = r(table)
+
+// M1 A
+logit dissolve i.marr_dur c.structural_familism_t c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix earn1 = r(table)
+
+// M2
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix dol2 = r(table)
+
+// M3
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix dol3 = r(table)
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+
+matrix earn3 = r(table)
+
+matrix list dol1
+matrix list dol2
+matrix list dol3
+
+matrix list earn1
+matrix list earn3
+
+// Compare M1 to M2
+forvalues i = 6/10 {
+	
+    // NO earnings
+	local ame1 = dol1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = dol1[2, `i'] // se is in row 2
+    local p1 = dol1[4, `i'] // p is in row 4
+    
+	// WITH earnings
+	local ame2 = dol2[1, `i']
+    local se2 = dol2[2, `i']
+    local p2 = dol2[4, `i'] // p is in row 2
+	
+    local diff = (`ame2' - `ame1')
+	local wald = (`ame1' - `ame2')^2 / (`se1'^2 + `se2'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': M1 = " %6.3f `ame1' " (" %6.3f `p1' ") M2 = " %6.3f `ame2' " (" %6.3f `p2' ") Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+
+// Compare M1 to M3
+forvalues i = 6/10 {
+	
+    // NO earnings
+	local ame1 = dol1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = dol1[2, `i'] // se is in row 2
+    local p1 = dol1[4, `i'] // p is in row 4
+    
+	// WITH earnings
+	local ame3 = dol3[1, `i']
+    local se3 = dol3[2, `i']
+    local p3 = dol3[4, `i']
+	
+    local diff = (`ame3' - `ame1')
+	local wald = (`ame1' - `ame3')^2 / (`se1'^2 + `se3'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': M1 = " %6.3f `ame1' " (" %6.3f `p1' ") M2 = " %6.3f `ame3' " (" %6.3f `p3' ") Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+
+// Earnings: Compare M1 to M3
+forvalues i = 1/5 {
+	
+    // NO earnings
+	local ame1 = earn1[1, `i'] // ame is in row 1, then each percentile is a column
+    local se1 = earn1[2, `i'] // se is in row 2
+    local p1 = earn1[4, `i'] // p is in row 4
+    
+	// WITH earnings
+	local ame3 = earn3[1, `i']
+    local se3 = earn3[2, `i']
+    local p3 = earn3[4, `i']
+	
+    local diff = (`ame3' - `ame1')
+	local wald = (`ame1' - `ame3')^2 / (`se1'^2 + `se3'^2)
+    local pval = chi2tail(1, `wald')
+    
+    di "Level `i': M1 = " %6.4f `ame1' " (" %6.3f `p1' ") M2 = " %6.4f `ame3' " (" %6.3f `p3' ") Diff = " %6.3f `diff' " Wald = " %6.3f `wald' ", p = " %5.3f `pval'
+}
+
+log close
+
+********************************************************************************
+** Then moderator: are the effects of male-BW conditional on her total earnings??
+********************************************************************************
+// going to try to use tertiles or something to avoid interacting
+xtile earnings_tertile = earnings_t1_wife, nq(3)
+tab earnings_tertile
+tabstat(earnings_t1_wife), by(earnings_tertile) stats(min max mean p50)
+
+tab hh_hours_type_t1 earnings_tertile, col
+tab division_bucket_hrs_t1 earnings_tertile, col
+
+** Paid
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(hh_hours_type_t1)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+// low
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & earnings_tertile==1, or
+margins, dydx(hh_hours_type_t1)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+// med
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & earnings_tertile==2, or
+margins, dydx(hh_hours_type_t1)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+// high
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & earnings_tertile==3, or
+margins, dydx(hh_hours_type_t1)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+** Now i am confusing myself. Do I actually restrict to MALE BW and see if her earnings matter differently?? I am losing the plot. I think I am struggling because restricting to high earnings means more women are sorting into dual-earning. but they can afford to leave any arrnagement but if I think male-BW is problematic they can afford to leave male BW MORE when have high earnings than low - so perhaps reversal only comes among high earning women?
+
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# What about work-family conflict?
+********************************************************************************
+********************************************************************************
+********************************************************************************
+// one mechanism is that dual-earning creates more conflict because more total work hours. Does THIS mediate?
+tabstat total_work_wife total_work_head total_work_couple, by(hh_hours_type_t1) // validate more total hours 
+tabstat total_work_wife total_work_head total_work_couple, by(division_bucket_hrs_t1)
+
+**********************
+* Paid
+**********************
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// add total work couple
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls c.total_work_couple if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(total_work_couple) // no main effect
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // results get STRONGER once I add
+
+// interact total work couple
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls c.total_work_couple c.total_work_couple#c.structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // but interacting total work doens't change anything further
+
+sum structural_familism_t, detail
+margins, dydx(total_work_couple) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // nor is there a moderation effect here
+
+// add total work wife - because my mechanism is really SHE drops out of the labor market - so is it about HER total burden?
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls c.total_work_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(total_work_wife) // interestingly - main effect is negative. what's interesting is that the effect of her PAID WORK hours is positive but the effect of her housework is negative (from the other models). is this just capturing the HW effects?
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // results get EVEN STRONGER when I add total work of wife?
+
+/*
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls c.weekly_hrs_t1_wife c.housework_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(weekly_hrs_t1_wife) // though NOT when in same model
+margins, dydx(housework_wife)
+*/
+
+// interact total work wife
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls c.total_work_wife c.total_work_wife#c.structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // but no real further change from interaction (bc no interaction effect)
+
+sum structural_familism_t, detail
+margins, dydx(total_work_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // the effect of her total hours is not MODERATED by the variable, though (I'd expect her total hours to be more problematic at lower levels of the scale? so positive at lower levels - but it is not)
+
+// is it JUST about her work hours (again if the mechanism is her LEAVING the labor market?)
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls c.weekly_hrs_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(weekly_hrs_t1_wife)  // so positive effect
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // okay INTERESTINGLY the moderation effect is still there but now in an opposite direction - once accounted for, male BW barely has effect at low levels but then becomes MORE POSITIVE at high levels?
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)') weekly_hrs_t1_wife=(0)) // sort of true at all values of her hours?
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)') weekly_hrs_t1_wife=(40))
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls c.weekly_hrs_t1_wife c.weekly_hrs_t1_wife#c.structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(weekly_hrs_t1_wife) 
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+sum structural_familism_t, detail
+margins, dydx(weekly_hrs_t1_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) //but the moderation effect is in opposite way I'd expect - her hours get MORE positive for divorce when support is high. which should be the opposite?
+
+// should I add separately since the direction of the effects is opposite? See my thoughts on this below. This is really losing the plot on interpretation.
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls c.weekly_hrs_t1_wife c.housework_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(housework_wife) // negative
+margins, dydx(weekly_hrs_t1_wife) // positive but not sig
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // so yeah results become very odd - same moderation but moves the effect...
+
+**********************
+* Combined
+**********************
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// add total work couple
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls c.total_work_couple if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(total_work_couple) // no main effect
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // also get stronger here
+
+// interact total work couple
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls c.total_work_couple c.total_work_couple#c.structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+sum structural_familism_t, detail
+margins, dydx(total_work_couple) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+// add total work wife (is it HER burden specifically)
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls c.total_work_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(total_work_wife) // no main effect here
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // also get stronger here
+
+// interact total work wife
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls c.total_work_wife c.total_work_wife#c.structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+sum structural_familism_t, detail
+margins, dydx(total_work_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // gets MORE negative as support increases (i guess I'd expect it to get less positive so this is, in some ways, that...)
+
+// add paid work hours wife instead (is it HER EMPLOYMENT burden specifically)
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls c.weekly_hrs_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(weekly_hrs_t1_wife) // no main effect but positive
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // results attenuate, honestly probably more than earnings
+
+// should I add separately since the direction of the effects is opposite? okay but the problem is - these variables are inputs into my DoL measure. so what is left when I control for these. I think I am now not capturing what i think I am capturing with DoL and that is the problem and why te results change so much. it is like I am now controlling the causal pathway (not that I am trying to identify hte causal pathway BUT) if these are the component variables and I control for them - what is left? and what does that tell me? I guess if anything, this is quantifying what part of the DoL operates via her time and what operates via something else? I guess taht "something else" is interesting (I mean some of it is men's time but his time generally doesn't have an effect) but then maybe it's about the non-time part?? but then that is speculation. and this is becoming detached from WFC. So, i think this is useful to look at, but not related to my goal, so let's use her total work hours as FOIL to total couple annd then move on and say it's at least not about the total time burden...
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls c.weekly_hrs_t1_wife c.housework_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+margins, dydx(housework_wife) // negative
+margins, dydx(weekly_hrs_t1_wife) // positive but not sig
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // results really attenuate HERE
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# Opportunity costs (attempt to rule out other mechanisms)
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+// okay these results are confusing and vary DRAMATICALLY based on measure. I think this is getting into like complicated territory because this captures so many thinks (ESPECIALLY because I am restricting to parents) - the effect of education may well differ among parents in light of concerted cultivation and intensive parenting norms. that have nothing to do with economic status or independence. because the effect of MALE BW is the same across levels but once I turnt o gender specialization, it's not, and I am just wondering if this is now capturing something else. I think this is getting into like -- I am trying to test too much territory beyond the goals of my paper (which I already sort of knew LOL)
+
+// Use just HER education (not couple-level because that's different question)
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & college_wife==0, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est1n
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & college_wife==1, or
+sum structural_familism_t, detail
+margins, dydx(2.hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est1c
+
+/// 
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & college_wife==0, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est2n
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & college_wife==1, or
+sum structural_familism_t, detail
+margins, dydx(2.division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est2c
+
+/// 
+
+logit dissolve i.marr_dur c.structural_familism_t i.ft_t1_wife c.structural_familism_t#i.ft_t1_wife $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & college_wife==0, or
+sum structural_familism_t, detail
+margins, dydx(ft_t1_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est3n
+
+logit dissolve i.marr_dur c.structural_familism_t i.ft_t1_wife c.structural_familism_t#i.ft_t1_wife $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & college_wife==1, or
+sum structural_familism_t, detail
+margins, dydx(ft_t1_wife) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+estimates store est3c
+
+coefplot est1n est1c
+coefplot est2n est2c
+coefplot est3n est3c
+
+// revisit gender wage gap individual results (and maybe minimum wage?) I guess all three LABOR market ones? but i think gender wage gap more support as concept from prior research (see GP and Gangl, Ruppanner)
+**********
+* Paid
+**********
+* Earnings Ratio
+* I am getting confused - so male BW would INCREASE divorce MORE when wage gap is higher because she SHOULD be working and is NOT (I mean, this is generally the argument at higher levels of the scale) but it's actually the opposite? here the moderation effect is in the other direction? male BW lowers divorce when gender wage gap is HIGHER this doesn't make any sense...it's the ONE variable in the scale that works in opposite direction
+pwcorr earn_ratio_t structural_familism_t  married_women_emp_rate_wt_t avg_egal_reg_t // so inversely correlated with employment which makes sense...
+
+logit dissolve i.marr_dur c.earn_ratio_t i.hh_hours_type_t1 c.earn_ratio_t#i.hh_hours_type_t1 $controls $macro_controls structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum earn_ratio_t, detail
+margins, dydx(hh_hours_type_t1) at(earn_ratio_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+	// even weirder: her FT employment becomes MORE positively associated with divorce when gender wage gap higher. is THIS actually ECONOMIC INDEPENDENCE. is THIS the mechanism?
+	logit dissolve i.marr_dur c.earn_ratio_t i.ft_t1_wife c.earn_ratio_t#i.ft_t1_wife $controls $macro_controls structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+	sum earn_ratio_t, detail
+	margins, dydx(ft_t1_wife) at(earn_ratio_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+	
+	// does education matter HERE?!
+	logit dissolve i.marr_dur c.earn_ratio_t i.hh_hours_type_t1 c.earn_ratio_t#i.hh_hours_type_t1 $controls $macro_controls structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & college_wife==0, or
+	sum earn_ratio_t, detail
+	margins, dydx(hh_hours_type_t1) at(earn_ratio_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+	logit dissolve i.marr_dur c.earn_ratio_t i.hh_hours_type_t1 c.earn_ratio_t#i.hh_hours_type_t1 $controls $macro_controls structural_familism_t if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & college_wife==1, or
+	sum earn_ratio_t, detail
+	margins, dydx(hh_hours_type_t1) at(earn_ratio_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+* Min Wage
+logit dissolve i.marr_dur c.min_amt_above_fed_t i.hh_hours_type_t1 c.min_amt_above_fed_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum min_amt_above_fed_t, detail
+margins, dydx(hh_hours_type_t1) at(min_amt_above_fed_t=(`r(p5)' `r(p50)' `r(p75)' `r(p95)' `r(p99)'))
+
+	logit dissolve i.marr_dur c.min_amt_above_fed_t i.ft_t1_wife c.min_amt_above_fed_t#i.ft_t1_wife $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+	sum min_amt_above_fed_t, detail
+	margins, dydx(ft_t1_wife) at(min_amt_above_fed_t=(`r(p5)' `r(p50)' `r(p75)' `r(p95)' `r(p99)'))
+
+* Unemployment Compensation
+logit dissolve i.marr_dur c.unemployment_percap_t i.hh_hours_type_t1 c.unemployment_percap_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum unemployment_percap_t, detail
+margins, dydx(hh_hours_type_t1) at(unemployment_percap_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+**********
+* Combined
+**********
+* Earnings Ratio-  what's weird is that it ALSO reverses direction of counter-traditional...so both specialized are better for marriage when gender wage gap is smaller. this doesn't make sense...
+logit dissolve i.marr_dur c.earn_ratio_t i.division_bucket_hrs_t1 c.earn_ratio_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum earn_ratio_t, detail
+margins, dydx(division_bucket_hrs_t1) at(earn_ratio_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
+
+* Min Wage - wait this is also opposite. BUT the male-BW version AND her employment ARE in expected direction, so this one is even HARDER to interpret
+logit dissolve i.marr_dur c.min_amt_above_fed_t i.division_bucket_hrs_t1 c.min_amt_above_fed_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum min_amt_above_fed_t, detail
+margins, dydx(division_bucket_hrs_t1) at(min_amt_above_fed_t=(`r(p5)' `r(p50)' `r(p75)' `r(p95)' `r(p99)'))
+
+* Unemployment Compensation
+logit dissolve i.marr_dur c.unemployment_percap_t i.division_bucket_hrs_t1 c.unemployment_percap_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or
+sum unemployment_percap_t, detail
+margins, dydx(division_bucket_hrs_t1) at(unemployment_percap_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))

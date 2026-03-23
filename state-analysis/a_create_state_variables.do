@@ -85,6 +85,7 @@ save "$state_data/structural_familism.dta", replace
 ********************************************************************************
 ********************************************************************************
 **# Exploring other scale options
+* (This is for R1 and R2)
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
@@ -92,8 +93,8 @@ save "$state_data/structural_familism.dta", replace
 // use "$structural/structural_familism_june25_int.dta", clear
 use "$created_data/structural_familism_june25_int.dta", clear
 
-// for now, just merging on the new education variables here (need to add these to above file, but don't want to mess up the interpolation and other things I did) - note from 9/1/25
-merge 1:1 year state_fips using "$created_data/sexism_measures_1988_2023.dta", keepusing(women_college_rate_wt married_women_college_rate_wt college_ratio married_college_ratio)
+// for now, just merging on the new education variables here (need to add these to above file, but don't want to mess up the interpolation and other things I did) - note from 9/1/25, with new variables added 3/9/26
+merge 1:1 year state_fips using "$created_data/sexism_measures_1988_2023.dta", keepusing(women_college_rate_wt married_women_college_rate_wt college_ratio_wt married_college_ratio_wt sex_ratio_marriage_wt men_unemp_rate_wt)
 drop if _merge==2
 drop _merge
 
@@ -238,6 +239,12 @@ gen year_t2 = year // to get t-2 measures (for robustness)
 // also going to try a forward lag for policy robustness - so do t+2 and t+4. Here, I just duplicate the variable, but it's in the other file I actually create the +2 / +4 version to merge this on (so, if the divorce is 2010, I want policy info from 2012 to show the causal direction, but I will create that variable next to 2010 - and then just merge on the 2012 info from here as is)
 gen year_tf2 = year
 gen year_tf4 = year 
+
+// for year of marriage control, need that variable - this file has real years, I need this to match on rel start year so I don't change it here, it's still year.
+gen rel_start_yr_couple = year
+
+// for acs analysis, need state_t1
+gen state_t1 = state_fips
 
 save "$temp/data_for_scale.dta", replace
 
@@ -406,9 +413,19 @@ tabstat structural_familism if year==2005, by(state_fips)
 tabstat structural_familism if year==2015, by(state_fips)
 tabstat structural_familism, by(year)
 
-/// Correlation matrix of the macro-level factors. wait do I want these here or at state level? I think I actually want at state-level (so file A)
+/// Correlation matrix of the macro-level factors. wait do I want these here or at state level? I think I actually want at state-level (so file A aka here)
 pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg
+pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg min_amt_above_fed unemployment_percap earn_ratio abortion_protected welfare_all paid_leave prek_enrolled_public
+pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg cc_pct_income_orig cc_pct_served headstart_pct earlyhs_pct total_headstart_pct educ_spend_percap broad_policy family_investment structural_factor
 
+// childcare costs specifically
+pwcorr maternal_u5_employment_wt maternal_employment_wt cc_cost_orig cc_pct_income_orig structural_familism 
+
+// correlations with religion
+pwcorr evang_rate evang_lds_rate relig_rate
+pwcorr evang_rate structural_familism avg_egal_reg women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate
+pwcorr evang_lds_rate structural_familism avg_egal_reg women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate
+ 
 // summarize inputs: base variable
 tabstat min_amt_above_fed unemployment_percap earn_ratio abortion_protected welfare_all paid_leave prek_enrolled_public structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg, stats(min max mean sd)
 
