@@ -24,8 +24,11 @@
 ********************************************************************************
 
 ********************************************************************************
+********************************************************************************
 * Women
 ********************************************************************************
+********************************************************************************
+
 use "$ACS\acs_2000_2021_marriage-selection.dta", clear
 
 keep if sex==2 // let's start with women
@@ -64,7 +67,7 @@ label values race_gp race_gp
 // merge on to policy data - think I only need t in this case?
 rename statefip state_fips
 
-local scale_vars "structural_familism structural_factor avg_egal_reg married_pure_male_bw_rate married_women_emp_rate_wt married_earn_ratio women_college_rate_wt broad_policy family_investment" 
+local scale_vars "structural_familism structural_factor avg_egal_reg married_pure_male_bw_rate married_women_emp_rate_wt married_earn_ratio women_college_rate_wt evang_rate broad_policy family_investment" 
 
 merge m:1 state_fips year using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
 	// tab state_fips _merge
@@ -72,6 +75,13 @@ drop if _merge==2
 drop _merge
 
 save "$ACS\acs_2000_2021_women-marriage.dta", replace
+// use "$ACS\acs_2000_2021_women-marriage.dta", clear
+
+global macro_controls "women_college_rate_wt married_women_emp_rate_wt avg_egal_reg married_pure_male_bw_rate evang_rate"
+
+********************************************************************************
+* Education
+********************************************************************************
 
 logistic currently_married college
 logistic currently_married structural_familism // so better policy = less marriage (aligns with idea that marriage declining in more urban areas prob right?)
@@ -144,8 +154,23 @@ women_college_rate_wt
 sum structural_familism, detail
 margins college, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
+***************
+* For paper
+***************
+
+logistic currently_married i.college c.structural_familism i.college#c.structural_familism ///
+$macro_controls i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild
+sum structural_familism, detail
+margins college, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50))  yscale(range(0 1)) ylabel(0(.1)1)
+graph export "$results/women_current_marriage_controls_vF.png", replace
+	
+
 // might need to export full models - a useful comparison could be effect size - like is this effect size similar to or smaller than other correlates like age or employment status? I think it will be *smaller* - but I also think these are just small differences it should be fine; they are just significant because i have millions of people. i think what i am putting in excel is fine for now. can come back to this.
 
+********************************************************************************
+* Race
+********************************************************************************
 // check the same for race??
 logistic currently_married i.race_gp
 
@@ -165,10 +190,23 @@ margins race_gp, at(structural_familism=(`r(p5)' (1) `r(p95)'))
 marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot)) ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1) //  plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(gray%50)) 
 graph export "$results/women_current_marriage_race_controls.png", replace
 
+***************
+* For paper
+***************
+
+logistic currently_married i.race_gp c.structural_familism i.race_gp#c.structural_familism /// 
+$macro_controls i.state_fips i.year age i.education i.hispan incwage i.empstat i.nchild if inlist(race_gp,1,2) // just Black/White to reflect PSID sample
+sum structural_familism, detail
+margins race_gp, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "NH White" 4 "Black")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50))  yscale(range(0 1)) ylabel(0(.1)1)
+graph export "$results/women_current_marriage_race_controls_vF.png", replace
+
 // save "$ACS\acs_2000_2021_women-marriage.dta", replace
 
 ********************************************************************************
+********************************************************************************
 * Men
+********************************************************************************
 ********************************************************************************
 log using "$logdir/acs_men_currentmarriage.log", replace // doing this so I can run and revisit but not sure it will fit in window so export log
 
@@ -212,7 +250,7 @@ tab race_gp, m
 // merge on to policy data - think I only need t in this case?
 rename statefip state_fips
 
-local scale_vars "structural_familism structural_factor avg_egal_reg married_pure_male_bw_rate married_women_emp_rate_wt married_earn_ratio women_college_rate_wt broad_policy family_investment" 
+local scale_vars "structural_familism structural_factor avg_egal_reg married_pure_male_bw_rate married_women_emp_rate_wt married_earn_ratio women_college_rate_wt evang_rate broad_policy family_investment" 
 
 merge m:1 state_fips year using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
 	tab state_fips _merge
@@ -220,6 +258,13 @@ drop if _merge==2
 drop _merge
 
 save "$ACS\acs_2000_2021_men-marriage.dta", replace
+// use "$ACS\acs_2000_2021_men-marriage.dta", clear
+
+global macro_controls "women_college_rate_wt married_women_emp_rate_wt avg_egal_reg married_pure_male_bw_rate evang_rate"
+
+********************************************************************************
+* Education
+********************************************************************************
 
 logistic currently_married college
 logistic currently_married structural_familism // so better policy = less marriage (aligns with idea that marriage declining in more urban areas prob right?)
@@ -271,6 +316,21 @@ margins, dydx(college) at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)
 sum structural_familism, detail
 margins, at(structural_familism=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)'))
 
+***************
+* For paper
+***************
+
+logistic currently_married i.college c.structural_familism i.college#c.structural_familism ///
+$macro_controls i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild
+sum structural_familism, detail
+margins college, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "No College Degree" 4 "College Degree")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50))  yscale(range(0 1)) ylabel(0(.1)1)
+graph export "$results/men_current_marriage_controls_vF.png", replace
+
+********************************************************************************
+* Race
+********************************************************************************
+
 // check the same for race??
 logistic currently_married i.race_gp
 
@@ -290,6 +350,62 @@ sum structural_familism, detail
 margins race_gp, at(structural_familism=(`r(p5)' (1) `r(p95)'))
 marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(4 "NH White" 5 "Black" 6 "Hispanic")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(solid))  plot2opts(lcolor("black") mcolor("black") lpattern(dash))  plot3opts(lcolor("black") mcolor("black") lpattern(dot)) ci1opts(color(gray%50)) ci2opts(color(gray%50)) ci3opts(color(gray%50)) yscale(range(0 1)) ylabel(0(.1)1) //  plot4opts(lcolor("gs12") mcolor("gs12")) ci4opts(color(gray%50)) 
 graph export "$results/men_current_marriage_race_controls.png", replace
+
+***************
+* For paper
+***************
+
+logistic currently_married i.race_gp c.structural_familism i.race_gp#c.structural_familism /// 
+$macro_controls i.state_fips i.year age i.education i.hispan incwage i.empstat i.nchild if inlist(race_gp,1,2) // just Black/White to reflect PSID sample
+sum structural_familism, detail
+margins race_gp, at(structural_familism=(`r(p5)' (1) `r(p95)'))
+marginsplot, xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Being Currently Married") title("") legend(position(6) ring(3) rows(1) order(3 "NH White" 4 "Black")) recast(line) recastci(rarea) xlabel(#10) plot1opts(lcolor("black") mcolor("black") lpattern(dash))  plot2opts(lcolor("black") mcolor("black")) ci1opts(color(gray%50)) ci2opts(color(gray%50))  yscale(range(0 1)) ylabel(0(.1)1)
+graph export "$results/men_current_marriage_race_controls_vF.png", replace
+
+log close
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# Let's export coefficients so I have
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+log using "$logdir/acs_marriage_coefficients_vF.log", replace
+
+********************************************************************************
+* Women
+********************************************************************************
+
+use "$ACS\acs_2000_2021_women-marriage.dta", clear
+
+global macro_controls "women_college_rate_wt married_women_emp_rate_wt avg_egal_reg married_pure_male_bw_rate evang_rate"
+
+// education
+logistic currently_married i.college c.structural_familism i.college#c.structural_familism ///
+$macro_controls i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild
+
+// race
+logistic currently_married i.race_gp c.structural_familism i.race_gp#c.structural_familism /// 
+$macro_controls i.state_fips i.year age i.education i.hispan incwage i.empstat i.nchild if inlist(race_gp,1,2) 
+
+
+********************************************************************************
+* Men 
+********************************************************************************
+
+use "$ACS\acs_2000_2021_men-marriage.dta", clear
+
+global macro_controls "women_college_rate_wt married_women_emp_rate_wt avg_egal_reg married_pure_male_bw_rate evang_rate"
+
+// education
+logistic currently_married i.college c.structural_familism i.college#c.structural_familism ///
+$macro_controls i.state_fips i.year age i.race i.hispan incwage i.empstat i.nchild
+
+// race
+logistic currently_married i.race_gp c.structural_familism i.race_gp#c.structural_familism /// 
+$macro_controls i.state_fips i.year age i.education i.hispan incwage i.empstat i.nchild if inlist(race_gp,1,2) 
 
 log close
 
@@ -362,7 +478,7 @@ browse serial pernum year migrate1 state_mover statefip migplac1 state_t1
 
 rename statefip state_fips
 
-local scale_vars "structural_familism structural_factor avg_egal_reg married_pure_male_bw_rate married_women_emp_rate_wt married_earn_ratio women_college_rate_wt broad_policy family_investment" 
+local scale_vars "structural_familism structural_factor avg_egal_reg married_pure_male_bw_rate married_women_emp_rate_wt married_earn_ratio women_college_rate_wt evang_rate broad_policy family_investment" 
 
 // First do T
 merge m:1 state_fips year using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
