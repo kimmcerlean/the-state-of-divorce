@@ -50,7 +50,7 @@ Per note below, I directly provide in GitHub the .dta file with the necessary st
 
 ## State-level work-family policies
 
-This file requires a list of state-level work family policies and related variables. Some of these were compiled using the CPS or the GSS and so those codes are included in this folder (subfolder: state-data-compilation). However, many of these policies came from a variety of sources and I compiled many via Excel. Therefore, I include in a separate folder in this GitHub ("structural support for working families") the .dta file you can directly use for analysis (merged onto the PSID data in step "b\_state-level-analysis\_main-results.do"). For this to work, that file needs to be downloaded from GitHub and placed wherever you have your global created\_data set to go.
+This file requires a list of state-level work family policies and related variables. Some of these were compiled using the CPS or the GSS and so those codes are included in this folder (subfolder: state-data-compilation). However, many of these policies came from a variety of sources and I compiled many via Excel. Therefore, I include in a separate folder in this GitHub ("structural support for working families") the .dta file you can directly use for analysis (merged onto the PSID data in step "b\_state-level-analysis\_main-results.do"). For this to work, that file needs to be downloaded from GitHub and placed wherever you have your global created\_data set to go. You can then ignore step a in state analysis folder.
 
 ## PSID file info
 
