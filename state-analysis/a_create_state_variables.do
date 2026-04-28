@@ -1,7 +1,8 @@
 ********************************************************************************
+* Project: Work-family policy and divorce
 * Create structural support variable
-* create-state-varables.do
-* Kim McErlean
+* create-state-variables.do
+* Code owner: Kimberly McErlean
 ********************************************************************************
 
 ********************************************************************************
@@ -149,7 +150,7 @@ gen non_pure_male_bw_rate = 1 - married_pure_male_bw_rate // not *quite* a direc
 // low_inc_prem_pct
 
 // then standardize variables
-foreach var in paid_leave paid_leave_length cc_pct_income_orig prek_enrolled_public cc_pct_served headstart_pct earlyhs_pct total_headstart_pct headstart_pct_totalpop earlyhs_pct_totalpop educ_spend_percap policy_lib_all abortion_protected married_women_pt_rate_wt maternal_u5_pt_rate gender_factor_reg avg_egal_reg gender_factor_state avg_egal_state evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all cc_pct_inc_neg married_wom_pt_rate_neg mom_u5_pt_rate_neg non_evang_lds_rate non_pure_male_bw_rate women_college_rate_wt married_women_college_rt_wt college_ratio married_college_ratio{
+foreach var in paid_leave paid_leave_length cc_pct_income_orig prek_enrolled_public cc_pct_served headstart_pct earlyhs_pct total_headstart_pct headstart_pct_totalpop earlyhs_pct_totalpop educ_spend_percap policy_lib_all abortion_protected married_women_pt_rate_wt maternal_u5_pt_rate gender_factor_reg avg_egal_reg gender_factor_state avg_egal_state evang_rate evang_lds_rate married_dual_earn_rate married_pure_male_bw_rate married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all cc_pct_inc_neg married_wom_pt_rate_neg mom_u5_pt_rate_neg non_evang_lds_rate non_pure_male_bw_rate women_college_rate_wt married_women_college_rt_wt college_ratio married_college_ratio{
 	sum `var'
 	gen `var'_st = (`var'- `r(mean)') / `r(sd)'
 }
@@ -180,7 +181,7 @@ alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st ab
 alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_inc_neg_st // reversed here (is this anything to do with years?) 0.76
 alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_inc_neg_st if year >=2009 // okay, no 0.69
 
-egen sf_cc_income = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_inc_neg_st)
+egen sf_cc_income = rowtotal(paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_inc_neg_st) // so in the scale, I do use the REVERSE coded one. When I do the individual, I use AS IS
 
 * ccdf % served
 alpha paid_leave_st min_amt_above_fed_st earn_ratio_st unemployment_percap_st abortion_protected_st welfare_all_st cc_pct_served_st // 0.71
@@ -403,8 +404,13 @@ tab policy_group_v3, m // this is also very even, which is crazy...
 
 save "$created_data/scale_refresh.dta", replace
 
+********************************************************************************
+* Small descriptives for various parts of paper
+********************************************************************************
+// use  "$created_data/scale_refresh.dta", clear
+
 **********************
-* Small descriptives
+* For Figure 2
 **********************
 
 tabstat structural_familism, by(state_fips)
@@ -413,10 +419,13 @@ tabstat structural_familism if year==2005, by(state_fips)
 tabstat structural_familism if year==2015, by(state_fips)
 tabstat structural_familism, by(year)
 
+**********************
+* Supplementary Materials
+**********************
 /// Correlation matrix of the macro-level factors. wait do I want these here or at state level? I think I actually want at state-level (so file A aka here)
-pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg
-pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg min_amt_above_fed unemployment_percap earn_ratio abortion_protected welfare_all paid_leave prek_enrolled_public
-pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg cc_pct_income_orig cc_pct_served headstart_pct earlyhs_pct total_headstart_pct educ_spend_percap broad_policy family_investment structural_factor
+pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg evang_rate
+pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg evang_rate min_amt_above_fed unemployment_percap earn_ratio abortion_protected welfare_all paid_leave prek_enrolled_public
+pwcorr structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg evang_rate cc_pct_income_orig cc_pct_served headstart_pct earlyhs_pct total_headstart_pct educ_spend_percap broad_policy family_investment structural_factor
 
 // childcare costs specifically
 pwcorr maternal_u5_employment_wt maternal_employment_wt cc_cost_orig cc_pct_income_orig structural_familism 
@@ -425,18 +434,22 @@ pwcorr maternal_u5_employment_wt maternal_employment_wt cc_cost_orig cc_pct_inco
 pwcorr evang_rate evang_lds_rate relig_rate
 pwcorr evang_rate structural_familism avg_egal_reg women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate
 pwcorr evang_lds_rate structural_familism avg_egal_reg women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate
- 
-// summarize inputs: base variable
-tabstat min_amt_above_fed unemployment_percap earn_ratio abortion_protected welfare_all paid_leave prek_enrolled_public structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg, stats(min max mean sd)
+
+// paid leave correlation with broad policy environment
+bysort state_fips: egen paid_leave_state = max(paid_leave)
+tabstat structural_familism, by(paid_leave_state)
+
+**********************
+* Supplementary Materials
+**********************
+ // summarize inputs: base variable
+tabstat min_amt_above_fed unemployment_percap earn_ratio abortion_protected welfare_all paid_leave prek_enrolled_public structural_familism women_college_rate_wt married_women_emp_rate_wt married_pure_male_bw_rate avg_egal_reg evang_rate, stats(min max mean sd)
 
 // summarize inputs: standardized
-tabstat  min_amt_above_fed_st unemployment_percap_st earn_ratio_st abortion_protected_st welfare_all_st paid_leave_st prek_enrolled_public_st women_college_rate_wt_st married_women_emp_rate_wt_st married_pure_male_bw_rate_st avg_egal_reg_st, stats(min max mean sd)
+tabstat  min_amt_above_fed_st unemployment_percap_st earn_ratio_st abortion_protected_st welfare_all_st paid_leave_st prek_enrolled_public_st women_college_rate_wt_st married_women_emp_rate_wt_st married_pure_male_bw_rate_st avg_egal_reg_st evang_rate_st, stats(min max mean sd)
 
 // to pick example states
 tabstat structural_familism paid_leave_length prek_enrolled_public min_amt_above_fed earn_ratio unemployment_percap abortion_protected welfare_all if year<=2019, by(state_name)
 sum structural_familism, detail // 25th =  -2.780044 ; 50th = -.7112048 ; 75th = 1.749628
 
-// paid leave correlation with broad policy environment
-bysort state_fips: egen paid_leave_state = max(paid_leave)
-tabstat structural_familism, by(paid_leave_state)
 

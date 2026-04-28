@@ -1,7 +1,8 @@
 ********************************************************************************
-* Adding in state-level data
-* state-level-analysis.do
-* Kim McErlean
+* Project: Work-family policy and divorce
+* Merge state-level data and conduct analyses
+* state-level-analysis-main-results.do
+* Code owner: Kimberly McErlean
 ********************************************************************************
 // ssc install marginscontplot - have to make sure you have this pckage
 // ssc install firthlogit, replace
@@ -653,7 +654,7 @@ restore
 ********************************************************************************
 **# Merge onto policy data
 ********************************************************************************
-local scale_vars "structural_familism structural_factor cc_cost_orig cc_pct_income_orig prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_rate evang_lds_rate relig_rate married_dual_earn_rate married_pure_male_bw_rate women_emp_rate_wt married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2 policy_group_v3 women_college_rate_wt married_women_college_rt_wt college_ratio_wt married_college_ratio_wt sf_cc_income sf_ccdf_served sf_head_start sf_early_hs sf_total_hs sf_educ_spend broad_policy family_investment sf_childcare sf_policy sf_childcare_wt sex_ratio_marriage_wt men_unemp_rate_wt" 
+local scale_vars "structural_familism structural_factor cc_cost_orig cc_pct_income_orig cc_pct_inc_neg prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_rate evang_lds_rate relig_rate married_dual_earn_rate married_pure_male_bw_rate women_emp_rate_wt married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2 policy_group_v3 women_college_rate_wt married_women_college_rt_wt college_ratio_wt married_college_ratio_wt sf_cc_income sf_ccdf_served sf_head_start sf_early_hs sf_total_hs sf_educ_spend broad_policy family_investment sf_childcare sf_policy sf_childcare_wt sex_ratio_marriage_wt men_unemp_rate_wt" 
 
 rename STATE_ state_fips
 rename survey_yr year
@@ -738,6 +739,11 @@ browse unique_id partner_unique_id year dissolve ever_dissolve current_rel_type 
 ////////////////////////////////////////////////////////////////////////////////
 
 use "$created_data/PSID_union_sample_with_policy.dta", clear
+
+global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children i.year_gp"  // add year here.
+
+global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t evang_rate_t" // add religion here 
+
 
 ********************************************************************************
 ********************************************************************************
@@ -863,6 +869,13 @@ outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway s
 
 logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
 outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Under6 2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// should I include interactions actually?
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Under6 Int1) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+outreg2 using "$results/main results/dissolution_OR_main_effects.xls", sideway stats(coef se pval) ctitle(Under6 Int2) dec(2) eform alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 ********************************************************************************
 ********************************************************************************
@@ -1692,6 +1705,7 @@ tab hh_hours_type_t1, gen(hours_type)
 tab division_bucket_hrs_t1, gen(combined_hours)
 tab educ_type, gen(educ_type)
 tab raceth_head_fixed, gen(race_head)
+tab raceth_wife_fixed, gen(race_wife)
 tab couple_joint_religion, gen(religion)
 tab year_gp, gen(year_gp)
 
@@ -1753,11 +1767,18 @@ putexcel A47 = "Survey Year: 2005-2009"
 putexcel A48 = "Survey Year: 2010-2014"
 putexcel A49 = "Survey Year: 2015-2019"
 
+// think use this bc I use this for stratification
+putexcel A50 = "Wife's Race: NH White"
+putexcel A51 = "Wife's Race: Black"
+putexcel A52 = "Wife's Race: Hispanic"
+putexcel A53 = "Wife's Race: NH Asian"
+putexcel A54 = "Wife's Race: NH Other"
 
-local meanvars "hours_type1 hours_type2 hours_type3 combined_hours1 combined_hours2 combined_hours3 combined_hours4 combined_hours5 structural_familism_t women_college_rate_wt_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t avg_egal_reg_t evang_rate_t marr_dur age_mar_head age_mar_wife couple_earnings_t1 educ_type1 educ_type2 educ_type3 educ_type4 home_owner race_head1 race_head2 race_head3 race_head4 race_head5 same_race either_enrolled cohab_with_partner cohab_with_other pre_marital_birth religion1 religion2 religion3 religion4 religion5 religion6 moved_last2 NUM_CHILDREN_ year_gp1 year_gp2 year_gp3 year_gp4 year_gp5"
+
+local meanvars "hours_type1 hours_type2 hours_type3 combined_hours1 combined_hours2 combined_hours3 combined_hours4 combined_hours5 structural_familism_t women_college_rate_wt_t married_women_emp_rate_wt_t married_pure_male_bw_rate_t avg_egal_reg_t evang_rate_t marr_dur age_mar_head age_mar_wife couple_earnings_t1 educ_type1 educ_type2 educ_type3 educ_type4 home_owner race_head1 race_head2 race_head3 race_head4 race_head5 same_race either_enrolled cohab_with_partner cohab_with_other pre_marital_birth religion1 religion2 religion3 religion4 religion5 religion6 moved_last2 NUM_CHILDREN_ year_gp1 year_gp2 year_gp3 year_gp4 year_gp5 race_wife1 race_wife2 race_wife3 race_wife4 race_wife5"
 
 // Parents
-forvalues w=1/46{
+forvalues w=1/51{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
 	svy: mean `var' if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
@@ -1766,7 +1787,7 @@ forvalues w=1/46{
 }
 
 // those who dissolved; value when dissolve==1
-forvalues w=1/46{
+forvalues w=1/51{
 	local row=`w'+3
 	local var: word `w' of `meanvars' 
 	svy: mean `var' if dissolve==1 & children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
@@ -1776,7 +1797,7 @@ forvalues w=1/46{
 
 
 // All couples
-forvalues w=1/46{
+forvalues w=1/51{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
 	svy: mean `var' if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
@@ -1785,7 +1806,7 @@ forvalues w=1/46{
 }
 
 // those who dissolved; value when dissolve==1
-forvalues w=1/46{
+forvalues w=1/51{
 	local row=`w'+3
 	local var: word `w' of `meanvars'
 	svy: mean `var' if dissolve==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
@@ -1798,6 +1819,23 @@ unique unique_id if children_under6==1 & dissolve==1 & current_rel_type==20 & ma
 unique unique_id if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 unique unique_id if dissolve==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 unique unique_id if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
+
+********************************************************************************
+* For mechanisms
+********************************************************************************
+// (I guess for ease i need to show for the 4 columns?)
+
+// basic summaries
+tabstat total_work_wife total_work_couple earnings_t1_wife earnings_wife_1000s if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 [aweight=weight] // all married couples
+tabstat total_work_wife total_work_couple earnings_t1_wife if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & dissolve==1 [aweight=weight] // all who dissolve
+tabstat total_work_wife total_work_couple earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 [aweight=weight] // parents of young children
+tabstat total_work_wife total_work_couple earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & dissolve==1 [aweight=weight] // parents who dissolve
+
+// in different arrangements
+tabstat total_work_wife total_work_couple earnings_t1_wife if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 [aweight=weight], by(division_bucket_hrs_t1)
+tabstat total_work_wife total_work_couple earnings_t1_wife if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & dissolve==1 [aweight=weight], by(division_bucket_hrs_t1)
+tabstat total_work_wife total_work_couple earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 [aweight=weight], by(division_bucket_hrs_t1)
+tabstat total_work_wife total_work_couple earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & dissolve==1 [aweight=weight], by(division_bucket_hrs_t1)
 
 ********************************************************************************
 // Unweighted (for comparison to previous)
