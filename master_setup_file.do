@@ -1,4 +1,14 @@
 ********************************************************************************
+* Project: Work-family policy and divorce
+* Getting PSID sample for union dissolution
+* master_setup_file.do
+* Code owner: Kimberly McErlean
+********************************************************************************
+
+// To add your own hostname and file paths, type:
+display `"`c(hostname)'"'
+
+********************************************************************************
 ** PRC STATS SERVER
 ********************************************************************************
 
@@ -71,3 +81,18 @@ if `"`c(hostname)'"' == "LAPTOP-TP2VHI6B"{
 ** Create macro for current date to use when saving files
 ********************************************************************************
 global logdate = string( d(`c(current_date)'), "%dCY.N.D" )
+
+********************************************************************************
+** Package dependencies
+********************************************************************************
+set maxvar 10000
+
+foreach program in fre ereplace coefplot outreg2{
+	capture : which `program'
+	if (_rc) {
+		display as error in smcl `"Please install package {it:`program'} from SSC in order to run these do-files;"' _newline ///
+			`"you can do so by clicking this link: {stata "ssc install `program'":auto-install `program'}"'
+		exit 199
+	}
+}
+

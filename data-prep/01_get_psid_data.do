@@ -1,7 +1,8 @@
 ********************************************************************************
+* Project: Work-family policy and divorce
 * Getting PSID sample for union dissolution
-* create_sample.do
-* Kim McErlean
+* get_psid_data.do
+* Code owner: Kimberly McErlean
 ********************************************************************************
 
 ********************************************************************************

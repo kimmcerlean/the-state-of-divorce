@@ -1,5 +1,8 @@
 ********************************************************************************
+* Project: Work-family policy and divorce
 * Relabeling variables for consistency across waves and make it easier to analyze
+* rename_vars.do
+* Code owner: Kimberly McErlean
 ********************************************************************************
 
 use "$PSID\PSID_full.dta", clear

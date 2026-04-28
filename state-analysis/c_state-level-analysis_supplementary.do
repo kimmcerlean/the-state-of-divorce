@@ -2,9 +2,10 @@
 * Like this this becomes SUPPLEMENTARY in paper. A second file is EXPLORATORY not paper? (bc some of this even ends up in main file)
 
 ********************************************************************************
-* Adding in state-level data
-* state-level-analysis.do
-* Kim McErlean
+* Project: Work-family policy and divorce
+* Analyses for supplementary materials
+* state-level-analysis-supplementary.do
+* Code owner: Kimberly McErlean
 ********************************************************************************
 
 ********************************************************************************
@@ -52,6 +53,29 @@ foreach var in `marr_vars'{
 
 // browse id state_fips year rel_start_yr_couple structural_familism_t structural_familism_tmar men_unemp_rate_wt_t men_unemp_rate_wt_tmar // right the tmar ones are CONSTANT but only within couples. i CAN still control for these, though, because people get married at different years within a state so there is still variation. but...this might still cause problems let's see
 tabstat men_unemp_rate_wt_tmar college_ratio_wt_tmar sex_ratio_marriage_wt_tmar, by(year)
+
+// merge onto census division lookup - doing this because I am trying to estimate other regions but estimates aren't stable. I think I could argue to combine COASTAL states (See Ruppaner, but also motivated by scores - see below) but not the entire West and NE. So want to instead do South, Coastal, Mid-country. I think *this* works.
+merge m:1 state_fips using "$state_data/division_lookup.dta"
+drop if _merge==2 // DC
+
+tab region region_check
+
+label define division 1	"New England" 2	"Middle Atlantic" 3	"East North Central" 4 "West North Central" ///
+5	"South Atlantic" 6	"East South Central" 7	"West South Central" 8	"Mountain" 9	"Pacific"
+label values census_division_code division
+
+tab census_division_code region
+
+gen region_alt = .
+replace region_alt = 1 if region==3 // south
+replace region_alt = 2 if inlist(census_division_code, 1,2,9) // coastal
+replace region_alt = 3 if inlist(census_division_code, 8,3,4)
+
+label define region_alt 1 "South" 2 "Coastal" 3 "Midwest / West"
+label values region_alt region_alt
+
+tabstat structural_familism_t, by(region) stats(min max mean sd)
+tabstat structural_familism_t, by(census_division_code) stats(min max mean sd)
 
 ////////////////////////////////////////////////////////////////////////////////
 ********************************************************************************
@@ -329,6 +353,11 @@ margins, dydx(hh_hours_type_t1)
 logit dissolve i.combined_dur c.structural_familism_t i.division_bucket_hrs_t1 $combo_controls  $macro_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or cluster(couple_id)
 margins, dydx(division_bucket_hrs_t1) 
 
+global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children i.year_gp"  // add year here.
+
+global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t evang_rate_t" // add religion here 
+
+
 * Now - interact instead of separate?
 logit dissolve i.combined_dur c.structural_familism_t i.current_rel_type##i.hh_hours_type_t1 $combo_controls  $macro_controls if children_under6==1 & combined_dur>=0 & any_missing==0 & no_labor==0 & cohab_flag==0, or cluster(couple_id)
 margins current_rel_type, dydx(hh_hours_type_t1)
@@ -534,7 +563,7 @@ sum prek_enrolled_public_t, detail
 margins, dydx(hh_hours_type_t1) at(prek_enrolled_public_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/main results/childcare_robustness_marriage.xls", ctitle(PreK: 2009) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-* B. 1999+ (for CC pct income)
+* B. 1999+ (for CCDF)
 // the full scale
 logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & year>=1999, or cluster(couple_id)
 sum structural_familism_t, detail
@@ -1172,6 +1201,117 @@ Alt for comparison
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
+**# Let's export results for education / race to have for Supplemental Materials
+* Might use this instead of figures
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+********************************************************************************
+* Education
+********************************************************************************
+
+**********************
+*College
+**********************
+
+** Main effects
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0  & couple_educ_gp==1, or cluster(couple_id)
+margins, dydx(hh_hours_type_t1) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(College Paid) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or cluster(couple_id)
+margins, dydx(division_bucket_hrs_t1) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(College Combined) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** Interactions
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(College Paid Int) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==1, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(College Combined Int) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**********************
+* No College
+**********************
+** Main effects
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0  & couple_educ_gp==0, or cluster(couple_id)
+margins, dydx(hh_hours_type_t1) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(No College Paid) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or cluster(couple_id)
+margins, dydx(division_bucket_hrs_t1) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(No College Combined) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** Interactions
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(No College Paid Int) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & couple_educ_gp==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(No College Combined Int) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+
+********************************************************************************
+* Race 
+********************************************************************************
+
+**********************
+* White (wife's race)
+**********************
+** Main effects
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0  & raceth_wife==1, or cluster(couple_id)
+margins, dydx(hh_hours_type_t1) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(White Paid) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & raceth_wife==1, or cluster(couple_id)
+margins, dydx(division_bucket_hrs_t1) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(White Combined) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** Interactions
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & raceth_wife==1, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(White Paid Int) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & raceth_wife==1, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(White Combined Int) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**********************
+* Black (wife's race)
+**********************
+** Main effects
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0  & raceth_wife==2, or cluster(couple_id)
+margins, dydx(hh_hours_type_t1) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(Black Paid) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & raceth_wife==2, or cluster(couple_id)
+margins, dydx(division_bucket_hrs_t1) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(Black Combined) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+**interactions
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & raceth_wife==2, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(Black Paid Int) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & raceth_wife==2, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMEs_demographics.xls", ctitle(Black Combined Int) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
 **# Sample age robustsness (R2, Response 7)
 ********************************************************************************
 ********************************************************************************
@@ -1588,6 +1728,33 @@ coefplot (egal, label("Egalitarian")) ///
 		, at recast(line) noci
 */
 
+
+// another thing I wanted to look at is if policy changes the education gradient of employment. wait it does this is SO interesting and actually further shows it's not really at odds - bc it's not the most economically independent women selecting out.
+tab hh_hours_type_t1 high_policy_support if in_analytical_sample==1, col
+tab division_bucket_hrs_t1 high_policy_support if in_analytical_sample==1, col
+tab ft_t1_wife high_policy_support if in_analytical_sample==1, col
+tab ft_t1_head high_policy_support if in_analytical_sample==1, col
+
+tab hh_hours_type_t1 college_wife if in_analytical_sample==1 & high_policy_support ==0, col
+tab hh_hours_type_t1 college_wife if in_analytical_sample==1 & high_policy_support ==1, col
+
+tab hh_hours_type_t1 high_policy_support if in_analytical_sample==1 & college_wife ==0, col
+tab hh_hours_type_t1 high_policy_support if in_analytical_sample==1 & college_wife ==1, col
+
+tab division_bucket_hrs_t1 high_policy_support if in_analytical_sample==1 & college_wife ==0, col
+tab division_bucket_hrs_t1 high_policy_support if in_analytical_sample==1 & college_wife ==1, col
+
+tab ft_t1_wife high_policy_support if in_analytical_sample==1 & college_wife ==0, col
+tab ft_t1_wife high_policy_support if in_analytical_sample==1 & college_wife ==1, col
+
+tab ft_t1_head high_policy_support if in_analytical_sample==1 & college_wife ==0, col
+tab ft_t1_head high_policy_support if in_analytical_sample==1 & college_wife ==1, col
+
+tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1 & college_wife==0, by(high_policy_support)
+tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1 & college_wife==0, by(high_policy_support) stats(p50)
+tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1 & college_wife==1, by(high_policy_support) stats(mean)
+tabstat female_hours_pct_t1 wife_housework_pct_t if in_analytical_sample==1 & college_wife==1, by(high_policy_support) stats(p50)
+
 ********************************************************************************
 * then should I see if the egalitarian and traditional samples within different
 * policy groups are different? (aka selection in that way?)
@@ -1887,27 +2054,27 @@ outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Combined
 // also if the question, like R3 is about South specifically, not sure this adds value
 tab region if in_analytical_sample==1
 
-// NE and West
-logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & inlist(region,1,4), or cluster(couple_id)
+// NE and Coastal
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & region_alt==2, or cluster(couple_id)
 sum structural_familism_t, detail
 margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Paid: NE + West) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Paid: Coastal) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & inlist(region,1,4), or cluster(couple_id)
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & region_alt==2, or cluster(couple_id)
 sum structural_familism_t, detail
 margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Combined: NE + West) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Combined: Coastal) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-// but then do I need to do the North Central?
-logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & region==2, or cluster(couple_id)
+// Midwest / West (non-CoastaL)
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & region_alt==3, or cluster(couple_id)
 sum structural_familism_t, detail
 margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Paid: Central) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Paid: Midwest / Mountain) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
-logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & region==2, or cluster(couple_id)
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls_nofe $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & region_alt==3, or cluster(couple_id)
 sum structural_familism_t, detail
 margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
-outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Combined: Central) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Combined: Midwest / Mountain) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
 
 ********************************************************************************
@@ -2542,10 +2709,148 @@ sum structural_familism_t, detail
 margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
 outreg2 using "$results/main results/dissolution_AMES_R&R2.xls", ctitle(Combined: EvangLDS just Control) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
 
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# Backup tables for earnings medation (R&R Take 2)
+********************************************************************************
+********************************************************************************
+********************************************************************************
+
+*******************************
+*Paid
+*******************************
+// M1
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Main M1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) replace
+
+// M1 A
+logit dissolve i.marr_dur c.structural_familism_t c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Earnings M1a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// M2
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Mediate M2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// M3
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Mod Med M3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Earnings Mod M3a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** main effects
+// m1
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+margins, dydx(hh_hours_type_t1) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Main M1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// m1a
+logit dissolve i.marr_dur c.structural_familism_t c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Earnings M1a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// m2
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+margins, dydx(hh_hours_type_t1) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Mediate M2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+	logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+	margins, dydx(earnings_wife_1000s)
+
+// M3
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(hh_hours_type_t1) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Mod Med M3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 c.structural_familism_t#i.hh_hours_type_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Paid Earnings Mod M3a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+*******************************
+*Combined DoL
+*******************************
+// M1
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Main M1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// M1 A
+logit dissolve i.marr_dur c.structural_familism_t c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Earnings M1a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// M2
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Mediate M2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// M3
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Mod Med M3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Earnings Mod M3a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+** main effects
+// m1
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+margins, dydx(division_bucket_hrs_t1) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Main M1) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// m1a
+logit dissolve i.marr_dur c.structural_familism_t c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Earnings M1a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+// m2
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+margins, dydx(division_bucket_hrs_t1) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Mediate M2) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+
+	logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+	margins, dydx(earnings_wife_1000s)
+
+// M3
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(division_bucket_hrs_t1) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Mod Med M3) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 c.structural_familism_t#i.division_bucket_hrs_t1 c.earnings_wife_1000s c.structural_familism_t#c.earnings_wife_1000s $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(earnings_wife_1000s) post
+outreg2 using "$results/main results/dissolution_AMES_earnings_mediation.xls", ctitle(Combined Earnings Mod M3a) dec(4) alpha(0.001, 0.01, 0.05, 0.10) symbol(***, **, *, +) append
+
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************
 **# Earnings or Employment to get at DEPENDENCE question?? (R&R Take 2)
+* This is more exploratory version - the actual things have been implemented
+* a. in main file, b. in walds, and c. above
 ********************************************************************************
 ********************************************************************************
 ********************************************************************************

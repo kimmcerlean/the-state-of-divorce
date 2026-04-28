@@ -2,9 +2,10 @@
 * Project: Work-family policy and divorce
 * See if state-policy context affects selection into marriage
 * (and thus possibly the effect of state level variable)
-* x_acs_marital_selection.do
+* acs_marital_selection.do
 * Code owner: Kimberly McErlean
 ********************************************************************************
+
 // a few challenges. FIrst, I am not sure if I should use marrinyr or marital status
 // upon reflection, marital status - because I have the current population of married couples, not just newlyweds
 // so, i have more flexibility to go back before 2008 bc marrinyr not until 2008

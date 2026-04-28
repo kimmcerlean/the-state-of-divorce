@@ -1,7 +1,9 @@
 ********************************************************************************
+* Project: Work-family policy and divorce
 * Trying to get a file of all prior cohabitations for each partner to use as control variables
-* create_cohab_history.do
-* Kim McErlean
+* It also creates a full relationship history spanning (observed) cohabitations and marriages
+* create_relationship_history.do
+* Code owner: Kimberly McErlean
 ********************************************************************************
 
 ********************************************************************************

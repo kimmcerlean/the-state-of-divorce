@@ -1,3 +1,10 @@
+********************************************************************************
+* Project: Work-family policy and divorce
+* Reshape marital history so can merge to main PSID data
+* marital_history.do
+* Code owner: Kimberly McErlean
+********************************************************************************
+
 use "$PSID/mh85_21.dta", clear
 
 /* first rename for ease*/

@@ -1,7 +1,8 @@
 ********************************************************************************
+* Project: Work-family policy and divorce
 * Getting PSID sample for union dissolution
 * create_couple_samples.do
-* Kim McErlean
+* Code owner: Kimberly McErlean
 ********************************************************************************
 
 use "$temp/PSID_full_long.dta", clear // created in step 1

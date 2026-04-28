@@ -1,7 +1,8 @@
 ********************************************************************************
-* Formal Wald tests for somee of my robustness
+* Project: Work-family policy and divorce
+* Formal Wald tests for some of my robustness
 * walds.do
-* Kim McErlean
+* Code owner: Kimberly McErlean
 ********************************************************************************
 
 ********************************************************************************
