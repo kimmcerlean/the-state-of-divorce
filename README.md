@@ -1,26 +1,24 @@
-This is the Stata code for the analysis of "Examining the relationship between male-breadwinning and divorce: The impact of work-family policies in the United States"
-
-(https://doi.org/10.1093/sf/soag046). 
+This is the Stata code for the analysis of "Examining the relationship between male-breadwinning and divorce: The impact of work-family policies in the United States." (https://doi.org/10.1093/sf/soag046). 
 
 
 
-This study uses the Panel Study of Income dynamics (data through 2019). Data are publicly available for download here, with account: https://simba.isr.umich.edu/data/data.aspx.
+This study uses the Panel Study of Income Dynamics (data through 2019). Data are publicly available for download here, with account: https://simba.isr.umich.edu/data/data.aspx.
 
 
 
-File structure
+# File structure
 
 master-setup\_file.do: this creates global macros for data and created files as well as checks for package dependencies and other setup steps.
 
 
 
-Supplementary files
+# Supplementary files
 
-Per note below, I directly provide in GitHub the .dta file with the necessary state-level variables needed for analysis. Any data that was pulled or adjusted using Stata has corresponding code in the "state-data-compilation" file.
+Per note below, I directly provide in GitHub the .dta file with the necessary state-level variables needed for analysis. Any data that was pulled or adjusted using Stata has corresponding code in the "state-data-compilation" folders, for reference.
 
 
 
-Additional details and dependencies:
+# Additional details and dependencies:
 
 
 
