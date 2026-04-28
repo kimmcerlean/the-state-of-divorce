@@ -6,7 +6,7 @@ This study uses the Panel Study of Income Dynamics (data through 2019). Data are
 
 master-setup\_file.do: this creates global macros for data and created files as well as checks for package dependencies and other setup steps.
 
-# Supplementary files
+#### Supplementary files
 
 Per note below, I directly provide in GitHub the .dta file with the necessary state-level variables needed for analysis. Any data that was pulled or adjusted using Stata has corresponding code in the "state-data-compilation" folders, for reference.
 
