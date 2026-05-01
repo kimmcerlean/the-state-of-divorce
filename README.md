@@ -16,7 +16,11 @@ These files get the PSID data and create sample of couples for analysis.
 
 02\_create\_relationship\_history.do: This files adds to the PSID created marital history to attempt to get a. history for people not in marital history and b. add in cohabitation history (based on observed cohabitations) since that is not collected by the PSID. Primarily used for control variables.
 
-03\_create\_couple\_samples.do: Restricts full PSID data to couples and recodes variables
+03\_create\_couple\_samples.do: Restricts full PSID data to couples
+
+04\_recodes.do: recodes core and control variables
+
+05\_deduplicate.do: restricts to just one row per couple-year (instead of one per partner)
 
 x\_marital\_history.do: called from 01 and puts marital history in wide format and merges on to main PSID data for use in 02
 
