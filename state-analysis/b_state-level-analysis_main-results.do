@@ -142,14 +142,14 @@ inspect division_bucket_hrs_t1 // 196
 // create flag
 gen any_missing = 0
 replace any_missing = 1 if age_mar_wife==. | age_mar_head==. | raceth_head_fixed==. | couple_joint_religion ==. | educ_type==. | housework_bkt_t==. | division_bucket_hrs_t1==.
-tab any_missing , m // this is closer to 7% Is this too high?
+tab any_missing , m // this is closer to 7%
 
 // flag for no paid or unpaid labor to observe
 gen no_labor = 0 
 replace no_labor = 1 if hh_hours_type_t1==4 | housework_bkt_t ==4
 tab no_labor, m
 
-tab any_missing no_labor, m // so this is about 10%.
+tab any_missing no_labor, m
 
 // Time does not work as discrete for fixed effects (early and late years are being removed), so need to bucket
 gen year_gp=. 
@@ -1227,7 +1227,7 @@ tab couple_joint_religion, gen(religion)
 tab year_gp, gen(year_gp)
 
 ********************************************************************************
-// prob should weight, which was NOT the case before...
+// Weighted
 ********************************************************************************
 svyset [pweight=weight]
 
@@ -1337,22 +1337,6 @@ unique unique_id if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_lab
 unique unique_id if dissolve==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 unique unique_id if children==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
 
-********************************************************************************
-* For mechanisms
-********************************************************************************
-// (I guess for ease i need to show for the 4 columns?)
-
-// basic summaries
-tabstat total_work_wife total_work_couple earnings_t1_wife earnings_wife_1000s if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 [aweight=weight] // all married couples
-tabstat total_work_wife total_work_couple earnings_t1_wife if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & dissolve==1 [aweight=weight] // all who dissolve
-tabstat total_work_wife total_work_couple earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 [aweight=weight] // parents of young children
-tabstat total_work_wife total_work_couple earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & dissolve==1 [aweight=weight] // parents who dissolve
-
-// in different arrangements
-tabstat total_work_wife total_work_couple earnings_t1_wife if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 [aweight=weight], by(division_bucket_hrs_t1)
-tabstat total_work_wife total_work_couple earnings_t1_wife if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & dissolve==1 [aweight=weight], by(division_bucket_hrs_t1)
-tabstat total_work_wife total_work_couple earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 [aweight=weight], by(division_bucket_hrs_t1)
-tabstat total_work_wife total_work_couple earnings_t1_wife if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0 & dissolve==1 [aweight=weight], by(division_bucket_hrs_t1)
 
 ********************************************************************************
 // Unweighted (for comparison to previous)
