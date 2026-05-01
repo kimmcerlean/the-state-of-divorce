@@ -1,18 +1,20 @@
 ********************************************************************************
 * Project: Work-family policy and divorce
-* Trying to get a file of all prior cohabitations for each partner to use as control variables
-* It also creates a full relationship history spanning (observed) cohabitations and marriages
+* Compile all relationship history (including cohab and not in marital history)
 * create_relationship_history.do
 * Code owner: Kimberly McErlean
 ********************************************************************************
 
+* Trying to get a file of all prior cohabitations for each partner to use as control variables
+* It also creates a full relationship history spanning (observed) cohabitations and marriages
+
 ********************************************************************************
-* Just cohabitation
+* Just cohabitation - for controls
 ********************************************************************************
 
 use "$PSID/family_matrix_68_21.dta", clear // relationship matrix downloaded from PSID site
 
-unique MX5 MX6 // should match the 82000 in other file? -- okay so it does. I am dumb because I restricted to only partners. omg this explains evertything
+unique MX5 MX6
 
 rename MX5 ego_1968_id 
 rename MX6 ego_per_num
@@ -25,15 +27,13 @@ label values ego_rel alter_rel rels
 gen partner_1968_id = MX10 if MX8==22
 gen partner_per_num = MX11 if MX8==22
 gen unique_id = (ego_1968_id*1000) + ego_per_num // how they tell you to identify in main file
-// egen ego_unique = concat(ego_1968_id ego_per_num), punct(_)
-// egen partner_unique = concat(partner_1968_id partner_per_num), punct(_)
 gen partner_unique_id = (partner_1968_id*1000) + partner_per_num
 
 // try making specific variable to match E30002 that is 1968 id? but what if not in 1968??
 
 keep if MX8==22
 
-browse MX2 ego_1968_id ego_per_num unique_id partner_1968_id partner_per_num partner_unique_id MX8 // does unique_id track over years? or just 1 record per year? might this be wrong?
+browse MX2 ego_1968_id ego_per_num unique_id partner_1968_id partner_per_num partner_unique_id MX8
 
 keep MX2 ego_1968_id ego_per_num unique_id partner_1968_id partner_per_num partner_unique_id MX8
 
@@ -64,13 +64,11 @@ save "$temp/PSID_partner_history.dta", replace // really this is just cohabitati
 
 use "$PSID/family_matrix_68_21.dta", clear // relationship matrix downloaded from PSID site
 
-unique MX5 MX6 // should match the 82000 in other file? -- okay so it does. I am dumb because I restricted to only partners. omg this explains evertything
+unique MX5 MX6
 
 rename MX5 ego_1968_id 
 rename MX6 ego_per_num
 gen unique_id = (ego_1968_id*1000) + ego_per_num // how they tell you to identify in main file
-// egen ego_unique = concat(ego_1968_id ego_per_num), punct(_)
-// egen partner_unique = concat(partner_1968_id partner_per_num), punct(_)
 
 recode MX7 (1=1)(2=2)(3/8=3)(9=2)(10=1)(11/19=3)(20/22=2)(23/87=3)(88=2)(89/120=3), gen(ego_rel) // ego relationship to ref. because also only really useful if one is reference person bc otherwise i don't get a ton of info about them
 recode MX12 (1=1)(2=2)(3/8=3)(9=2)(10=1)(11/19=3)(20/22=2)(23/87=3)(88=2)(89/120=3), gen(alter_rel) // alter relationship to ref
@@ -95,7 +93,7 @@ gen partner_unique_id = (partner_1968_id*1000) + partner_per_num
 
 keep if MX8==22 | MX8==20 // spouses or partners
 
-browse MX2 ego_1968_id ego_per_num ego_rel unique_id cohab_1968_id cohab_per_num cohab_unique_id spouse_1968_id spouse_per_num spouse_unique_id partner_1968_id partner_per_num partner_unique_id alter_rel MX8 // does unique_id track over years? or just 1 record per year? might this be wrong?
+browse MX2 ego_1968_id ego_per_num ego_rel unique_id cohab_1968_id cohab_per_num cohab_unique_id spouse_1968_id spouse_per_num spouse_unique_id partner_1968_id partner_per_num partner_unique_id alter_rel MX8
 
 keep MX2 ego_1968_id ego_per_num unique_id cohab_1968_id cohab_per_num cohab_unique_id spouse_1968_id spouse_per_num spouse_unique_id partner_1968_id partner_per_num partner_unique_id MX8 ego_rel alter_rel
 
@@ -110,21 +108,11 @@ rename ego_1968_id main_fam_id
 rename ego_per_num main_per_id
 // gen INTERVIEW_NUM_1968 = INTERVIEW_NUM_
 
-/*
-gen spouse_per_num_all = INTERVIEW_NUM_
-gen spouse_id_all = main_per_id
-gen INTERVIEW_NUM_1968 = INTERVIEW_NUM_
-*/
-
-// okay so not JUST the ids, but also YEAR?!  unique MX2 main_per_id INTERVIEW_NUM_
-// rename MX2 survey_yr
-
 unique main_per_id main_fam_id
 
 save "$temp/PSID_union_history.dta", replace
 
 browse main_per_id main_fam_id unique_id MX8* partner_1968_id* partner_per_num* partner_unique_id*
-// compare to this:  "$data_keep\PSID_union_history_created.dta"
 
 * Now want to reshape back to long so I can merge info on
 drop cohab_1968_id* cohab_per_num* cohab_unique_id* spouse_1968_id* spouse_per_num* spouse_unique_id*
@@ -167,7 +155,7 @@ save "$temp/PSID_relationship_list_tomatch.dta", replace
 *** Won't work with family matrix bc only in that file if in sample BUT we
 *** need that file bc contains info on cohab, so need to merge info
 ********************************************************************************
-// can loosely use the life course cohab history (though not sure that incorporates family matrix)
+
 use "$temp/PSID_full_long.dta", clear // created in step 1
 	// this file also keyed on unique_id and survey_yr, and has 42 records per unique id
 	// key difference - there are more unique IDs here, for two reasons: 1. includes people never in sample and 2. above only has people ever partnered
@@ -436,14 +424,11 @@ save "$temp/psid_relationship_history.dta", replace
 restore
 
 ********************************************************************************
-* Now attempt to create master history (follow either GSOEP or my old code here)
+* Now attempt to create master history
 ********************************************************************************
 use "$temp/psid_relationship_history.dta", clear
 
 tab rel1_start partnered, m // do most ever partnered people at least have rel1 start date? yes 
-
-// what both of those start with is reshaping to long, but on relationship number. an interesting approach I took in old file is, instead of leave in separate columns (as I do for GSOEP also), I move these created variables into marital history.
-// I do wonder - can I do this? so if IN marital history - i prioritize your marital history marriage info and my cohab info (so put them into same column and then rerank so in order). if not in marital history, I actually just use the entire created history? (already in order?). let's reshape as is to explore, but may revisit
 
 // so there are three scenarios. let's actually create variables to flag which one they are in...
 tab cohno, m
@@ -638,6 +623,6 @@ sort unique_id rel_rank
 
 reshape wide master_rel_start master_rel_end master_rel_type master_rel_how_end, i(unique_id) j(rel_rank)
 
-unique unique_id // this is currently only restricted to people in relationships (remember this for when I merge later and inevitably panic) // 42039 (might match the relationship list above?)
+unique unique_id // this is currently only restricted to people in relationships (remember this for when I merge later and inevitably panic)
 
 save "$created_data/psid_master_relationship_history_wide.dta", replace

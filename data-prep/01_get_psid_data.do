@@ -14,8 +14,7 @@ do "$code/data-prep/x_rename_vars.do"
 do "$code/data-prep/x_marital_history.do"
 
 ********************************************************************************
-* Then reshape the data to be long, I think this will be less overwhelming / 
-* easier to see which variables tracked consistently and how
+* Then reshape the data to be long
 ********************************************************************************
 use "$PSID\PSID_full_renamed.dta", clear
 browse X1968_PERSON_NUM_1968 X1968_INTERVIEW_NUM_1968 // 30001 = interview; 30002 = person number
@@ -31,15 +30,11 @@ recode main_fam_id (1/2999 = 1 "SRC cross-section") (3001/3441 = 2 "Immigrant 97
 tab sample_type, m
 
 // merge on marital history
-merge 1:1 unique_id using "$created_data/marital_history_wide.dta" // is this going to change now that I have updated? I think I had both of the variables but they were in wrong columns, so I still have main_per_id and interview number, they are just different? OR do I need to rename in marital history file??? oh no...
+merge 1:1 unique_id using "$created_data/marital_history_wide.dta"
 
 gen in_marital_history=0
 replace in_marital_history=1 if _merge==3
 drop _merge
-
-// i have no clue what this is but it is wrong
-// egen family_intvw_num=rowmin(FAMILY_INTERVIEW_NUM*) // not working because inconsistent years
-// browse family_intvw_num FAMILY_INTERVIEW_NUM*
 
 merge 1:1 unique_id using "$PSID/strata.dta", keepusing(stratum cluster)
 drop if _merge==2
@@ -59,7 +54,7 @@ bysort id (SEQ_NUMBER_): egen in_sample=max(SEQ_NUMBER_)
 drop if in_sample==0 // people with NO DATA in any year
 sort id survey_yr
 browse survey_yr SEQ_NUMBER_ id
-drop if SEQ_NUMBER_==0 // won't have data becausenot in that year -- like SIPP, how do I know if last year is because divorced or last year in sample? right now individual level file, so fine - this is JUST last year in sample at the moment. okay, but think the problem is, if you enter LATER, this is 0 in years prior? so maybe do min and max when seq number is not 0?? ah and missing for 1968 i am dumb
+drop if SEQ_NUMBER_==0 // won't have data becausenot in that year
 
 save "$temp\PSID_data_long.dta", replace
 

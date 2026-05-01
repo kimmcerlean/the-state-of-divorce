@@ -1,6 +1,3 @@
-* need to also REALLY clean up this and other file - there are so many extraneous variables and analyses; I need to get rid of the ones not in the paper to avoid confusion
-* Like this this becomes SUPPLEMENTARY in paper. A second file is EXPLORATORY not paper? (bc some of this even ends up in main file)
-
 ********************************************************************************
 * Project: Work-family policy and divorce
 * Analyses for supplementary materials
@@ -2202,3 +2199,223 @@ margins, dydx(housework_wife) // negative
 margins, dydx(weekly_hrs_t1_wife) // positive but not sig
 sum structural_familism_t, detail
 margins, dydx(division_bucket_hrs_t1) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) // results really attenuate HERE
+
+********************************************************************************
+********************************************************************************
+********************************************************************************
+**# Time adjustment for paid work hours
+********************************************************************************
+********************************************************************************
+********************************************************************************
+// I am using last measured paid work and housework prior to divorce. To adjust paid work in biennial years, I need to use measures recorded in years *after* divorce (since I measure divorce between survey waves). Some people disappear in this time frame and I have concerns on measurement error given this reporting time frame. This section confirms robustness to using these measures instead.
+
+use "$temp/PSID_full_long.dta", clear // created in step 1
+egen wave = group(survey_yr) // this will make years consecutive, easier for later
+
+label define sample 0 "not sample" 1 "original sample" 2 "born-in" 3 "moved in" 4 "joint inclusion" 5 "followable nonsample parent" 6 "nonsample elderly"
+label values SAMPLE sample
+gen has_psid_gene=0
+replace has_psid_gene = 1 if inlist(SAMPLE,1,2)
+
+replace SEQ_NUMBER_= 0 if survey_yr==1968 & RELATION_==0 // no seq number in 1968, make it 0 if not in sample based on response to RELATION
+bysort unique_id (SEQ_NUMBER_): egen in_sample=max(SEQ_NUMBER_)
+
+drop if in_sample==0 // people with NO DATA in any year
+drop if SEQ_NUMBER_==0 // won't have data because not in that year -- like SIPP, how do I know if last year is because divorced or last year in sample? right now individual level file, so fine - this is JUST last year in sample at the moment
+
+gen relation = .
+replace relation = 1 if inlist(RELATION_,1,10)
+replace relation = 2 if inlist(RELATION_,2,20,22)
+replace relation = 3 if !inlist(RELATION_,1,2,10,20,22)
+label define relation 1 "Head" 2 "Partner" 3 "Other"
+label values relation relation
+
+tab RELATION_ relation, m
+
+bysort unique_id: egen first_survey_yr = min(survey_yr)
+bysort unique_id: egen last_survey_yr = max(survey_yr)
+
+merge 1:1 unique_id survey_yr using "$temp/PSID_relationship_list_tomatch.dta", keepusing(MX8 partner_unique_id rel_num marr_num)
+drop if _merge==2
+tab relation _merge, m
+drop _merge
+
+// hours instead of earnings	
+browse unique_id survey_yr WEEKLY_HRS1_T1_WIFE_ WEEKLY_HRS_T1_WIFE_ WEEKLY_HRS1_T1_HEAD_ WEEKLY_HRS_T1_HEAD_
+
+gen weekly_hrs_t1_wife = .
+replace weekly_hrs_t1_wife = WEEKLY_HRS1_T1_WIFE_ if survey_yr > 1969 & survey_yr <1994
+replace weekly_hrs_t1_wife = WEEKLY_HRS_T1_WIFE_ if survey_yr >=1994
+replace weekly_hrs_t1_wife = 0 if inrange(survey_yr,1968,1969) & inlist(WEEKLY_HRS1_T1_WIFE_,9,0)
+replace weekly_hrs_t1_wife = 10 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_WIFE_ ==1
+replace weekly_hrs_t1_wife = 27 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_WIFE_ ==2
+replace weekly_hrs_t1_wife = 35 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_WIFE_ ==3
+replace weekly_hrs_t1_wife = 40 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_WIFE_ ==4
+replace weekly_hrs_t1_wife = 45 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_WIFE_ ==5
+replace weekly_hrs_t1_wife = 48 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_WIFE_ ==6
+replace weekly_hrs_t1_wife = 55 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_WIFE_ ==7
+replace weekly_hrs_t1_wife = 60 if inrange(survey_yr,1968,1969)  & WEEKLY_HRS1_T1_WIFE_ ==8
+replace weekly_hrs_t1_wife=. if weekly_hrs_t1_wife==999
+
+gen weekly_hrs_t1_head = .
+replace weekly_hrs_t1_head = WEEKLY_HRS1_T1_HEAD_ if survey_yr > 1969 & survey_yr <1994
+replace weekly_hrs_t1_head = WEEKLY_HRS_T1_HEAD_ if survey_yr >=1994
+replace weekly_hrs_t1_head = 0 if inrange(survey_yr,1968,1969) & inlist(WEEKLY_HRS1_T1_HEAD_,9,0)
+replace weekly_hrs_t1_head = 10 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_HEAD_ ==1
+replace weekly_hrs_t1_head = 27 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_HEAD_ ==2
+replace weekly_hrs_t1_head = 35 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_HEAD_ ==3
+replace weekly_hrs_t1_head = 40 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_HEAD_ ==4
+replace weekly_hrs_t1_head = 45 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_HEAD_ ==5
+replace weekly_hrs_t1_head = 48 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_HEAD_ ==6
+replace weekly_hrs_t1_head = 55 if inrange(survey_yr,1968,1969) & WEEKLY_HRS1_T1_HEAD_ ==7
+replace weekly_hrs_t1_head = 60 if inrange(survey_yr,1968,1969)  & WEEKLY_HRS1_T1_HEAD_ ==8
+replace weekly_hrs_t1_head=. if weekly_hrs_t1_head==999
+
+sort unique_id survey_yr
+browse unique_id partner_unique_id survey_yr relation weekly_hrs_t1_wife WEEKLY_HRS_T2_WIFE_ weekly_hrs_t1_head WEEKLY_HRS_T2_HEAD_   WEEKLY_HRS_T2_INDV_ if survey_yr>1995
+
+tabstat(WEEKLY_HRS_T2_INDV_ WEEKLY_HRS_T2_HEAD_ WEEKLY_HRS_T2_WIFE_), by(survey_yr)
+
+gen weekly_hrs_t2_focal=.
+replace weekly_hrs_t2_focal = WEEKLY_HRS_T2_INDV_ if inlist(survey_yr,1999,2001)
+replace weekly_hrs_t2_focal = WEEKLY_HRS_T2_HEAD_ if relation==1 & inrange(survey_yr,2003,2023)
+replace weekly_hrs_t2_focal = WEEKLY_HRS_T2_WIFE_ if relation==2 & inrange(survey_yr,2003,2023)
+
+gen weekly_hrs_t1_focal=.
+replace weekly_hrs_t1_focal = weekly_hrs_t1_head if relation==1
+replace weekly_hrs_t1_focal = weekly_hrs_t1_wife if relation==2
+
+inspect weekly_hrs_t1_focal weekly_hrs_t2_focal if inlist(relation,1,2)
+
+browse unique_id partner_unique_id survey_yr relation weekly_hrs_t1_focal weekly_hrs_t2_focal weekly_hrs_t1_wife WEEKLY_HRS_T2_WIFE_ weekly_hrs_t1_head WEEKLY_HRS_T2_HEAD_   WEEKLY_HRS_T2_INDV_ if survey_yr>1995
+ 
+pwcorr weekly_hrs_t1_focal weekly_hrs_t2_focal if inlist(relation,1,2)
+
+********************************************************************************
+* Here is where adjustment happens
+********************************************************************************
+sort unique_id survey_yr
+gen weekly_hrs_t_focal = .
+replace weekly_hrs_t_focal = weekly_hrs_t1_focal[_n+1] if inrange(survey_yr,1968,1996) & wave==wave[_n+1]-1 & unique_id==unique_id[_n+1]
+replace weekly_hrs_t_focal = weekly_hrs_t2_focal[_n+1] if inrange(survey_yr,1997,2019) & wave==wave[_n+1]-1 & unique_id==unique_id[_n+1]
+
+browse unique_id partner_unique_id FAMILY_INTERVIEW_NUM_ survey_yr relation weekly_hrs_t1_focal weekly_hrs_t2_focal
+
+gen weekly_hrs_t_head = weekly_hrs_t_focal if relation==1
+bysort FAMILY_INTERVIEW_NUM_ survey_yr (weekly_hrs_t_head): replace weekly_hrs_t_head = weekly_hrs_t_head[1] 
+gen weekly_hrs_t_wife = weekly_hrs_t_focal if relation==2
+bysort FAMILY_INTERVIEW_NUM_ survey_yr (weekly_hrs_t_wife): replace weekly_hrs_t_wife = weekly_hrs_t_wife[1] 
+
+
+sort FAMILY_INTERVIEW_NUM_ survey_yr
+
+browse unique_id partner_unique_id FAMILY_INTERVIEW_NUM_ survey_yr relation weekly_hrs_t_focal weekly_hrs_t_head weekly_hrs_t_wife
+
+keep unique_id partner_unique_id FAMILY_INTERVIEW_NUM_ survey_yr relation weekly_hrs_t_focal weekly_hrs_t_head weekly_hrs_t_wife weekly_hrs_t1_focal weekly_hrs_t2_focal WEEKLY_HRS_T2_INDV_ WEEKLY_HRS_T2_HEAD_ WEEKLY_HRS_T2_WIFE_
+
+foreach var in weekly_hrs_t_focal weekly_hrs_t_head weekly_hrs_t_wife weekly_hrs_t1_focal weekly_hrs_t2_focal WEEKLY_HRS_T2_INDV_ WEEKLY_HRS_T2_HEAD_ WEEKLY_HRS_T2_WIFE_{
+	rename `var' chk_`var'
+}
+
+save "$temp/PSID_hours_t_lookup.dta", replace
+
+use "$created_data/PSID_union_sample_with_policy.dta", clear
+rename year survey_yr
+
+merge 1:1 unique_id partner_unique_id survey_yr using "$temp/PSID_hours_t_lookup.dta", keepusing(chk*)
+drop if _merge==2
+tab _merge
+drop _merge
+
+browse unique_id partner_unique_id survey_yr weekly_hrs_t1_wife weekly_hrs_t1_head chk_weekly_hrs_t_wife chk_weekly_hrs_t_head // WEEKLY_HRS_T2_HEAD_ chk_WEEKLY_HRS_T2_HEAD_ WEEKLY_HRS_T2_WIFE_ chk_WEEKLY_HRS_T2_WIFE_
+
+replace chk_weekly_hrs_t_wife = . if chk_weekly_hrs_t_wife==999 | chk_weekly_hrs_t_wife==998 
+replace chk_weekly_hrs_t_head = . if chk_weekly_hrs_t_head==999 | chk_weekly_hrs_t_head==998
+
+inspect weekly_hrs_t1_wife weekly_hrs_t1_head chk_weekly_hrs_t_wife chk_weekly_hrs_t_head
+
+egen chk_couple_hours_t = rowtotal(chk_weekly_hrs_t_wife chk_weekly_hrs_t_head )
+gen chk_female_hours_pct_t = chk_weekly_hrs_t_wife/chk_couple_hours_t
+
+gen chk_hh_hours_type_t=.
+replace chk_hh_hours_type_t=1 if chk_female_hours_pct_t >=.4000 & chk_female_hours_pct_t <=.6000
+replace chk_hh_hours_type_t=2 if chk_female_hours_pct_t <.4000
+replace chk_hh_hours_type_t=3 if chk_female_hours_pct_t >.6000 & chk_female_hours_pct_t!=.
+replace chk_hh_hours_type_t=4 if chk_weekly_hrs_t_wife==0 & chk_weekly_hrs_t_head==0
+
+label define hh_hours_type 1 "Dual Earner" 2 "Male BW" 3 "Female BW" 4 "No Earners"
+label values chk_hh_hours_type_t hh_hours_type
+
+tab hh_hours_type_t1 chk_hh_hours_type_t, m
+
+gen chk_division_bucket_hrs_t=5
+replace chk_division_bucket_hrs_t = 1 if chk_hh_hours_type_t== 1 & housework_bkt_t== 1 // dual, dual
+replace chk_division_bucket_hrs_t = 2 if chk_hh_hours_type_t== 2 & housework_bkt_t== 2 // male bw, female hw
+replace chk_division_bucket_hrs_t = 3 if chk_hh_hours_type_t== 3 & housework_bkt_t== 3 // female bw, male hw
+replace chk_division_bucket_hrs_t = 4 if chk_hh_hours_type_t== 1 & housework_bkt_t== 2 // dual, female hw
+replace chk_division_bucket_hrs_t = . if chk_hh_hours_type_t== . | housework_bkt_t== .
+
+tab division_bucket_hrs_t1 chk_division_bucket_hrs_t, m
+
+capture label define division_bucket 1 "Egalitarian" 2 "Traditional" 3 "Counter-traditional" 4 "Second shift" 5 "All Other"
+label values chk_division_bucket_hrs_t division_bucket
+
+********************************************************************************
+* Analysis
+********************************************************************************
+
+global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children i.year_gp"  // add year here.
+
+global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t evang_rate_t" // add religion here 
+
+
+**********************
+* Main effects
+**********************
+// see my concern is I think for PAID results to be comparable to others, Ido NEED t-1. and the fact that THESE results get stronger actually support the anticipation- if women who are thinking about divorce increase their earnings in ancitipation - more earning s- mroe dual-earning, dual earning MORE LIKELY to divoce relative to male-BW. so the stronger results actually suggest this anticipation COULD be happening.
+
+logit dissolve i.marr_dur c.structural_familism_t i.hh_hours_type_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+margins, dydx(hh_hours_type_t1) level(95) post
+estimates store est1c
+
+count if e(sample) // 5,610
+tab dissolve if e(sample) // 353
+
+logit dissolve i.marr_dur c.structural_familism_t i.chk_hh_hours_type_t $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+margins, dydx(chk_hh_hours_type_t) level(95) post
+estimates store est1c0
+
+count if e(sample) // 5,392
+tab dissolve if e(sample) // 344 // so it's just 9 dissolutions okay
+
+logit dissolve i.marr_dur c.structural_familism_t i.division_bucket_hrs_t1 $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+margins, dydx(division_bucket_hrs_t1) level(95) post
+estimates store est2c
+
+logit dissolve i.marr_dur c.structural_familism_t i.chk_division_bucket_hrs_t $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+margins, dydx(chk_division_bucket_hrs_t) level(95) post
+estimates store est2c0
+
+**********************
+* Interaction effects 
+**********************
+// Main model - just control for macro factors, but not yet interacted
+logit dissolve i.marr_dur c.structural_familism_t i.chk_hh_hours_type_t c.structural_familism_t#i.chk_hh_hours_type_t $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(chk_hh_hours_type_t) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+// Main model - just control for macro factors, but not yet interacted
+logit dissolve i.marr_dur c.structural_familism_t i.chk_division_bucket_hrs_t c.structural_familism_t#i.chk_division_bucket_hrs_t $controls $macro_controls if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0, or cluster(couple_id)
+sum structural_familism_t, detail
+margins, dydx(chk_division_bucket_hrs_t) at(structural_familism_t=(`r(p5)' `r(p25)' `r(p50)' `r(p75)' `r(p95)')) 
+
+
+**********************
+* Selection
+**********************
+mlogit chk_division_bucket_hrs_t structural_familism_t if in_analytical_sample==1  // $controls $macro_controls 
+sum structural_familism_t, det
+margins, at(structural_familism_t=(`r(min)' (1) `r(max)'))
+marginsplot, recast(line) ciopts(recast(rarea)) xlabel(#10) plot2opts(lcolor("blue") mcolor("blue")) plot3opts(lcolor("ltblue") mcolor("ltblue")) plot4opts(lcolor("gs8") mcolor("gs8")) plot5opts(lcolor("black") mcolor("black")) ci1opts(color(red%70)) ci2opts(color(blue%70))  ci3opts(color(ltblue%70))  ci4opts(color(gs8%70))  ci5opts(color(black%70)) xtitle("Structural Support for Working Families") ytitle("Predicted Probability of Given Arrangement")  title("") legend(order(1 "Egalitarian" 2 "Traditional" 3 "Counter-Traditional" 4 "Second Shift" 5 "All Others") position(6) ring(3) rows(1))
+
+save  "$created_data/PSID_union_sample_with_policy_adj.dta", replace
