@@ -5,7 +5,7 @@
 * Code owner: Kimberly McErlean
 ********************************************************************************
 
-use  "$created_data/PSID_union_sample_rec.dta" // created step 4
+use  "$created_data/PSID_union_sample_rec.dta", clear // created step 4
 
 // if not identified in a marital pair, won't have head / wife info
 drop if MARITAL_PAIRS== 0 // this removes first year of some cohab relationships (bc I fixed this in previous iterations of code, that is all who is captured here still) - so in effect, also removes any relationships only observed for 1 year that broke up (which - I already drop later anyway)
@@ -104,3 +104,19 @@ save "$created_data/PSID_union_sample_dedup.dta", replace
 4. left-censoring (unknown start date) - aka flag==1
 */
  
+ /* moving this info from other file on how to handle transitioners
+Gonalons-Pons and Gangl (SIPP):
+Cohabiting couples who marry during the survey are included and contribute observations to both the cohabiting and married samples. For instance, if a couple is first observed as cohabiting and they get married and separate, this separation will be recorded as a marital separation. However, because we only follow couples for four years, this is a rare sequence of events.
+Oh, but they don't include union duration at all because not measured in EU-SILC (isn't that true in SIPP as well?)
+They do an entire simulation exercise to understand the implications of left censoring and left truncation (but this is slightly different to my concerns at the moment)
+
+Brines and Joyner (PSID):
+Worth noting, their footnote 2 is good for discussing the types of cohabitors measured in the PSID
+"Of these, 96 couples contributed to both types of unions; we control for these couples in our analysis of marital disruption" - so they also let couples just contribute based on whatever type of relationship they are in at the time?
+Okay so yes, become censored if they marry "Unions are censored if they remain intact through the end of the observation period or if, in the case of cohabitation, they are legalized"
+THey estimate all models separately based on union type
+But they also don't specify how they handle duration for married couples
+
+Kamp Dush et al (NLSY)
+"Note that cohabiting unions that became marriages were treated as continuing cohabiting unions."
+*/

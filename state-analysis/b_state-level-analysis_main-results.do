@@ -4,8 +4,6 @@
 * state-level-analysis-main-results.do
 * Code owner: Kimberly McErlean
 ********************************************************************************
-// ssc install marginscontplot - have to make sure you have this pckage
-// ssc install firthlogit, replace
 
 ********************************************************************************
 * First just get data and do final sample restrictions
@@ -15,24 +13,7 @@ use "$created_data/PSID_union_sample_dedup.dta", clear // created in step 5 in m
 // Final sample restrictions
 tab matrix_marr_num, m
 tab matrix_rel_num, m
-tab current_rel_number current_marr_number, m // this includes historical relationships. BUT - need to figure out how to do this across cohab and marriage. likee ...how do I want to keep people? also - if couples transition to marriage, where do I start their clock? I am leaning towards them contributing to cohab when cohab (and then marriage is essentially a censoring event) and married when married - but yeah, do I need two clocks then?
-
-/*
-Gonalons-Pons and Gangl (SIPP):
-Cohabiting couples who marry during the survey are included and contribute observations to both the cohabiting and married samples. For instance, if a couple is first observed as cohabiting and they get married and separate, this separation will be recorded as a marital separation. However, because we only follow couples for four years, this is a rare sequence of events.
-Oh, but they don't include union duration at all because not measured in EU-SILC (isn't that true in SIPP as well?)
-They do an entire simulation exercise to understand the implications of left censoring and left truncation (but this is slightly different to my concerns at the moment)
-
-Brines and Joyner (PSID):
-Worth noting, their footnote 2 is good for discussing the types of cohabitors measured in the PSID
-"Of these, 96 couples contributed to both types of unions; we control for these couples in our analysis of marital disruption" - so they also let couples just contribute based on whatever type of relationship they are in at the time?
-Okay so yes, become censored if they marry "Unions are censored if they remain intact through the end of the observation period or if, in the case of cohabitation, they are legalized"
-THey estimate all models separately based on union type
-But they also don't specify how they handle duration for married couples
-
-Kamp Dush et al (NLSY)
-"Note that cohabiting unions that became marriages were treated as continuing cohabiting unions."
-*/
+tab current_rel_number current_marr_number, m // this includes historical relationships
 
 browse unique_id survey_yr partner_unique_id in_marital_history current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple
 
@@ -40,16 +21,16 @@ browse unique_id survey_yr partner_unique_id in_marital_history current_rel_type
 keep if current_rel_number==1 | current_marr_number==1
 keep if (AGE_HEAD_>=18 & AGE_HEAD_<=55) &  (AGE_WIFE_>=18 & AGE_WIFE_<=55)
 
-gen age_flag_2554=0
+gen age_flag_2554=0 // robustness check for reviewer
 replace age_flag_2554=1 if (AGE_HEAD_>=25 & AGE_HEAD_<=54) &  (AGE_WIFE_>=25 & AGE_WIFE_<=54)
 
-gen age_flag_2055=0
+gen age_flag_2055=0 // robustness check for reviewer
 replace age_flag_2055=1 if (AGE_HEAD_>=20 & AGE_HEAD_<=55) &  (AGE_WIFE_>=20 & AGE_WIFE_<=55)
 
-keep if inrange(rel_start_yr_couple,1995,2014) // for married sample - if the point of 2014 is to avoid short durations, for married sample, do I also need to restrict on year of transition to marriage? (oh - for married sample, probably at least control for that?)
+keep if inrange(rel_start_yr_couple,1995,2014)
 	tab transition_year, m
 keep if inlist(IN_UNIT,0,1,2)
-drop if survey_yr==2021 // until I figure out what to do about covid year. I did add the policy measures, now need to figure out if it makes sense to keep for other reasons
+drop if survey_yr==2021 // I don't know about covid and so since this is like PEAK COVID, not using (also 2021 wasn't available when I started this analysis LOL)
 drop if STATE_==11 // DC is missing a lot of state variables, so need to remove.
 drop if STATE_==0
 drop if STATE_==99
@@ -72,33 +53,6 @@ tab marr_dur if current_rel_type==20, m
 
 browse unique_id survey_yr partner_unique_id ever_transition current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple dur marr_dur marriage_start_yr transition_year
 
-// because I am estimating cohab based on observed transitions, there are not many in odd numbers, and some small durs becoming collinear. Need to aggregate in some wave (make based on wave?)
-browse unique_id survey_yr wave current_rel_type rel_start_yr_couple dur
-tab dur if current_rel_type==22, m
-gen coh_dur = dur
-replace coh_dur = dur - 1 if inlist(dur,1,3,5,7,9,11,13)
-replace coh_dur = 15 if dur >=15 & dur < =100
-
-gen cohab_flag = .
-replace cohab_flag = 0 if current_rel_type==20
-replace cohab_flag = flag if current_rel_type==22
-
-// okay, need to create a combined duration indicator? so I can use for when I combine the samples (bc want dur to restart for marriage so treat as two different relationship contributions?? So can't use existing plain dur variable). Is this the right logic?
-browse unique_id survey_yr wave current_rel_type rel_start_yr_couple marriage_start_yr dur marr_dur coh_dur ever_transition
-
-gen combined_dur = .
-replace combined_dur = coh_dur if current_rel_type==22
-replace combined_dur = marr_dur if current_rel_type==20
-
-// let's get a sense of sample NOW  - this needs to be revisited based on how I want to think about relationship order...but just want an initial sense
-unique unique_id partner_unique_id, by(current_rel_type)
-unique unique_id partner_unique_id if flag==0, by(current_rel_type) // no left-censor. this removes shockingless less than expected (think bc of using the later years)
-unique unique_id partner_unique_id if dissolve==1, by(current_rel_type)
-unique unique_id partner_unique_id if flag==0 & dissolve==1, by(current_rel_type) // real concern is # of divorces - except i guess bc cohab is more unstable, this might not actually be as bad as I think??
-// unique unique_id partner_unique_id if children_under6==1, by(current_rel_type) // I wonder if THIS is the problem...
-// unique unique_id partner_unique_id if children_under6==1 & dissolve==1, by(current_rel_type) // there are 230 divorces here for cohab, and 417 for married couples - so really not like...that much less?
-// tab current_rel_type children_under6, row m // and actually - almost equally likely to have a kid under 6, regardless of relationship type..
-
 // drop those with no earnings or housework hours the whole time
 bysort unique_id: egen min_type = min(hh_earn_type_t1) // since no earners is 4, if the minimum is 4, means that was it the whole time
 label values min_type hh_earn_type
@@ -117,111 +71,10 @@ tab min_hw_type // same here
 drop if min_hw_type ==4
 
 ********************************************************************************
-* Some variables that should be created
+* Last variable creation / checks and data cleaning / set-up
 ********************************************************************************
-// controls for ref so I know they are lagged. most of these are fixed anyway
-// local controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner knot1 knot2 knot3 i.couple_educ_gp i.moved_last2 i.couple_joint_religion" 
 
-// the cohab indicators need to be couple level
-tab cohab_with_partner_head cohab_with_partner_wife, m
-gen cohab_with_partner = 0
-replace cohab_with_partner = 1 if cohab_with_partner_head==1 | cohab_with_partner_wife==1
-
-tab cohab_with_other_head cohab_with_other_wife, m
-gen cohab_with_other = 0
-replace cohab_with_other = 1 if cohab_with_other_head == 1 | cohab_with_other_wife== 1
-tab cohab_with_other, m // is this too low? I think this was problematic before I added cohab relationships - but probably not surprising we don't have rel details on prior cohab? since this is only what is observed in SIPP, so def too lows
-
-// indicator if we observed at start of marriage - might want to use some measures in marriage year, but want to see how much that reduces sample
- // I moved this to earlier step
-browse unique_id partner_unique_id survey_yr rel_start_all dur min_dur total_dur
-
-// create joint religion indicator
-tab religion_head religion_wife
-
-gen couple_joint_religion=.
-replace couple_joint_religion = 0 if religion_head==0 & religion_wife==0
-replace couple_joint_religion = 1 if religion_head==1 & religion_wife==1
-replace couple_joint_religion = 2 if inlist(religion_head,3,4,5,6) & inlist(religion_wife,3,4,5,6)
-// replace couple_joint_religion = 3 if (religion_head==1 & religion_wife!=1 & religion_wife!=.) | (religion_head!=1 & religion_head!=. & religion_wife==1)
-replace couple_joint_religion = 3 if (religion_head==1 & religion_wife!=1) | (religion_head!=1 & religion_wife==1)
-replace couple_joint_religion = 4 if ((religion_head==0 & religion_wife!=0) | (religion_head!=0 & religion_wife==0)) & couple_joint_religion==.
-replace couple_joint_religion = 5 if inlist(religion_head,2,7,8,9,10) & inlist(religion_wife,2,7,8,9,10)
-replace couple_joint_religion = 5 if couple_joint_religion==. & religion_head!=. & religion_wife!=. 
-// tab religion_head religion_wife if couple_joint_religion==.
-
-label define couple_joint_religion 0 "Both None" 1 "Both Catholic" 2 "Both Protestant" 3 "One Catholic" 4 "One No Religion" 5 "Other"
-label values couple_joint_religion couple_joint_religion
-
-quietly unique couple_joint_religion if couple_joint_religion!=., by(unique_id) gen(relig_change)
-bysort unique_id (relig_change): replace relig_change=relig_change[1]
-tab relig_change, m
-
-browse unique_id survey_yr rel_start_all couple_joint_religion religion_head religion_wife relig_change
-
-* create t-1 version
-sort id survey_yr
-gen couple_joint_religion_t1=.
-replace couple_joint_religion_t1=couple_joint_religion[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
-label values couple_joint_religion_t1 couple_joint_religion
-
-replace couple_joint_religion_t1=couple_joint_religion if couple_joint_religion_t1==. & relig_change==1 // if religion same whole time, fill in t-1 with t
-replace couple_joint_religion_t1=couple_joint_religion if couple_joint_religion_t1==. & couple_joint_religion==couple_joint_religion_t1[_n+1] & unique_id==unique_id[_n+1]
-
-browse unique_id survey_yr rel_start_all couple_joint_religion couple_joint_religion_t1
-
-* create start of marriage version
-gen couple_joint_religion_mar = couple_joint_religion if dur==min_dur & inlist(min_dur,0,1,2)
-bysort unique_id (couple_joint_religion_mar): replace couple_joint_religion_mar=couple_joint_religion_mar[1]
-replace couple_joint_religion_mar = couple_joint_religion if couple_joint_religion_mar ==. & relig_change==1
-
-label values couple_joint_religion_mar couple_joint_religion
-
-// browse unique_id survey_yr rel_start_all dur min_dur couple_joint_religion couple_joint_religion_mar
-
-// create lagged education measures
-quietly unique educ_type if educ_type!=., by(unique_id) gen(educ_type_chg)
-bysort unique_id (educ_type_chg): replace educ_type_chg=educ_type_chg[1]
-tab educ_type_chg, m
-
-sort unique_id survey_yr
-browse unique_id survey_yr rel_start_all min_dur couple_educ_gp educ_type educ_type_chg educ_wife_est educ_head_est 
-
-* t-1
-gen couple_educ_gp_t1=.
-replace couple_educ_gp_t1=couple_educ_gp[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
-replace couple_educ_gp_t1=couple_educ_gp if couple_educ_gp_t1==. & educ_type_chg==1 // if same whole time, fill in t-1 with t
-
-label values couple_educ_gp_t1 couple_educ
-
-gen educ_type_t1=.
-replace educ_type_t1=educ_type[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
-replace educ_type_t1=educ_type if educ_type_t1==. & educ_type_chg==1 // if same whole time, fill in t-1 with t
-
-label values educ_type_t1 educ_type
-
-browse unique_id survey_yr rel_start_all couple_educ_gp couple_educ_gp_t1 educ_type educ_type_t1 educ_type_chg educ_wife_est educ_head_est 
-
-* start of marriage
-gen couple_educ_gp_mar = couple_educ_gp if dur==min_dur & inlist(min_dur,0,1,2)
-bysort unique_id (couple_educ_gp_mar): replace couple_educ_gp_mar=couple_educ_gp_mar[1]
-replace couple_educ_gp_mar = couple_educ_gp if couple_educ_gp_mar ==. & educ_type_chg==1
-
-label values couple_educ_gp_t1 couple_educ
-
-gen educ_type_mar = educ_type if dur==min_dur & inlist(min_dur,0,1,2)
-bysort unique_id (educ_type_mar): replace educ_type_mar=educ_type_mar[1]
-replace educ_type_mar = educ_type if educ_type_mar ==. & educ_type_chg==1
-
-label values educ_type_t1 couple_educ
-
-// fix region
-gen region = REGION_
-replace region = . if inlist(REGION_,0,9)
-label define region 1 "Northeast" 2 "North Central" 3 "South" 4 "West" 5 "Alaska,Hawaii" 6 "Foreign"
-label values region region
-
-// Migration status - either control or actually remove
+// Migration status - wanted to wait until had final sample IDK why
 label values STATE_ MOVED_ .
 quietly unique STATE_ if STATE_!=., by(unique_id) gen(state_change)
 bysort unique_id (state_change): replace state_change=state_change[1]
@@ -257,323 +110,9 @@ gen moved_last2=.
 replace moved_last2 = 0 if moved_states_lag==0 & moved_states==0
 replace moved_last2 = 1 if moved_states_lag==1 | moved_states==1
 
-// splitting the college group into who has a degree. also considering advanced degree as higher than college -- this currently only works for cohort 3. I think for college - the specific years matter to split advanced, but for no college - distinguishing between grades less relevant?
-// moved this to earlier step
-
-// alternative DoL measures
-// more discrete measures of work contributions
-input group
-.10
-.20
-.30
-.40
-.50
-.60
-.70
-.80
-1
-end
-
-xtile female_hours_bucket_t1 = female_hours_pct_t1, cut(group)
-browse female_hours_bucket_t1 female_hours_pct_t1 weekly_hrs_t1_wife ft_pt_t1_wife weekly_hrs_t1_head ft_pt_t1_head
-
-// overwork
-gen overwork_t1_head = 0
-replace overwork_t1_head =1 if weekly_hrs_t1_head >50 & weekly_hrs_t1_head<=200 // used by Cha 2013
-
-gen overwork_t1_wife = 0 
-replace overwork_t1_wife = 1 if weekly_hrs_t1_wife > 50 & weekly_hrs_t1_wife<=200
-
-gen bw_type_t1=.
-replace bw_type_t1=1 if inlist(ft_pt_t1_head,1,2) & ft_pt_t1_wife==0
-replace bw_type_t1=2 if ft_pt_t1_head==2 & ft_pt_t1_wife==1
-replace bw_type_t1=3 if (ft_pt_t1_head==2 & ft_pt_t1_wife==2) | (ft_pt_t1_wife==1 & ft_pt_t1_head==1)
-replace bw_type_t1=4 if ft_pt_t1_head==1 & ft_pt_t1_wife==2
-replace bw_type_t1=5 if ft_pt_t1_head==0 & inlist(ft_pt_t1_wife,1,2)
-
-label define bw_type 1 "Male BW" 2 "Male and a half" 3 "Dual" 4 "Female and a half" 5 "Female BW"
-label values bw_type_t1 bw_type
-
-gen bw_type_t1_gp=.
-replace bw_type_t1_gp=1 if ft_t1_head==1 & ft_t1_wife==1
-replace bw_type_t1_gp=2 if ft_t1_head==1 & ft_t1_wife==0
-replace bw_type_t1_gp=3 if ft_t1_head==0 & ft_t1_wife==1
-replace bw_type_t1_gp=4 if ft_t1_head==0 & ft_t1_wife==0
-
-label define bw_type_gp 1 "Both FT" 2 "Male FT" 3 "Female FT"  4 "Neither FT"
-label values bw_type_t1_gp bw_type_gp
-
-gen bw_type_t1_gp_alt=.
-replace bw_type_t1_gp_alt=1 if bw_type_t1==3
-replace bw_type_t1_gp_alt=2 if inlist(bw_type_t1,1,2)
-replace bw_type_t1_gp_alt=3 if inlist(bw_type_t1,4,5)
-replace bw_type_t1_gp_alt=4 if ft_pt_t1_wife==0 & ft_pt_t1_head==0
-
-label define bw_type_gp_alt 1 "Dual" 2 "Male BW" 3 "Female BW"  4 "Neither works"
-label values bw_type_t1_gp_alt bw_type_gp_alt
-
-gen division_bucket_t1=5
-replace division_bucket_t1 = 1 if hh_earn_type_t1== 1 & housework_bkt_t== 1 // dual, dual
-replace division_bucket_t1 = 2 if hh_earn_type_t1== 2 & housework_bkt_t== 2 // male bw, female hw
-replace division_bucket_t1 = 3 if hh_earn_type_t1== 3 & housework_bkt_t== 3 // female bw, male hw
-replace division_bucket_t1 = 4 if hh_earn_type_t1== 1 & housework_bkt_t== 2 // dual, female hw
-replace division_bucket_t1 = . if hh_earn_type_t1==. | housework_bkt_t==.
-
-label define division_bucket 1 "Egalitarian" 2 "Traditional" 3 "Counter-traditional" 4 "Second shift" 5 "All Other"
-label values division_bucket_t1 division_bucket
-
-gen hh_earn_type_t1_alt=.
-replace hh_earn_type_t1_alt=hh_earn_type_t1
-replace hh_earn_type_t1_alt=4 if inlist(ft_pt_t1_head,0,1) & inlist(ft_pt_t1_wife,0,1) // neither works FT
-label define hh_earn_type_t1_alt 1 "Dual" 2 "Male BW" 3 "Female BW" 4 "Neither FT"
-
-* hours
-gen division_bucket_hrs_t1=5
-replace division_bucket_hrs_t1 = 1 if hh_hours_type_t1== 1 & housework_bkt_t== 1 // dual, dual
-replace division_bucket_hrs_t1 = 2 if hh_hours_type_t1== 2 & housework_bkt_t== 2 // male bw, female hw
-replace division_bucket_hrs_t1 = 3 if hh_hours_type_t1== 3 & housework_bkt_t== 3 // female bw, male hw
-replace division_bucket_hrs_t1 = 4 if hh_hours_type_t1== 1 & housework_bkt_t== 2 // dual, female hw
-replace division_bucket_hrs_t1 = . if hh_hours_type_t1== . | housework_bkt_t== .
-
-label values division_bucket_hrs_t1 division_bucket
-
-* hours - need to put counter-traditional in all others because it's not estimating on its own for most data views
-gen division_bucket_hrs_gp_t1=4
-replace division_bucket_hrs_gp_t1 = 1 if hh_hours_type_t1== 1 & housework_bkt_t== 1 // dual, dual
-replace division_bucket_hrs_gp_t1 = 2 if hh_hours_type_t1== 2 & housework_bkt_t== 2 // male bw, female hw
-replace division_bucket_hrs_gp_t1 = 4 if hh_hours_type_t1== 3 & housework_bkt_t== 3 // female bw, male hw
-replace division_bucket_hrs_gp_t1 = 3 if hh_hours_type_t1== 1 & housework_bkt_t== 2 // dual, female hw
-replace division_bucket_hrs_gp_t1 = . if hh_hours_type_t1== . | housework_bkt_t== .
-
-label define div_gp 1 "Dual" 2 "Traditional" 3 "Second shift" 4 "All Other"
-label values division_bucket_hrs_gp_t1 div_gp
-
-// this doesn't capture OVERWORK
-sum weekly_hrs_t1_head if ft_pt_t1_head==2, detail
-sum weekly_hrs_t1_wife if ft_pt_t1_wife==2, detail
-
-// dissimilarity
-* paid work hours
-gen hours_diff_t1 = weekly_hrs_t1_head - weekly_hrs_t1_wife
-browse hours_diff_t1 weekly_hrs_t1_head weekly_hrs_t1_wife
-
-gen hours_diff_t1_bkt = .
-replace hours_diff_t1_bkt = 1 if hours_diff_t1 <=10 & hours_diff_t1 >=-10
-replace hours_diff_t1_bkt = 2 if hours_diff_t1 >10 & hours_diff_t1 <=150
-replace hours_diff_t1_bkt = 3 if hours_diff_t1 <-10 & hours_diff_t1 >=-150
-
-label define hours_diff_bkt 1 "Similar" 2 "Skew Male" 3 "Skew Female"
-label values hours_diff_t1_bkt hours_diff_bkt 
-
-browse hours_diff_t1_bkt hours_diff_t1
-
-* hw hours
-sort unique_id survey_yr
-gen housework_t1_wife=.
-replace housework_t1_wife=housework_wife[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
-
-gen housework_t1_head=.
-replace housework_t1_head=housework_head[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
-
-// browse unique_id survey_yr housework_wife housework_t1_wife housework_head housework_t1_head housework_bkt_t housework_bkt_t1
-
-gen hw_diff_t1 = housework_t1_wife - housework_t1_head
-browse hw_diff_t1 housework_t1_wife housework_t1_head
-
-gen hw_diff_t1_bkt = .
-replace hw_diff_t1_bkt = 1 if hw_diff_t1 <=10 & hw_diff_t1 >=-10
-replace hw_diff_t1_bkt = 2 if hw_diff_t1 >10 & hw_diff_t1 <=150
-replace hw_diff_t1_bkt = 3 if hw_diff_t1 <-10 & hw_diff_t1 >=-150
-
-label define hw_diff_bkt 1 "Similar" 2 "Skew Female" 3 "Skew Male"
-label values hw_diff_t1_bkt hw_diff_bkt 
-
-browse hw_diff_t1_bkt hw_diff_t1
-
-* Total work burden (indicator of WFC) - mediation test
-browse unique_id survey_yr housework_wife weekly_hrs_t1_wife WEEKLY_HRS_T2_WIFE_ housework_head weekly_hrs_t1_head WEEKLY_HRS_T2_HEAD_
-egen total_work_wife = rowtotal(housework_wife weekly_hrs_t1_wife)
-egen total_work_head = rowtotal(housework_head weekly_hrs_t1_head)
-egen total_work_couple = rowtotal(total_work_head total_work_wife)
-// browse unique_id survey_yr housework_wife weekly_hrs_t1_wife total_work_wife housework_head weekly_hrs_t1_head total_work_head total_work_couple
-// tabstat housework_wife weekly_hrs_t1_wife total_work_wife housework_head weekly_hrs_t1_head total_work_head total_work_couple
-tabstat total_work_wife total_work_head total_work_couple, by(hh_hours_type_t1)
-tabstat total_work_wife total_work_head total_work_couple, by(division_bucket_hrs_t1)
-
-// test spline at 0.5
-mkspline earn_ratio1 0.5 earn_ratio2 = female_earn_pct_t1
-browse female_earn_pct_t1 earn_ratio1 earn_ratio2 
-
-mkspline hrs_ratio1 0.5 hrs_ratio2 = female_hours_pct_t1
-browse female_hours_pct_t1 hrs_ratio1 hrs_ratio2
-
-// alternate earnings measures
-*Convert to 1000s
-gen earnings_1000s = couple_earnings_t1 / 1000
-
-*log
-gen earnings_total = couple_earnings_t1 + 1 
-gen earnings_ln = ln(earnings_total)
-* browse TAXABLE_T1_HEAD_WIFE_ couple_earnings_t1
-
-*square
-gen earnings_sq = couple_earnings_t1 * couple_earnings_t1
-
-* groups
-gen earnings_bucket_t1=.
-replace earnings_bucket_t1 = 0 if couple_earnings_t1 <=0
-replace earnings_bucket_t1 = 1 if couple_earnings_t1 > 0 		& couple_earnings_t1 <=10000
-replace earnings_bucket_t1 = 2 if couple_earnings_t1 > 10000 	& couple_earnings_t1 <=20000
-replace earnings_bucket_t1 = 3 if couple_earnings_t1 > 20000 	& couple_earnings_t1 <=30000
-replace earnings_bucket_t1 = 4 if couple_earnings_t1 > 30000 	& couple_earnings_t1 <=40000
-replace earnings_bucket_t1 = 5 if couple_earnings_t1 > 40000 	& couple_earnings_t1 <=50000
-replace earnings_bucket_t1 = 6 if couple_earnings_t1 > 50000 	& couple_earnings_t1 <=60000
-replace earnings_bucket_t1 = 7 if couple_earnings_t1 > 60000 	& couple_earnings_t1 <=70000
-replace earnings_bucket_t1 = 8 if couple_earnings_t1 > 70000 	& couple_earnings_t1 <=80000
-replace earnings_bucket_t1 = 9 if couple_earnings_t1 > 80000 	& couple_earnings_t1 <=90000
-replace earnings_bucket_t1 = 10 if couple_earnings_t1 > 90000 	& couple_earnings_t1 <=100000
-replace earnings_bucket_t1 = 11 if couple_earnings_t1 > 100000 & couple_earnings_t1 <=150000
-replace earnings_bucket_t1 = 12 if couple_earnings_t1 > 150000 & couple_earnings_t1 !=.
-
-label define earnings_bucket_t1 0 "0" 1 "0-10000" 2 "10000-20000" 3 "20000-30000" 4 "30000-40000" 5 "40000-50000" 6 "50000-60000" 7 "60000-70000" ///
-8 "70000-80000" 9 "80000-90000" 10 "90000-100000" 11 "100000-150000" 12 "150000+"
-label values earnings_bucket_t1 earnings_bucket_t1
-
-*Spline
-mkspline knot1 0 knot2 20 knot3 = earnings_1000s
-
-* Her earnings specifically - to use for economic dependence (mediation test)
-// log
-gen earnings_wife_ln = ln(earnings_t1_wife+1)
-
-// 1000s (makes it easier to interpret coefficients)
-gen earnings_wife_1000s = earnings_t1_wife / 1000 
-
-// want to create time-invariant indicator of hh type in first year of marriage (but need to make sure it's year both spouses in hh) - some started in of year gah. use DUR? or rank years and use first rank? (actually is that a better duration?) well, this then doesn't mean it's year of marriage if not observed, so it should be blank
-bysort unique_id (survey_yr): egen yr_rank=rank(survey_yr)
-// browse unique_id survey_yr rel_start_all dur yr_rank hh_earn_type_t1
-
-gen hh_earn_type_mar = hh_earn_type_t if dur==min_dur & inlist(min_dur,0,1,2)
-bysort unique_id (hh_earn_type_mar): replace hh_earn_type_mar=hh_earn_type_mar[1]
-label values hh_earn_type_mar hh_earn_type
-
-gen hh_hours_type_mar = hh_hours_type_t if dur==min_dur & inlist(min_dur,0,1,2)
-bysort unique_id (hh_hours_type_mar): replace hh_hours_type_mar=hh_hours_type_mar[1]
-label values hh_hours_type_mar hh_hours_type
-
-sort unique_id survey_yr
-browse id survey_yr rel_start_all yr_rank dur hh_earn_type_t hh_earn_type_mar hh_hours_type_t hh_hours_type_mar
-
-/* okay rolling change in female earn pct - absolute or relative?! absolute for now...
-sort id survey_yr
-gen female_earn_pct_chg = (female_earn_pct-female_earn_pct[_n-1]) if id==id[_n-1]
-browse id survey_yr rel_start_all female_earn_pct female_earn_pct_chg
-*/
-
-// alt cohab
-gen ever_cohab=0
-replace ever_cohab=1 if cohab_with_partner==1 | cohab_with_other==1
-
-// categorical for number of children
-recode NUM_CHILDREN_ (0=0)(1=1)(2=2)(3/13=3), gen(num_children)
-label define num_children 0 "None" 1 "1 Child" 2 "2 Children" 3 "3+ Children"
-label values num_children num_children
-
-// square age of marriage
-gen age_mar_head_sq = age_mar_head * age_mar_head
-gen age_mar_wife_sq = age_mar_wife * age_mar_wife
-
-// create binary home ownership variable
-gen home_owner=0
-replace home_owner=1 if HOUSE_STATUS_==1
-
-* ever home_owner
-bysort unique_id: egen ever_home_owner = max(home_owner)
-tab home_owner, m
-tab ever_home_owner, m
-tab ever_home_owner home_owner, m
-
-* t-1
-gen home_owner_t1=.
-replace home_owner_t1=home_owner[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
-replace home_owner_t1 = 0 if home_owner_t1==. & home_owner==0 // in theory, can only change one direction? well, that is probably not true, but assuming if next observation is a 0, the one prior also is. still quite a lot missing. it is possible there is a change in home ownership status specifically upon the transition to marriage so don't really want to make a lot of assumptions.
-
-// browse unique_id survey_yr home_owner home_owner_t1 ever_home_owner HOUSE_STATUS_
-
-// lag school enrollment
-gen either_enrolled_t1=.
-replace either_enrolled_t1=either_enrolled[_n-1] if unique_id==unique_id[_n-1] & wave==wave[_n-1]+1
-replace either_enrolled_t1 = 0 if either_enrolled_t1==. & either_enrolled==0 
-
-// create new variable for having kids under 6 in household.
-// also doing some exploring and considering other ways to measure
-tab AGE_YOUNG_CHILD_ if children==1 // okay, this is an interesting statistic: of those with children in the HH, 68% have a child under 6 (so it is the majority experience)
-
+// create child indicator for under 6
 gen children_under6=0
 replace children_under6=1 if children==1 & AGE_YOUNG_CHILD_ < 6
-
-tab dur children_under6, row
-
-bysort unique_id: egen num_years_child = count(survey_yr) if children==1
-bysort unique_id (num_years_child): replace num_years_child=num_years_child[1]
-replace num_years_child = 0 if num_years_child==. & children_ever==0
-
-bysort unique_id: egen num_years_child_u6 = count(survey_yr) if children_under6==1
-bysort unique_id (num_years_child_u6): replace num_years_child_u6=num_years_child_u6[1]
-replace num_years_child_u6 = 0 if num_years_child_u6==. & children_ever==0
-tab AGE_YOUNG_CHILD_ if num_years_child_u6==.
-replace num_years_child_u6 = 0 if num_years_child_u6==. 
-tab num_years_child_u6 children_under6, m
-tabstat num_years_child_u6 if num_years_child_u6!=0
-tabstat num_years if num_years_child_u6!=0
-
-gen prop_years_childu6 = num_years_child_u6 / num_years
-tabstat prop_years_childu6 if num_years_child_u6!=0
-
-gen dur_childu6 = dur if children_under6==1
-bysort unique_id: egen childu6_cutoff = max(dur_childu6)
-bysort unique_id: egen childu6_start = min(dur_childu6)
-sort unique_id survey_yr
-
-// browse unique_id dur children_under6 childu6_start childu6_cutoff
-
-// rel start to no more kids under 6
-gen children_under6_flag = 0
-replace children_under6_flag = 1 if dur <= childu6_cutoff & childu6_cutoff!=.
-tab children_under6_flag, m
-
-// one year prior to first kid under 6 to kids under 6
-gen children_under6_flag_alt = 0
-replace children_under6_flag_alt = 1 if dur >= (childu6_start-2) & dur <= childu6_cutoff & childu6_cutoff!=.
-tab children_under6_flag_alt, m
-
-tab children_under6_flag children_under6, m row
-tab children_under6_flag_alt children_under6, m row
-tab children_under6_flag children_under6_flag_alt, m row
-
-sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr rel_start_all min_dur dur childu6_cutoff children_under6_flag children_under6 AGE_YOUNG_CHILD_ num_years num_years_child_u6 prop_years_childu6 children num_children 
-
-	// also create other cut-offs for robustness
-	* this is would be like pre-high-school
-	gen children_under14=0
-	replace children_under14=1 if children==1 & AGE_YOUNG_CHILD_ < 14
-	
-	tab children_under14 children_under6_flag, m
-
-// create dummy variable for interval length
-gen interval=.
-replace interval=1 if inrange(survey_yr,1968,1997)
-replace interval=2 if inrange(survey_yr,1999,2021)
-
-// need to combine weight variables
-gen weight=.
-replace weight=CORE_WEIGHT_ if inrange(survey_yr,1968,1992)
-replace weight=COR_IMM_WT_ if inrange(survey_yr,1993,2021)
-
-********************************************************************************
-* Last checks and data cleaning / set-up
-********************************************************************************
 
 * Final sample restrictions based on missing values and division of labor to divide
 // missing value inspect
@@ -612,11 +151,6 @@ tab no_labor, m
 
 tab any_missing no_labor, m // so this is about 10%.
 
-// some states cannot be estimated on their own so are being dropped - do I group these? Need to figure out what to do...
-// cc: https://academicweb.nd.edu/~rwilliam/stats3/RareEvents.pdf - do I need to consider firthlogit??
-// for married couples, it's 30, 35, 44, 50, 54
-// for cohab, it's 2, 23, 30, 31, 35, 38, 44, 46, 49, 50, 54, 56 // is this too many?
-
 // Time does not work as discrete for fixed effects (early and late years are being removed), so need to bucket
 gen year_gp=. 
 replace year_gp=1 if survey_yr<2000
@@ -632,9 +166,9 @@ tab year_gp
 * Small things needed for analysis (run through this so you have controls and for figures)
 set scheme cleanplots
 
-global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children i.year_gp"  // add year here.
+global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children i.year_gp"
 
-global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t evang_rate_t" // add religion here 
+global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t evang_rate_t"
 
 gen in_analytical_sample = 0
 replace in_analytical_sample = 1 if children_under6==1 & current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
@@ -645,21 +179,19 @@ global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.rac
 global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t"
 */
 
-/* QA
-preserve
-collapse (max) rel_start_all rel_end_all dissolve dissolve_v0 outcome end_year survey_yr (count) num_yrs=survey_yr, by(unique_id partner_unique_id)
-restore
-*/
+// browse unique_id partner_unique_id year dissolve children_under6 current_rel_type marr_dur any_missing no_labor housework_bkt_t hh_hours_type_t1 hh_earn_type_t1 female_hours_pct_t1 weekly_hrs_t1_wife weekly_hrs_t1_head
 
 ********************************************************************************
 **# Merge onto policy data
 ********************************************************************************
+// note, did robustness checks with different time lags per reviewer comments
+
 local scale_vars "structural_familism structural_factor cc_cost_orig cc_pct_income_orig cc_pct_inc_neg prek_enrolled_public cc_pct_served policy_lib_all policy_lib_econ policy_lib_soc gender_factor_reg fepresch_reg fechld_reg fefam_reg preschool_egal_reg working_mom_egal_reg genderroles_egal_reg avg_egal_reg fepresch_state fechld_state fefam_state gender_factor_state preschool_egal_state working_mom_egal_state genderroles_egal_state avg_egal_state evang_rate evang_lds_rate relig_rate married_dual_earn_rate married_pure_male_bw_rate women_emp_rate_wt married_women_emp_rate_wt maternal_u5_employment_wt min_amt_above_fed unemployment_percap wba_max high_inc_prem_pct low_inc_prem_pct earn_ratio married_earn_ratio welfare_all paid_leave abortion_protected educ_spend_percap headstart_pct headstart_pct_totalpop earlyhs_pct earlyhs_pct_totalpop total_headstart_pct total_headstart_pct_totalpop diffusion policy_group_v1 policy_group_v2 policy_group_v3 women_college_rate_wt married_women_college_rt_wt college_ratio_wt married_college_ratio_wt sf_cc_income sf_ccdf_served sf_head_start sf_early_hs sf_total_hs sf_educ_spend broad_policy family_investment sf_childcare sf_policy sf_childcare_wt sex_ratio_marriage_wt men_unemp_rate_wt" 
 
 rename STATE_ state_fips
 rename survey_yr year
 
-//merge m:1 state_fips year using "$raw_state_data/structural_familism_june25_int.dta" // merging on this file for now to explore - so commenting out the below while I sort this out
+// merge m:1 state_fips year using "$raw_state_data/structural_familism_june25_int.dta" // old file
 merge m:1 state_fips year using "$created_data/scale_refresh.dta", keepusing(`scale_vars')
 drop if _merge==2
 drop _merge
@@ -712,21 +244,6 @@ pwcorr structural_familism_t structural_familism_t1 structural_familism_t2 struc
 **# Save for use in other data files - this way I don't need to ensure if I change something here, I change everywhere. THIS BECOMES THE MAIN FILE
 save "$created_data/PSID_union_sample_with_policy.dta", replace 
 
-**************************
-* Small Troubleshoot
-**************************
-unique unique_id partner_unique_id if current_rel_type==20 & marr_dur>=0 & any_missing==0 & no_labor==0
-unique unique_id partner_unique_id 
-
-browse unique_id partner_unique_id year dissolve ever_dissolve current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple marriage_start_yr transition_year ever_transition dur marr_dur min_dur educ_type couple_educ_gp hh_hours_type_t1 division_bucket_hrs_t1 any_missing no_labor current_rel_status_est
-
-/*
-browse unique_id partner_unique_id year dissolve ever_dissolve current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple marriage_start_yr transition_year ever_transition dur marr_dur min_dur educ_type couple_educ_gp hh_hours_type_t1 division_bucket_hrs_t1 any_missing no_labor current_rel_status_est if inlist(unique_id, 4008,13004,214003,227004,376003,557030,657004,677030,691003,713033,729005,750030,751030,784003,823030,830030,833006,905030,923004,1030004,1083004,1084003,1107030,1241030,1260040,1261003,1306030,1406033,1411013,1462004,1475004,1632001,1762031,1762032,1887004,1945030,1981004,2164030,2302193,2354030,2486031,2496002,2568004,2665007,2679030,2701190,2705030,2727033,2846006,2848030,2897030,5040002,5066008,5077030,5164030,5170030,5287008,5306005,5340008,5420004,5566031,5569177,5569182,5576030,5692004,5712004,5788031,5839030,5898005,5922010,6026005,6166033,6210011,6381007,6433031,6475010,6582003,6583031,6626008)
-
-browse unique_id partner_unique_id year dissolve ever_dissolve current_rel_type current_rel_number current_marr_number rel_start_yr_couple rel_end_yr_couple marriage_start_yr transition_year ever_transition dur marr_dur min_dur educ_type couple_educ_gp hh_hours_type_t1 division_bucket_hrs_t1 any_missing no_labor current_rel_status_est if inlist(unique_id, 6030, 2727031, 2885032, 214003, 656031, 906004)
-
-
-*/
 
 ////////////////////////////////////////////////////////////////////////////////
 ********************************************************************************
@@ -740,9 +257,9 @@ browse unique_id partner_unique_id year dissolve ever_dissolve current_rel_type 
 
 use "$created_data/PSID_union_sample_with_policy.dta", clear
 
-global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children i.year_gp"  // add year here.
+global controls "age_mar_wife age_mar_wife_sq age_mar_head age_mar_head_sq i.raceth_head_fixed i.same_race i.either_enrolled i.state_fips cohab_with_partner cohab_with_other pre_marital_birth i.interval i.home_owner i.earnings_bucket_t1 i.educ_type i.moved_last2 i.couple_joint_religion i.num_children i.year_gp"
 
-global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t evang_rate_t" // add religion here 
+global macro_controls "women_college_rate_wt_t married_women_emp_rate_wt_t avg_egal_reg_t married_pure_male_bw_rate_t evang_rate_t"
 
 
 ********************************************************************************
