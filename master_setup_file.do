@@ -47,7 +47,7 @@ if `"`c(hostname)'"' == "PPRC-STATS-P02"{
 	global logdir "$homedir/Research Projects/State data/logs"
 
 
-	* temporary data files (they get deleted without a second thought)
+	* temporary / intermediary data files
 	// global temp "$homedir/Research Projects/Dissertation - Union Dissolution/data_tmp"
 	global temp "$homedir/Research Projects/State data/data_tmp"
 

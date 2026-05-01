@@ -47,12 +47,8 @@ replace pt_worker = 1 if inlist(wkstat,14,15,22,40,41,42)
 
 gen weekly_earn_ft=.
 replace weekly_earn_ft = incwage/52 if ft_worker==1
-// INCWAGE indicates each respondent's total pre-tax wage and salary income--that is, money received as an employee--for the previous calendar year.
-// In the CPS, individuals' employment status was determined on the basis of answers to a series of questions relating to their activities during the preceding week.
-// so this is slightly problematic maybe - because wages are last year but employment is currently GAH
-// browse ft_worker weekly_earn_ft incwage
 
-// drop if age < 16 | age > 64 // this actually not going to work for child poverty? so just use this as filter below?s
+// drop if age < 16 | age > 64 // this actually not going to work for child poverty? so just use this as filter below?
 
 // to get data over time
 gen total=1

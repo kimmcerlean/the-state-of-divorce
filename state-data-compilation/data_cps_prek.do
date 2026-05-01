@@ -69,7 +69,7 @@ replace age_4_public=1 if age==4 & prek_enrollment==1 & prek_public==1
 gen age_3_4_public=0
 replace age_3_4_public=1 if inlist(age,3,4) & prek_enrollment==1 & prek_public==1
 
-// is this how to weight? I have no idea...
+// is this how to weight?
 foreach var in age_3 age_4 age_3_4 age_3_enrolled age_4_enrolled age_3_4_enrolled age_3_public age_4_public age_3_4_public{
 	gen `var'_wt = `var' * edsuppwt
 }

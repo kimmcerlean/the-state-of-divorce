@@ -64,12 +64,6 @@ tabstat FECHLD FECHLD_rev FEPRESCH FEFAM FEPOL
 // for when I collapse - want to see cell sizes
 gen records=1
 
-// tab YEAR gendered_roles, row nofreq
-// tab YEAR gender_egal, row nofreq
-// tab YEAR gendered_roles if college==0, row nofreq
-// tab YEAR gendered_roles if college==1, row nofreq
-
-
 // factor analysis of scale as alt indicator
 /* Pessin 2018 for methods reference:
 All the available surveys were pooled and a principal-factor analysis was carried out to obtain a unique index where higher
@@ -144,7 +138,7 @@ restore
 
 
 preserve
-keep if YEAR > = 1990 & YEAR <= 2018 // can I replicate my old numbers? okay yes basically
+keep if YEAR > = 1990 & YEAR <= 2018
 collapse 	(mean) gender_egal working_mom_egal preschool_egal FECHLD_rev FEPRESCH FEFAM gender_factor_ipf ///
 			(sum) records, by(REGION) // keeping just these two because HIGHER = more egal (the other variable is coded the other way)
 browse
