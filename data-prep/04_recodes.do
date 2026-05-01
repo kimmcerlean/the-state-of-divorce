@@ -27,6 +27,8 @@ early educ:
 9. dk
 
 later educ: years of education
+
+I end up using code adapted from SHELF
 */
 
 * clean up intermediary variables
@@ -898,6 +900,10 @@ replace age_mar_wife = . if inrange(age_mar_wife,900,1000)
 
 drop if age_mar_head < 0 | age_mar_wife < 0
 
+********************************************************************************
+**# Cohab history specifically (for control variables)
+********************************************************************************
+
 // merge cohabitation history for head
 merge m:1 unique_id using "$temp/PSID_partner_history.dta", keepusing(MX8* partner_unique_id*) // I AM DUMB - it shouldn;t all match because it is only people who ever had A COHABITING partner, not others. // partner_1968_id* partner_per_num* - not sure why I wasn't using unique ID befre...
 
@@ -936,7 +942,6 @@ rename partner_unique_id_wife partner_unique_id
 
 // tmp save
 
-// now create the cohab history variables (this used to come later but moved up)
 sort unique_id survey_yr
 browse unique_id partner_unique_id survey_yr marital_status_updated current_rel_number ever_cohab_head rel_start_yr_couple rel_end_yr_couple partner_unique_id*_head partner_unique_id*_wife // okay not all of these make sense anymore if I keep cohabitors, but the pre / other ones do. should I only make the "with wife" ones for married couples? well, these are all pre rel, so think might only end up applying to married? can check at end
 drop if rel_start_yr_couple==. // small amount - this will mess up below code and also I can't use these couples anyway, so drop here
@@ -1059,123 +1064,3 @@ sort unique_id survey_yr
 browse unique_id partner_unique_id survey_yr dur min_dur max_dur current_rel_type rel_start_yr_couple rel_end_yr_couple how_end_couple dissolve MARITAL_PAIRS_ weekly_hrs_t1_wife weekly_hrs_t1_head
 
 save "$created_data/PSID_union_sample_rec.dta", replace
-
-/* some QA-ing
-use "$created_data/PSID_union_validation_sample.dta", clear
-browse unique_id partner_unique_id survey_yr rel_start_yr_couple rel_end_yr_couple marital_status_updated yr_married1 yr_married2 yr_married3 if inlist(unique_id, 13004, 99031, 355003, 796173, 1822170, 2409176, 5610030, 6494003)
-*/
-
-********************************************************************************
-**# General sample restrictions - okay most of these actually happen later
-* Let's revisit this - do I want to do age / cohort here or next file?
-* See notes below on what to make sure I revisit (note: 8/8/25)
-********************************************************************************
-// first need to figure out how to keep only one respondent per HH. really doesn't matter gender of who I keep, because all variables are denoted by head / wife, NOT respondent.
-// this is also where the marital pairs going to cause problems - bc then there aren't couples to match. AND we lack info. so - to avoid problems down the line - just drop now
-
-// let's drop them actually
-drop if MARITAL_PAIRS== 0 // this removes first year of some cohab relationships (bc I fixed this in previous iterations of code, that is all who is captured here still) - so in effect, also removes any relationships only observed for 1 year that broke up (which - I already drop later anyway)
-
-unique unique_id partner_unique_id, by(current_rel_type)
-unique couple_id, by(current_rel_type) // that also makes these more congruent as just half of each other (20271)
-
-// now deduplicate
-bysort survey_yr FAMILY_INTERVIEW_NUM_ : egen per_id = rank(unique_id)
-tab per_id, m
-
-sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr FAMILY_INTERVIEW_NUM_ couple_id partner_1 partner_2 per_id
-
-tab per_id if unique_id == partner_1 // okay so these would lead to same conclusion
-tab per_id if unique_id == partner_2
-
-keep if per_id==1
-unique couple_id, by(current_rel_type) // now still have 20271
-
-// also delete records after the end of the relationship 
-sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr rel_start_yr_couple rel_end_yr_couple marital_status_updated dissolve how_end_couple
-
-gen rel_over_flag=0
-replace rel_over_flag = 1 if survey_yr > rel_end_yr_couple & rel_end_yr_couple!=.
-tab rel_over_flag, m // very small amount
-tab current_rel_type rel_over_flag, m row
-tab how_end_couple rel_over_flag, m row // let's leave if intact
-
-// browse unique_id partner_unique_id survey_yr rel_start_yr_couple rel_end_yr_couple marital_status_updated dissolve how_end_couple if rel_over_flag==1
-// browse unique_id partner_unique_id survey_yr rel_start_yr_couple rel_end_yr_couple marital_status_updated dissolve how_end_couple rel_over_flag if inlist(unique_id,41170,41178,656031,656176,6115050,6115206) // people with discontinuous years. these are confusing, so let's just drop because we don't know if considered breakup or not. so treat as however coded (bc again, many based on KM compiled history...). but let's see if would get covered below...
-
-// alt way
-gen end_year = survey_yr if dissolve==1
-bysort unique_id partner_unique_id (end_year): replace end_year=end_year[1]
-sort unique_id survey_yr
-
-gen rel_over_flag_alt=0
-replace rel_over_flag_alt = 1 if survey_yr > end_year & end_year!=.
-tab rel_over_flag_alt, m 
-tab rel_over_flag rel_over_flag_alt, m // actually very little overlap
-
-browse unique_id partner_unique_id survey_yr current_rel_type rel_start_yr_couple rel_end_yr_couple dissolve end_year how_end_couple rel_over_flag rel_over_flag_alt
-
-drop if rel_over_flag==1 & how_end_couple==1
-drop if rel_over_flag_alt==1 // this one I *definitely* want to do - bc this is the problem of which year divorce observed v. recorded (if between waves)
-	
-// restrict to working age (18-55) - at time of marriage or all? check what others do - Killewald said ages 18-55 - others have different restrictions, table this part for now, also need to figure out the ages a bit more
-/*
-browse id survey_yr AGE_ AGE_REF_ AGE_SPOUSE_ RELATION_
-keep if (AGE_REF_>=18 & AGE_REF_<=55) &  (AGE_SPOUSE_>=18 & AGE_SPOUSE_<=55)
-
-// sample things that need to happen later
-1. age
-2. first relationship (figure out how to handle this if both marriage and cohab observed) - and how to handle transitions to marriage
-3. rel start year
-4. left-censoring (unknown start date) - aka flag==1
-*/
-
-// final sample checks / outcome variable checks
-bysort unique_id partner_unique_id: egen ever_dissolve=max(dissolve)
-sort unique_id survey_yr
-tab ever_dissolve dissolve, m
-tab how_end_couple ever_dissolve, m row // okay pretty close - I think some I have as breakup but I don't have close enough to year of divorce for me to feel comfortable calling it a dissolve in that year
-
-tab dissolve
-tab exit_rel // okay but this includes widows so makes sense it's higher
-tab dissolve exit_rel, m // key area to investigate is where dissolve is 1 but exit is not. I think sometimes we just didn't observe a transition out, so had to use end date
-tab how_end_couple exit_rel, m
-tab how_end_couple dissolve, m
-
-sort unique_id survey_yr
-bysort unique_id partner_unique_id: egen num_years = count(survey_yr) // this is diff to max dur because based on observed years not true
-tab num_years, m
-
-gen total_dur = rel_end_yr_couple - rel_start_yr_couple + 1  if rel_end_yr_couple <= 2021 // also a little different to max dur because this is again based on observed
-replace total_dur = end_year - rel_start_yr_couple + 1 if total_dur==. & end_year!=.
-tab total_dur current_rel_type, m col
-tab max_dur current_rel_type, m col
-tab total_dur, m
-tab total_dur if max_dur==0, m
-tab max_dur if total_dur==0, m // think rationately here is that I can't observe a transition to divorce if partnered for one year - BUT should they still be in sample? (this is also a V small amount of people). like I think this is one couple lol
-
-sort unique_id survey_yr
-browse unique_id partner_unique_id survey_yr rel_start_yr_couple rel_end_yr_couple dur num_years total_dur min_dur max_dur
-
-drop if total_dur==0
-drop if dur < 0
-// drop if num_years==1 // want to keep
-// drop if MARITAL_PAIRS_==0 // moved up
-drop if SEX_HEAD_==2 | SEX_HEAD_==0 // best way to proxy same-gender (sex_wife not consistently asked)
-drop if SEX_WIFE_==1
-
-save "$created_data/PSID_union_sample_dedup.dta", replace
-// save "$created_data/PSID_marriage_recoded_sample.dta", replace // old file name, for reference
- 
-/* Checks comparing to old data as a sense check (this is left over from marriage sample)
-* missing respondents - bc of not first marriage
-// browse unique_id partner_unique_id survey_yr rel_start_yr_couple rel_end_yr_couple marital_status_updated yr_married1 yr_married2 yr_married3 matrix_marr_num if inlist(unique_id, 13004, 99031, 355003, 796173, 1822170, 2409176, 5610030, 6494003)
-
-* incorrectly classified as dissolved - bc of temp separations
-// browse unique_id partner_unique_id survey_yr marital_status_updated dissolve dissolve_v0 rel_start_yr_couple rel_end_yr_couple last_survey_yr yr_married1 yr_end1 yr_married2 yr_end1 yr_married3 yr_end3 matrix_marr_num if inlist(unique_id, 356030, 409032, 677032, 423032, 916032, 951030, 2707033, 6165006, 5576031, 5623036, 5628032)
-
-* new respondents (not in original file)
-// browse unique_id partner_unique_id survey_yr marital_status_updated dissolve dissolve_v0 rel_start_yr_couple rel_end_yr_couple matrix_marr_num relationship_order marr_no_estimated last_survey_yr yr_married1 yr_end1 yr_married2 yr_end1 yr_married3 yr_end3 if inlist(unique_id, 4033, 46030, 47033, 245033, 280033, 497032, 519030, 1241030, 1241033, 2876031, 2901031, 5994006, 5994008, 6822006)
-*/

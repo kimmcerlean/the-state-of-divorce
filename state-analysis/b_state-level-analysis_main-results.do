@@ -10,7 +10,7 @@
 ********************************************************************************
 * First just get data and do final sample restrictions
 ********************************************************************************
-use "$created_data/PSID_union_sample_dedup.dta", clear // created in step 3 in main folder
+use "$created_data/PSID_union_sample_dedup.dta", clear // created in step 5 in main folder
 
 // Final sample restrictions
 tab matrix_marr_num, m
